@@ -1276,7 +1276,6 @@ function playerAvatarFace(player,index){const faces=["👨🏻","👩🏻","🧑
  function togglePlayerScores(){const button=document.getElementById("scoresToggle"),visible=document.body.classList.toggle("show-player-scores");if(button){button.setAttribute("aria-pressed",String(visible));button.textContent=visible?"Hide scores":"Scores";}}
 
 
-}
 function renderResultCard(card){
  const red=["♥","♦"].includes(card.suit);
  if(card.joker)return '<div class="results-card joker">★<small>JOKER</small></div>';
