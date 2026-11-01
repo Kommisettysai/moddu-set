@@ -441,7 +441,7 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 </div>
 
 <div class="panel">
-<div class="hand-heading"><h3>Your cards (<span id="handCount">13</span>)</h3><div class="joker-slot" id="jokerSlot"><span class="card back joker-card">★</span><small>Special joker</small></div></div>
+<div class="hand-heading"><h3>Your cards (<span id="handCount">13</span>)</h3><div class="joker-slot" id="jokerSlot"><span class="card back joker-card">★</span><small>Special joker</small></div><button id="revealJokerBtn" class="hidden" onclick="revealSpecialForCurrentPlayer()">Reveal special joker</button></div>
 <div class="cards" id="hand"></div>
 <div class="actions hand-actions">
 <button id="discardBtn" onclick="discardSelected()" disabled>Discard selected</button>
@@ -620,13 +620,13 @@ const suits=["♠","♥","♦","♣"];
 const ranks=["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
 
 let deck=[],discard=[],players=[],turn=0,selected=-1;
-let drawn=false,specialRank=null,round=1,gameOver=false;
+let drawn=false,specialRank=null,round=1,gameOver=false,roundWinnerIndex=0;
 let arrangedGroups=[],winningGroups=[];
 let selectedIndices=[];
 
 function makeDeck(count){
  let cards=[];
- let packs=count<=4?2:3;
+ let packs=count<=2?1:(count<=4?2:3);
 
  for(let d=0;d<packs;d++){
   for(let s of suits){
@@ -667,6 +667,8 @@ function startGame(){
    hand:deck.splice(0,13),
    score:0,
    unlocked:false,
+   jokerEligible:false,
+   jokerPrompted:false,
    active:true,
    human:i===0
   });
@@ -676,7 +678,8 @@ function startGame(){
  document.getElementById("setup").classList.add("hidden");
  document.getElementById("game").classList.remove("hidden");
  autoArrange(false);
- message("Your cards are arranged. Your turn: choose a pile.");
+ checkUnlock(0);
+ message(players[0].jokerEligible&&!players[0].unlocked?"You have a natural four-set. Choose whether to reveal the special joker.":"Your cards are arranged. Your turn: choose a pile.");
  render();
 }
 
@@ -697,6 +700,7 @@ function render(){
   if(oldJokerInfo)oldJokerInfo.textContent="";
   const slot=document.getElementById("jokerSlot");
   if(slot)slot.innerHTML=specialRank&&players[0]&&players[0].unlocked?'<span class="card joker-face">'+specialRank+'★</span><small>Special joker</small>':'<span class="card back joker-card">★</span><small>Special joker</small>';
+  const revealBtn=document.getElementById("revealJokerBtn");if(revealBtn)revealBtn.classList.toggle("hidden",!(players[0]&&players[0].jokerEligible&&!players[0].unlocked));
   const turnEl=document.getElementById("turnInfo");
   if(turnEl&&players[turn])turnEl.textContent=players[turn].name+"'s turn";
   if(players[0]){
@@ -802,27 +806,17 @@ function checkFourSet(){
 
 function checkUnlock(index,manual=false){
  const p=players[index];
- if(!p||p.hand.length!==13||p.unlocked||!hasNaturalFour(p.hand))return;
- if(specialRank){
-  p.unlocked=true;
-  if(p.human){
-   message("✨ Special joker opened: "+specialRank+". The joker is highlighted.");
-   render();
-   highlightSpecialJoker();
-  }
- }else{
-  if(p.human){
-   revealSpecial(p);
-   if(p.unlocked){
-    message("✨ Special joker opened: "+specialRank+". The joker is highlighted.");
-    render();
-    highlightSpecialJoker();
-   }
-  }else revealSpecial(p);
- }
+ if(!p||p.hand.length!==13||!hasNaturalFour(p.hand))return;
+ p.jokerEligible=true;
+ if(specialRank){p.unlocked=true;render();if(p.human)highlightSpecialJoker();return;}
+ if(!p.human){revealSpecial(p);return;}
  render();
-}
-function highlightSpecialJoker(){
+ if(!p.jokerPrompted||manual){
+  p.jokerPrompted=true;
+  if(confirm("You have a natural four-set. Reveal the special joker now?"))revealSpecialForCurrentPlayer();
+  else message("You can reveal the special joker later using the button beside your cards.");
+ }
+}function highlightSpecialJoker(){
  const slot=document.getElementById("jokerSlot");
  if(!slot)return;
  slot.classList.remove("joker-reveal-pulse");
@@ -832,27 +826,24 @@ function highlightSpecialJoker(){
 }
 
 function revealSpecial(p){
- let c;
+ if(!p||!p.jokerEligible)return;
+ if(specialRank){players.forEach(x=>{if(x.jokerEligible)x.unlocked=true;});render();return;}
  recycleDeck();
- if(deck.length===0){message("No card available to reveal special joker.");return;}
- do{
-  c=deck.pop();
-  if(c.joker){
-   // Printed joker is not used as the special rank.
-   if(deck.length===0)recycleDeck();
-  }
- }while(c.joker&&deck.length>0);
-
- if(c.joker){
-  message("Could not find a normal card for special joker.");
-  return;
- }
+ if(deck.length===0){message("No card available to reveal the special joker.");return;}
+ let c;
+ do{c=deck.pop();if(c&&c.joker&&deck.length===0)recycleDeck();}while(c&&c.joker&&deck.length>0);
+ if(!c||c.joker){message("Could not find a normal card for the special joker.");return;}
  specialRank=c.rank;
- p.unlocked=true;
- message("Special joker revealed: "+specialRank+". The card is kept aside.");
+ players.forEach(x=>{if(x.jokerEligible)x.unlocked=true;});
+ render();highlightSpecialJoker();
+ message("Special joker revealed: "+specialRank+". It is kept aside, not added to the deck.");
 }
-
-function nextTurn(){
+function revealSpecialForCurrentPlayer(){
+ const p=players[0];
+ if(!p||!p.jokerEligible){message("A natural four-set is needed first.");return;}
+ if(p.unlocked){message("Your special joker is already available.");return;}
+ revealSpecial(p);
+}function nextTurn(){
  if(gameOver)return;
  turn=(turn+1)%players.length;
  render();
