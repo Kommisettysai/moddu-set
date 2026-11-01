@@ -626,7 +626,7 @@ let selectedIndices=[];
 
 function makeDeck(count){
  let cards=[];
- let packs=count<=4?2:3;
+ let packs=count<=2?1:(count<=4?2:3);
 
  for(let d=0;d<packs;d++){
   for(let s of suits){
@@ -667,6 +667,8 @@ function startGame(){
    hand:deck.splice(0,13),
    score:0,
    unlocked:false,
+   jokerEligible:false,
+   jokerPrompted:false,
    active:true,
    human:i===0
   });
@@ -676,7 +678,8 @@ function startGame(){
  document.getElementById("setup").classList.add("hidden");
  document.getElementById("game").classList.remove("hidden");
  autoArrange(false);
- message("Your cards are arranged. Your turn: choose a pile.");
+ checkUnlock(0);
+ message(players[0].jokerEligible&&!players[0].unlocked?"You have a natural four-set. Choose whether to reveal the special joker.":"Your cards are arranged. Your turn: choose a pile.");
  render();
 }
 
