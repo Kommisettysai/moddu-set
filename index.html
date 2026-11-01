@@ -439,6 +439,7 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 </div>
 </div>
 <div id="message">Your turn. Choose a pile.</div>
+<div id="discardTimer" aria-live="polite" style="display:none;text-align:center;margin-top:8px;font-weight:700;color:#ffe08a"></div>
 </div>
 
 <div class="panel">
@@ -1206,6 +1207,7 @@ function showRules(){
 <script>
 /* Multiplayer v1: host-authoritative draw/discard with private hands. */
 let onlineMode=false,onlinePublic=null,onlinePublicRef=null,onlineHandRef=null,onlineActionRef=null,onlineSpecialRef=null;
+let discardClockInterval=null,hostDiscardTimeout=null,scheduledDiscardKey=null;
 let onlinePublicListener=null,onlineHandListener=null,onlineActionListener=null,onlineLobbyListener=null,onlineBusy={},onlineBotBusy=false;
 function onlineMembers(l){return Object.values(l.players||{}).sort((a,b)=>(a.joinedAt||0)-(b.joinedAt||0));}
 function createRoom(){
@@ -1270,7 +1272,7 @@ async function startOnlineRoom(){
 function enterOnlineGame(state){
  if(!roomRef||!roomPlayerId)return;onlineMode=true;onlinePublic=state;document.getElementById("setup").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");document.getElementById("game").classList.remove("hidden");
  onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);
- if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();if(isRoomHost)runOnlineBotTurn();}};onlinePublicRef.on("value",onlinePublicListener);
+ if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();scheduleHostDiscardTimeout(onlinePublic);if(isRoomHost)runOnlineBotTurn();}};onlinePublicRef.on("value",onlinePublicListener);
  if(onlineSpecialRef){onlineSpecialRef.off("value");onlineSpecialRef.on("value",snap=>{const privateRank=snap.val();if(privateRank)specialRank=privateRank;render();if(specialRank)highlightSpecialJoker();});}if(onlineHandListener)onlineHandRef.off("value",onlineHandListener);onlineHandListener=s=>{if(!s.exists())return;const h=s.val()||[];if(!players.length)players=[{id:roomPlayerId,name:"You",hand:h,score:0,human:true}];else players[0]={...players[0],hand:h};selected=-1;selectedIndices=[];arrangedGroups=[];applyOnlinePublic();autoArrange(false);render();};onlineHandRef.on("value",onlineHandListener);
  if(isRoomHost){if(onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);onlineActionListener=s=>{if(!s.exists())return;const uid=s.key;if(onlineBusy[uid])return;onlineBusy[uid]=true;processOnlineAction(uid,s.val()).catch(e=>setLobbyNotice("Game action failed: "+e.message)).finally(()=>{onlineActionRef.child(uid).remove().catch(()=>{});delete onlineBusy[uid];});};onlineActionRef.on("child_added",onlineActionListener);}
  applyOnlinePublic();
@@ -1285,7 +1287,37 @@ function applyOnlinePublic(){
  if(st.status==="roundComplete"&&st.roundResult)openOnlineRoundResults(st.roundResult);
  if(st.status==="gameComplete")openOnlineGameComplete(st.champion||"A player");
  if(st.specialRank)highlightSpecialJoker();
+ updateDiscardCountdown();
 }
+function updateDiscardCountdown(){
+ const el=document.getElementById("discardTimer");if(!el)return;
+ const deadline=onlineMode&&onlinePublic&&onlinePublic.discardDeadline;
+ if(!deadline||!onlinePublic.drawnByUid){el.style.display="none";el.textContent="";return;}
+ const seconds=Math.max(0,Math.ceil((deadline-Date.now())/1000));
+ el.style.display="block";
+ el.textContent="⏱ "+(onlinePublic.drawnByUid===roomPlayerId?"Your":"Current player's")+" discard time: 00:"+String(seconds).padStart(2,"0");
+}
+function scheduleHostDiscardTimeout(state){
+ if(!isRoomHost||!roomRef)return;
+ const uid=state&&state.drawnByUid,deadline=state&&state.discardDeadline;
+ const key=uid&&deadline?uid+":"+deadline:null;
+ if(key===scheduledDiscardKey)return;
+ if(hostDiscardTimeout)clearTimeout(hostDiscardTimeout);
+ hostDiscardTimeout=null;scheduledDiscardKey=key;
+ if(!key)return;
+ hostDiscardTimeout=setTimeout(async()=>{
+  try{
+   const snap=await roomRef.child("public").get(),latest=snap.val();
+   if(!latest||latest.status!=="playing"||latest.drawnByUid!==uid||latest.discardDeadline!==deadline||Date.now()<deadline)return;
+   const handSnap=await roomRef.child("private/hands/"+uid).get(),hand=handSnap.val()||[];
+   const autoId=latest.drawnCardId;
+   if(hand.length===14&&autoId&&hand.some(card=>card.id===autoId)){
+    await processOnlineAction(uid,{type:"discard",cardId:autoId,automatic:true});
+   }
+  }catch(e){setLobbyNotice("Automatic discard failed: "+e.message);}
+ },Math.max(0,deadline-Date.now()));
+}
+if(!discardClockInterval)discardClockInterval=setInterval(updateDiscardCountdown,250);
 function validateOnlineShow(hand,groupIds,player){
  if(!Array.isArray(groupIds)||groupIds.length!==4)return "Arrange one pure four-set and three three-card sets first.";
  const groups=groupIds.map(ids=>Array.isArray(ids)?ids.map(id=>hand.find(c=>c.id===id)).filter(Boolean):[]);
@@ -1310,10 +1342,10 @@ async function processOnlineAction(uid,a){
   if(hand.length!==13){p.message="Draw blocked: a player must have exactly 13 cards before drawing. Current count: "+hand.length+". The host should restart this round if the hand is out of sync.";p.players[playerIndex].cardCount=hand.length;await roomRef.child("public").set(p);return;}
   if(a.type==="drawOpen"){if(!pile.length)return;hand.push(pile.pop());}
   else{if(!d.length&&pile.length>1){const top=pile.pop();d=shuffle(pile);pile=[top];}if(!d.length)return;hand.push(d.pop());}
-  h[uid]=hand;p.drawnByUid=uid;p.message="Card drawn. Select one card and discard it.";
+  h[uid]=hand;p.drawnByUid=uid;p.drawnCardId=hand[hand.length-1].id;p.discardDeadline=Date.now()+30000;p.message="Card drawn. You have 30 seconds to discard.";
  }else if(a.type==="discard"){
   if(p.drawnByUid!==uid||hand.length!==14){p.message="Discard blocked: a drawn hand must contain exactly 14 cards. Current count: "+hand.length+".";p.players[playerIndex].cardCount=hand.length;await roomRef.child("public").set(p);return;}const i=hand.findIndex(c=>c.id===a.cardId);if(i<0)return;
-  pile.push(hand.splice(i,1)[0]);h[uid]=hand;p.drawnByUid=null;
+  const timedOut=!!(p.discardDeadline&&Date.now()>=p.discardDeadline);const discardId=(a.automatic||timedOut)?p.drawnCardId:a.cardId;const discardIndex=hand.findIndex(c=>c.id===discardId);if(discardIndex<0)return;const discarded=hand.splice(discardIndex,1)[0];pile.push(discarded);h[uid]=hand;p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;a.automatic=!!(a.automatic||timedOut);
   if(hand.length===13&&hasNaturalFour(hand)&&!player.unlocked){
    p.players[playerIndex].eligible=true;
    if(!special){
@@ -1323,14 +1355,14 @@ async function processOnlineAction(uid,a){
    }
    if(special){syncUnlock();specialRanks[uid]=special;p.specialRank=special;p.message=player.name+" automatically unlocked the special joker.";}
   }
-  const active=(p.players||[]).filter(x=>x.active!==false),at=active.findIndex(x=>x.id===uid),next=active[(at+1)%active.length];if(!next)return;p.turnUid=next.id;p.message=p.message||next.name+"'s turn. Draw a card.";
+  const active=(p.players||[]).filter(x=>x.active!==false),at=active.findIndex(x=>x.id===uid),next=active[(at+1)%active.length];if(!next)return;p.turnUid=next.id;p.message=a.automatic?"Time expired. "+player.name+"'s drawn card was discarded automatically.":(p.message||next.name+"'s turn. Draw a card.");
  }else if(a.type==="revealSpecial"){
   if(p.drawnByUid||hand.length!==13||player.unlocked||!hasNaturalFour(hand)){p.message="Reveal blocked: you need 13 cards and four natural cards of the same rank, with no draw pending.";await roomRef.child("public").set(p);return;}
   p.players[playerIndex].eligible=true;
   if(!special){const skipped=[];let reveal=null;while(d.length&&!reveal){const card=d.pop();if(card.joker)skipped.push(card);else reveal=card;}if(skipped.length)d.push(...skipped);if(reveal)special=reveal.rank;}
   if(!special)return;syncUnlock();specialRanks[uid]=special;p.specialRank=special;p.message=player.name+" unlocked the special joker.";
  }else if(a.type==="show"){
-  if(a.discardCardId){if(p.drawnByUid!==uid)return;const i=hand.findIndex(c=>c.id===a.discardCardId);if(i<0||hand.length!==14)return;pile.push(hand.splice(i,1)[0]);h[uid]=hand;p.drawnByUid=null;}
+  if(a.discardCardId){if(p.drawnByUid!==uid)return;const i=hand.findIndex(c=>c.id===a.discardCardId);if(i<0||hand.length!==14)return;pile.push(hand.splice(i,1)[0]);h[uid]=hand;p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;}
   else if(p.drawnByUid||hand.length!==13)return;
   if(player.isBot&&!player.unlocked&&hand.length===13&&hasNaturalFour(hand)){
    p.players[playerIndex].eligible=true;
