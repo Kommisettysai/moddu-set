@@ -1056,7 +1056,9 @@ function unmatchedCardPoints(card,player={unlocked:false}){
 function bestUnmatchedScore(hand,player){
  const n=hand.length,triples=[],fours=[];
  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)for(let k=j+1;k<n;k++){
-  const set=[hand[i],hand[j],hand[k]],natural=set.filter(c=>!isWildForPlayer(c,player));
+  const set=[hand[i],hand[j],hand[k]];
+  if(!player?.unlocked&&set.some(c=>c.rank==="J"))continue;
+  const natural=set.filter(c=>!isWildForPlayer(c,player));
   if(!natural.length||natural.every(c=>c.rank===natural[0].rank))triples.push((1<<i)|(1<<j)|(1<<k));
  }
  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)for(let k=j+1;k<n;k++)for(let l=k+1;l<n;l++){
