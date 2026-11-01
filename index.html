@@ -459,6 +459,7 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 <summary>Game actions</summary>
 <div class="actions">
 <button onclick="showRules()">Game rules</button>
+<button id="checkFourSetBtn" onclick="checkFourSet()">Check four-set / Reveal joker</button>
 <button onclick="startGame()">Restart game</button>
 </div>
 </details>
@@ -1277,7 +1278,7 @@ function enterOnlineGame(state){
  applyOnlinePublic();
 }
 function applyOnlinePublic(){
- if(!onlineMode||!onlinePublic)return;const st=onlinePublic,prior=players[0]||{},m=st.players||[];specialRank=st.specialRank||null;
+ if(!onlineMode||!onlinePublic)return;onlineActionPending=false;const st=onlinePublic,prior=players[0]||{},m=st.players||[];specialRank=st.specialRank||null;
  if(st.status==="playing"){const resultScreen=document.getElementById("roundResults");if(resultScreen)resultScreen.classList.add("hidden");}
  const ordered=[...m].sort((a,b)=>a.id===roomPlayerId?-1:b.id===roomPlayerId?1:0);
  players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,unlocked:!!p.unlocked,active:true,human:p.id===roomPlayerId,cardCount:p.cardCount||0,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
@@ -1308,11 +1309,12 @@ async function processOnlineAction(uid,a){
  const syncUnlock=()=>{p.players[playerIndex].eligible=true;p.players[playerIndex].unlocked=true;player.eligible=true;player.unlocked=true;player.specialRank=special;};
  if(a.type==="drawClosed"||a.type==="drawOpen"){
   if(p.drawnByUid)return;
+  if(hand.length!==13){p.message="Draw blocked: a player must have exactly 13 cards before drawing. Current count: "+hand.length+". The host should restart this round if the hand is out of sync.";p.players[playerIndex].cardCount=hand.length;await roomRef.child("public").set(p);return;}
   if(a.type==="drawOpen"){if(!pile.length)return;hand.push(pile.pop());}
   else{if(!d.length&&pile.length>1){const top=pile.pop();d=shuffle(pile);pile=[top];}if(!d.length)return;hand.push(d.pop());}
   h[uid]=hand;p.drawnByUid=uid;p.message="Card drawn. Select one card and discard it.";
  }else if(a.type==="discard"){
-  if(p.drawnByUid!==uid)return;const i=hand.findIndex(c=>c.id===a.cardId);if(i<0)return;
+  if(p.drawnByUid!==uid||hand.length!==14){p.message="Discard blocked: a drawn hand must contain exactly 14 cards. Current count: "+hand.length+".";p.players[playerIndex].cardCount=hand.length;await roomRef.child("public").set(p);return;}const i=hand.findIndex(c=>c.id===a.cardId);if(i<0)return;
   pile.push(hand.splice(i,1)[0]);h[uid]=hand;p.drawnByUid=null;
   if(hand.length===13&&hasNaturalFour(hand)){
    p.players[playerIndex].eligible=true;
@@ -1325,7 +1327,7 @@ async function processOnlineAction(uid,a){
   }
   const active=(p.players||[]).filter(x=>x.active!==false),at=active.findIndex(x=>x.id===uid),next=active[(at+1)%active.length];if(!next)return;p.turnUid=next.id;p.message=p.message||next.name+"'s turn. Draw a card.";
  }else if(a.type==="revealSpecial"){
-  if(p.drawnByUid||hand.length!==13||player.unlocked||!hasNaturalFour(hand))return;
+  if(p.drawnByUid||hand.length!==13||player.unlocked||!hasNaturalFour(hand)){p.message="Reveal blocked: you need 13 cards and four natural cards of the same rank, with no draw pending.";await roomRef.child("public").set(p);return;}
   p.players[playerIndex].eligible=true;
   if(!special){const skipped=[];let reveal=null;while(d.length&&!reveal){const card=d.pop();if(card.joker)skipped.push(card);else reveal=card;}if(skipped.length)d.push(...skipped);if(reveal)special=reveal.rank;}
   if(!special)return;syncUnlock();specialRanks[uid]=special;p.specialRank=special;p.message=player.name+" unlocked the special joker.";
@@ -1430,7 +1432,8 @@ async function runOnlineBotTurn(){
  }catch(e){setLobbyNotice("Bot turn error: "+e.message);}
  finally{onlineBotBusy=false;const latest=await roomRef.child("public").get().catch(()=>null),state=latest&&latest.val();if(state&&state.status==="playing"&&state.turnUid!==uid)runOnlineBotTurn();}
 }
-async function sendOnlineAction(a){if(!onlinePublic||onlinePublic.turnUid!==roomPlayerId){message("Please wait for your turn.");return;}try{if(isRoomHost)await processOnlineAction(roomPlayerId,a);else await onlineActionRef.child(roomPlayerId).set({...a,requestedAt:Date.now()});}catch(e){message("Action failed: "+e.message);}}
+let onlineActionPending=false;
+async function sendOnlineAction(a){if(onlineActionPending){message("Your previous action is still syncing. Please wait.");return;}if(!onlinePublic||onlinePublic.turnUid!==roomPlayerId){message("Please wait for your turn.");return;}onlineActionPending=true;try{if(isRoomHost){await processOnlineAction(roomPlayerId,a);onlineActionPending=false;}else{await onlineActionRef.child(roomPlayerId).set({...a,requestedAt:Date.now()});setTimeout(()=>{onlineActionPending=false;},1800);}}catch(e){onlineActionPending=false;message("Action failed: "+e.message);}}
 const _soloDrawClosed=drawClosed,_soloDrawOpen=drawOpen,_soloDiscardSelected=discardSelected,_soloShowHand=showHand,_soloStartGame=startGame;
 function drawClosed(){if(!onlineMode)return _soloDrawClosed();if(turn!==0||drawn)return;sendOnlineAction({type:"drawClosed"});}
 function drawOpen(){if(!onlineMode)return _soloDrawOpen();if(turn!==0||drawn)return;sendOnlineAction({type:"drawOpen"});}
