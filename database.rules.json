@@ -2,11 +2,33 @@
   "rules": {
     "rooms": {
       "$roomCode": {
-        ".read": "auth != null",
-        ".write": "auth != null && ((!data.exists() && newData.child('hostId').val() === auth.uid) || data.child('hostId').val() === auth.uid)",
-        "players": {
+        ".write": "auth != null && !data.exists() && newData.child('hostId').val() === auth.uid",
+        "lobby": {
+          ".read": "auth != null",
+          ".write": "auth != null && root.child('rooms').child($roomCode).child('hostId').val() === auth.uid",
+          "players": {
+            "$playerId": {
+              ".write": "auth != null && auth.uid === $playerId && root.child('rooms').child($roomCode).child('lobby').child('status').val() === 'waiting'"
+            }
+          }
+        },
+        "public": {
+          ".read": "auth != null && root.child('rooms').child($roomCode).child('lobby').child('players').child(auth.uid).exists()",
+          ".write": "auth != null && root.child('rooms').child($roomCode).child('hostId').val() === auth.uid"
+        },
+        "private": {
+          ".read": "auth != null && root.child('rooms').child($roomCode).child('hostId').val() === auth.uid",
+          ".write": "auth != null && root.child('rooms').child($roomCode).child('hostId').val() === auth.uid",
+          "hands": {
+            "$playerId": {
+              ".read": "auth != null && (auth.uid === $playerId || root.child('rooms').child($roomCode).child('hostId').val() === auth.uid)"
+            }
+          }
+        },
+        "actions": {
+          ".read": "auth != null && root.child('rooms').child($roomCode).child('hostId').val() === auth.uid",
           "$playerId": {
-            ".write": "auth != null && auth.uid === $playerId && ((!newData.exists()) || (newData.child('id').val() === auth.uid && root.child('rooms').child($roomCode).child('status').val() === 'waiting' && root.child('rooms').child($roomCode).child('players').numChildren() < 6))"
+            ".write": "auth != null && auth.uid === $playerId && root.child('rooms').child($roomCode).child('lobby').child('players').child(auth.uid).exists()"
           }
         }
       }
