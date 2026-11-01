@@ -212,6 +212,34 @@ footer{color:#9bb9a9;padding:20px 12px 28px;letter-spacing:.7px}
 /* Stronger player names for quick recognition */
 .player-strip .player b{font-size:12px!important;font-weight:900!important;letter-spacing:.15px!important;text-shadow:0 1px 2px #0006}
 @media(max-width:450px){.player-strip .player b{font-size:11px!important;font-weight:900!important}}
+
+/* Full-screen round reveal */
+.round-results{position:fixed;inset:0;z-index:1000;overflow-y:auto;background:radial-gradient(circle at top,#1c5944,#08251d 72%);padding:22px 14px 30px;color:#f7e5b5}
+.round-results.hidden{display:none!important}
+.results-header{text-align:center;padding:10px 5px 16px}
+.results-kicker{font-size:11px;letter-spacing:2px;color:#d7b66d;font-weight:800}
+.results-header h2{font-size:27px;margin:6px 0;color:#ffe2a0}
+.results-header p{font-size:13px;margin:0;color:#e4d5ae}
+.results-profiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}
+.results-profile{border:1px solid #d6bd7b66;background:#164635;border-radius:12px;padding:10px 7px;text-align:center}
+.results-profile.show-winner{border:2px solid #ffda78;background:linear-gradient(145deg,#76551e,#28513b);box-shadow:0 0 0 2px #f4d58a33}
+.results-profile strong{display:block;font-size:15px;font-weight:900}
+.results-profile .result-count{display:block;font-size:11px;margin-top:4px}
+.results-profile .result-points{display:block;font-size:13px;font-weight:900;color:#ffe39c;margin-top:3px}
+.results-profile .winner-tag{display:inline-block;margin-top:5px;padding:3px 7px;border-radius:20px;background:#ffdf8a;color:#38270c;font-size:9px;font-weight:900}
+.results-hand{border:1px solid #d8bd7955;background:#103829;border-radius:13px;padding:11px;margin:9px 0}
+.results-hand.winner-hand{border:2px solid #f5d17b}
+.results-hand-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}
+.results-hand-head strong{font-size:14px;font-weight:900}
+.results-hand-head span{font-size:11px;color:#e5d3a5}
+.results-card-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.results-card{min-width:0;height:61px;border-radius:8px;background:#fffaf0;color:#1b2b25;padding:5px 3px;display:flex;flex-direction:column;justify-content:space-between;font-family:Georgia,serif;font-size:12px;box-shadow:0 2px 4px #0005}
+.results-card.red{color:#b42c3d}
+.results-card.joker{background:linear-gradient(145deg,#ffe8a8,#d5a54b);color:#39250b;font-weight:900;justify-content:center;align-items:center}
+.results-card .bottom{text-align:right;transform:rotate(180deg)}
+.results-footer{position:sticky;bottom:0;padding:12px 0 4px;background:linear-gradient(transparent,#08251d 28%)}
+.results-footer button{width:100%;font-weight:800}
+@media(max-width:370px){.results-card-grid{gap:4px}.results-card{height:54px;font-size:10px}.results-profile strong{font-size:13px}}
 </style>
 </head>
 <body>
@@ -275,6 +303,19 @@ footer{color:#9bb9a9;padding:20px 12px 28px;letter-spacing:.7px}
 <div class="actions">
 <button onclick="showRules()">Game rules</button>
 <button onclick="startGame()">Restart game</button>
+</div>
+
+<div id="roundResults" class="round-results hidden">
+ <div class="results-header">
+  <div class="results-kicker">ROUND COMPLETE</div>
+  <h2>Show Results</h2>
+  <p id="resultsSummary">All players' cards are revealed.</p>
+ </div>
+ <div id="resultsProfiles" class="results-profiles"></div>
+ <div id="resultsHands" class="results-hands"></div>
+ <div class="results-footer">
+  <button onclick="closeResults()">Back to table</button>
+ </div>
 </div>
 </div>
 </section>
@@ -774,11 +815,32 @@ function showHand(){
   p.score+=penalty;
   results.push(p.name+": +"+penalty+" (total "+p.score+")");
  });
- gameOver=true;render();
- const summary="SHOW accepted! Your score: 0. Other players' penalty points have been calculated. "+results.join(" | ");
- message(summary);alert(summary);
+ gameOver=true;
+ render();
+ openRoundResults(results);
 }
 
+
+function renderResultCard(card){
+ const red=["♥","♦"].includes(card.suit);
+ if(card.joker)return '<div class="results-card joker">★<small>JOKER</small></div>';
+ return '<div class="results-card '+(red?'red':'')+'"><span>'+card.rank+card.suit+'</span><span class="bottom">'+card.rank+'</span></div>';
+}
+function openRoundResults(results){
+ const screen=document.getElementById("roundResults");
+ const profiles=document.getElementById("resultsProfiles");
+ const hands=document.getElementById("resultsHands");
+ if(!screen||!profiles||!hands)return;
+ const penalties=players.map((p,i)=>i===0?0:bestUnmatchedScore(p.hand,p));
+ profiles.innerHTML=players.map((p,i)=>'<div class="results-profile '+(i===0?'show-winner':'')+'"><strong>'+p.name+'</strong><span class="result-count">'+p.hand.length+' cards revealed</span><span class="result-points">+'+penalties[i]+' points · Total '+p.score+'</span>'+(i===0?'<span class="winner-tag">🏆 SHOWED</span>':'')+'</div>').join('');
+ hands.innerHTML=players.map((p,i)=>'<div class="results-hand '+(i===0?'winner-hand':'')+'"><div class="results-hand-head"><strong>'+(i===0?'🏆 ':'')+p.name+'</strong><span>'+p.hand.length+' cards · +'+penalties[i]+' points</span></div><div class="results-card-grid">'+p.hand.map(renderResultCard).join('')+'</div></div>').join('');
+ document.getElementById("resultsSummary").textContent=players[0].name+" showed successfully. Their score is 0. All hands are now revealed.";
+ screen.classList.remove("hidden");
+}
+function closeResults(){
+ const screen=document.getElementById("roundResults");
+ if(screen)screen.classList.add("hidden");
+}
 function showRules(){
  alert(
  "MODDU SET RULES\\n\\n"+
