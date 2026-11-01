@@ -1425,19 +1425,22 @@ async function processOnlineAction(uid,a){
 function openOnlineRoundResults(result){
  const screen=document.getElementById("roundResults"),profiles=document.getElementById("resultsProfiles"),handsEl=document.getElementById("resultsHands");
  if(!screen||!profiles||!handsEl)return;
- const list=(onlinePublic.players||[]),winner=result.winnerUid;
+ specialRank=result.specialRank||null;
+ const list=onlinePublic.players||[],winner=result.winnerUid;
  profiles.innerHTML=list.map(p=>'<div class="results-profile '+(p.id===winner?'show-winner':'')+'"><strong>'+escapeLobbyText(p.name)+'</strong><span class="result-count">'+((result.hands[p.id]||[]).length)+' cards revealed</span><span class="result-points">+'+(result.penalties[p.id]||0)+' points · Total '+(result.totals[p.id]||0)+'</span>'+(p.id===winner?'<span class="winner-tag">🏆 SHOWED</span>':'')+'</div>').join('');
  handsEl.innerHTML=list.map(p=>{
   const hand=result.hands[p.id]||[];
-  const winning=p.id===winner?'<div class="results-winning-groups">'+result.groups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':'<div class="results-card-grid">'+hand.map(renderResultCard).join('')+'</div>';
-  return '<div class="results-hand '+(p.id===winner?'winner-hand':'')+'"><div class="results-hand-head"><strong>'+(p.id===winner?'🏆 ':'')+escapeLobbyText(p.name)+'</strong><span>'+hand.length+' cards · +'+(result.penalties[p.id]||0)+' points</span></div>'+winning+'</div>';
+  let groups=[],loose=[];
+  if(p.id===winner)groups=(result.groups||[]).map(ids=>ids.map(id=>hand.find(c=>c.id===id)).filter(Boolean));
+  else{const best=bestMeldsForDisplay(hand,p);groups=best.groups;loose=best.loose;}
+  const groupHtml=groups.map(g=>'<div class="results-winning-group"><span>'+(g.length===4?'FOUR-CARD SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+g.map(renderResultCard).join('')+'</div></div>').join('');
+  return '<div class="results-hand '+(p.id===winner?'winner-hand':'')+'"><div class="results-hand-head"><strong>'+(p.id===winner?'🏆 ':'')+escapeLobbyText(p.name)+'</strong><span>'+hand.length+' cards · +'+(result.penalties[p.id]||0)+' points</span></div>'+(groupHtml?'<div class="results-winning-groups">'+groupHtml+'</div>':'')+(loose.length?'<div class="results-card-grid">'+loose.map(renderResultCard).join('')+'</div>':'')+'</div>';
  }).join('');
  document.getElementById("resultsSummary").textContent=result.winnerName+" showed successfully. All hands are revealed and scores are updated.";
  const footer=screen.querySelector(".results-footer");
  if(footer)footer.innerHTML=isRoomHost?'<button onclick="startOnlineNextRound()">Start next round</button>':'<p>Waiting for the host to start the next round…</p><button onclick="closeResults()">Back to table</button>';
  screen.classList.remove("hidden");
 }
-
 function openOnlineGameComplete(champion){
  const screen=document.getElementById("roundResults"),profiles=document.getElementById("resultsProfiles"),handsEl=document.getElementById("resultsHands");
  if(!screen||!profiles||!handsEl)return;
