@@ -384,6 +384,10 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
    <button class="lobby-join" onclick="joinRoom()">Join</button>
   </div>
   <p class="lobby-hint">Create a room and share its code on WhatsApp. Friends can join from their own phones.</p>
+  <label class="lobby-label" for="soloScoreLimit">SCORE LIMIT</label>
+  <select id="soloScoreLimit" class="lobby-input" aria-label="Solo game elimination score limit">
+   <option value="100">100 points</option><option value="150">150 points</option><option value="200" selected>200 points</option><option value="250">250 points</option><option value="300">300 points</option>
+  </select>
  </div>
  <div class="lobby-quick">
   <div class="lobby-section-title">OR PLAY SOLO</div>
@@ -408,6 +412,11 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
   <div class="lobby-section-title">PLAYERS AT THE TABLE <span id="roomPlayerCount"></span></div>
   <div id="roomPlayers" class="room-players"></div>
   <p class="lobby-hint">You can start when at least 2 players have joined. Maximum 6 players.</p>
+  <label class="lobby-label" for="roomScoreLimit">ELIMINATION SCORE LIMIT</label>
+  <select id="roomScoreLimit" class="lobby-input" onchange="updateRoomScoreLimit(this.value)">
+   <option value="100">100 points</option><option value="150">150 points</option><option value="200" selected>200 points</option><option value="250">250 points</option><option value="300">300 points</option>
+  </select>
+  <p class="lobby-hint" id="scoreLimitHint">Players are eliminated when their total score reaches this limit.</p>
   <div class="actions">
    <button class="lobby-secondary" onclick="shareRoomInvite()">Invite friends</button>
    <button class="lobby-secondary" id="addBotBtn" onclick="addBotToRoom()">＋ Add bot</button>
@@ -622,6 +631,7 @@ const suits=["♠","♥","♦","♣"];
 const ranks=["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
 
 let deck=[],discard=[],players=[],turn=0,selected=-1;
+let scoreLimit=200;
 let drawn=false,specialRank=null,round=1,gameOver=false;
 let arrangedGroups=[],winningGroups=[];
 let selectedIndices=[];
@@ -656,6 +666,7 @@ function shuffle(a){
 }
 
 function startGame(){
+ scoreLimit=Number(document.getElementById("soloScoreLimit")?.value||200);
  let count=Number(document.getElementById("playerCount").value);
  deck=shuffle(makeDeck(count));
  discard=[];
@@ -1176,7 +1187,7 @@ function startNextRound(){
   p.unlocked=false;
   p.eligible=false;
   p.specialRank=null;
-  p.active=p.score<200;
+  p.active=p.score<scoreLimit;
   p.status=p.active?"🎴 Ready":"🚫 Eliminated";
  });
  const activePlayers=players.filter(p=>p.active);
@@ -1198,7 +1209,7 @@ function showRules(){
  "Winning hand: one pure four-card set and three valid three-card sets.\\n"+
  "A natural four-set unlocks special joker eligibility.\\n"+
  "Printed jokers and special joker ranks score zero when unmatched.\\n"+
- "Cumulative score of 200 eliminates a player.\\n\\n"+
+ "Cumulative score of "+scoreLimit+" eliminates a player.\\n\\n"+
  "This prototype does not yet validate winning hands or calculate final scores."
  );
 }
@@ -1265,7 +1276,7 @@ async function shareRoomInvite(){
 async function startOnlineRoom(){
  if(!isRoomHost||!roomRef)return;try{const snap=await roomRef.child("lobby").get(),l=snap.val(),m=onlineMembers(l);if(m.length<2){setLobbyNotice("Invite at least one friend before starting.");return;}
  const d=shuffle(makeDeck(m.length)),hands={};m.forEach(p=>hands[p.id]=d.splice(0,13));const first=d.pop();
- const pub={status:"playing",round:1,turnUid:l.hostId,deckCount:d.length,discard:[first],drawnByUid:null,specialRank:null,players:m.map(p=>({id:p.id,name:p.name,isBot:!!p.isBot,active:true,score:0,cardCount:13,unlocked:false,status:"Ready"})),message:"Cards dealt. "+m[0].name+"'s turn. Draw a card."};
+ const limit=Math.max(1,Number(l.scoreLimit)||200);const pub={status:"playing",round:1,scoreLimit:limit,turnUid:l.hostId,deckCount:d.length,discard:[first],drawnByUid:null,specialRank:null,players:m.map(p=>({id:p.id,name:p.name,isBot:!!p.isBot,active:true,score:0,cardCount:13,unlocked:false,status:"Ready"})),message:"Cards dealt. Elimination limit: "+limit+" points. "+m[0].name+"'s turn. Draw a card."};
  await roomRef.child("private").set({deck:d,hands,specialRank:null,specialRanks:{}});await roomRef.child("public").set(pub);await roomRef.child("lobby/status").set("started");enterOnlineGame(pub);
  }catch(e){setLobbyNotice("Could not start game: "+e.message);}
 }
@@ -1371,8 +1382,8 @@ async function processOnlineAction(uid,a){
   }
   const invalid=validateOnlineShow(hand,a.groups,player);
   if(invalid){p.message=invalid;p.discard=pile;p.deckCount=d.length;await roomRef.child("public").set(p);return;}
-  const penalties={},totals={};(p.players||[]).forEach(x=>{const scorePlayer={...x,specialRank:specialRanks[x.id]||null};const penalty=x.id===uid?0:bestUnmatchedScore(h[x.id]||[],scorePlayer);penalties[x.id]=penalty;totals[x.id]=(x.score||0)+penalty;});
-  p.players=(p.players||[]).map(x=>({...x,score:totals[x.id],cardCount:(h[x.id]||[]).length}));
+  const penalties={},totals={},limit=Math.max(1,Number(p.scoreLimit)||200);(p.players||[]).forEach(x=>{const scorePlayer={...x,specialRank:specialRanks[x.id]||null};const penalty=x.id===uid?0:bestUnmatchedScore(h[x.id]||[],scorePlayer);penalties[x.id]=penalty;totals[x.id]=(x.score||0)+penalty;});
+  p.players=(p.players||[]).map(x=>{const active=x.active!==false&&totals[x.id]<limit;return {...x,score:totals[x.id],active,status:active?"Ready":"Eliminated",cardCount:(h[x.id]||[]).length};});
   p.status="roundComplete";p.discard=pile;p.deckCount=d.length;p.message=player.name+" showed successfully. All hands are revealed.";
   p.roundResult={winnerUid:uid,winnerName:player.name,groups:a.groups,penalties,totals,hands:h,specialRanks,completedAt:Date.now()};
   await Promise.all([roomRef.child("private/deck").set(d),roomRef.child("private/hands").set(h),roomRef.child("private/specialRank").set(special),roomRef.child("private/specialRanks").set(specialRanks),roomRef.child("public").set(p)]);return;
@@ -1411,7 +1422,7 @@ async function startOnlineNextRound(){
  try{
   const ps=await roomRef.child("public").get(),p=ps.val();
   if(!p||p.status!=="roundComplete")return;
-  const active=(p.players||[]).filter(x=>x.active!==false&&(p.roundResult.totals[x.id]||0)<200);
+  const limit=Math.max(1,Number(p.scoreLimit)||200);const active=(p.players||[]).filter(x=>x.active!==false&&(p.roundResult.totals[x.id]||0)<limit);
   if(active.length<=1){
    const champ=active[0]||(p.players||[]).reduce((best,x)=>(p.roundResult.totals[x.id]||0)<(p.roundResult.totals[best.id]||0)?x:best,p.players[0]);
    const finished={...p,status:"gameComplete",champion:champ.name,message:champ.name+" wins Moddu Set!"};
@@ -1423,7 +1434,7 @@ async function startOnlineNextRound(){
   const d=shuffle(makeDeck(active.length)),hands={};
   active.forEach(x=>hands[x.id]=d.splice(0,13));
   const first=d.pop(),nextRound=(p.round||1)+1;
-  const next={status:"playing",round:nextRound,turnUid:active[0].id,deckCount:d.length,discard:[first],drawnByUid:null,specialRank:null,players:roundPlayers.map(x=>({...x,cardCount:(hands[x.id]||[]).length})),message:"Round "+nextRound+". "+active[0].name+"'s turn. Draw a card."};
+  const next={status:"playing",round:nextRound,scoreLimit:limit,turnUid:active[0].id,deckCount:d.length,discard:[first],drawnByUid:null,specialRank:null,players:roundPlayers.map(x=>({...x,cardCount:(hands[x.id]||[]).length})),message:"Round "+nextRound+". Elimination limit: "+limit+" points. "+active[0].name+"'s turn. Draw a card."};
   await roomRef.child("private").set({deck:d,hands,specialRank:null,specialRanks:{}});
   await roomRef.child("public").set(next);
   const screen=document.getElementById("roundResults");if(screen)screen.classList.add("hidden");
