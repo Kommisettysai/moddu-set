@@ -698,7 +698,8 @@ function render(){
   const oldJokerInfo=document.getElementById("jokerInfo");
   if(oldJokerInfo)oldJokerInfo.textContent="";
   const slot=document.getElementById("jokerSlot");
-  if(slot)slot.innerHTML=specialRank?'<span class="card joker-face">'+specialRank+'★</span><small>Special joker</small>':'<span class="card back joker-card">★</span><small>Special joker</small>';
+  const canSeeSpecial=!!(players[0]&&players[0].unlocked);
+  if(slot)slot.innerHTML=(canSeeSpecial&&specialRank)?'<span class="card joker-face">'+specialRank+'★</span><small>Special joker</small>':'<span class="card back joker-card">★</span><small>Special joker</small>';
   const turnEl=document.getElementById("turnInfo");
   if(turnEl&&players[turn])turnEl.textContent=players[turn].name+"'s turn";
   if(players[0]){
