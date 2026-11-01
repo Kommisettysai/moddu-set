@@ -1168,12 +1168,12 @@ function showHand(){
  autoArrange(false);
  const byId=new Map(players[0].hand.map(c=>[c.id,c]));
  const groups=arrangedGroups.map(ids=>ids.map(id=>byId.get(id)).filter(Boolean));
- if(groups.length!==4||groups.some((g,i)=>g.length!==(i===0?4:3))){message("Your 13 cards must form one pure four-set and three three-card sets. Try Auto arrange.");return;}
+ if(groups.length!==4||groups.some((g,i)=>g.length!==(i===0?4:3))){message("Your 13 cards must form one pure four-set and three three-card sets. Try Auto arrange.");if(extra)nextTurn();return;}
  const used=groups.flat().map(c=>c.id);
- if(used.length!==13||new Set(used).size!==13){message("Every card must be used exactly once.");return;}
+ if(used.length!==13||new Set(used).size!==13){message("Every card must be used exactly once.");if(extra)nextTurn();return;}
  const pure=groups[0];
- if(pure.some(c=>c.joker||isWildForPlayer(c,players[0]))||!pure.every(c=>c.rank===pure[0].rank)){message("The first group must be a pure natural four-set.");return;}
- if(!groups.slice(1).every(g=>{const natural=g.filter(c=>!isWildForPlayer(c,players[0]));return !natural.length||natural.every(c=>c.rank===natural[0].rank);})){message("One or more three-card sets are invalid.");return;}
+ if(pure.some(c=>c.joker||isWildForPlayer(c,players[0]))||!pure.every(c=>c.rank===pure[0].rank)){message("The first group must be a pure natural four-set.");if(extra)nextTurn();return;}
+ if(!groups.slice(1).every(g=>{const natural=g.filter(c=>!isWildForPlayer(c,players[0]));return !natural.length||natural.every(c=>c.rank===natural[0].rank);})){message("One or more three-card sets are invalid.");if(extra)nextTurn();return;}
  finishSoloRound(0,groups.map(g=>g.map(c=>c.id)));
 }function renderResultCard(card){
  const red=["♥","♦"].includes(card.suit);
@@ -1415,7 +1415,16 @@ async function processOnlineAction(uid,a){
    if(special){actor.unlocked=true;specialRanks[uid]=special;}
   }
   const invalid=validateOnlineShow(hand,a.groups,actor||{unlocked:false});
-  if(invalid){p.message=invalid;p.discard=pile;p.deckCount=d.length;await roomRef.child("public").set(p);return;}
+  if(invalid){
+   p.message=invalid;p.discard=pile;p.deckCount=d.length;
+   if(a.discardCardId){
+    const active=(p.players||[]).filter(x=>x.active!==false),at=active.findIndex(x=>x.id===uid),next=active[(at+1)%active.length];
+    if(next)p.turnUid=next.id;
+    p.players=p.players.map(x=>({...x,cardCount:(h[x.id]||[]).length}));
+    await Promise.all([roomRef.child("private/deck").set(d),roomRef.child("private/hands").set(h),roomRef.child("private/specialRank").set(special),roomRef.child("private/specialRanks").set(specialRanks),roomRef.child("public").set(p)]);
+   }else await roomRef.child("public").set(p);
+   return;
+  }
   const penalties={},totals={};
   p.players.forEach(player=>{
    const penalty=player.id===uid?0:bestUnmatchedScore(h[player.id]||[],player);
