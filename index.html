@@ -1386,7 +1386,8 @@ async function runOnlineBotTurn(){
   const ps=await roomRef.child("public").get(),p=ps.val();if(!p||p.status!=="playing"||p.turnUid!==uid)return;
   const hs=await roomRef.child("private/hands/"+uid).get(),hand=hs.val()||[];
   const ds=await roomRef.child("private/deck").get(),deckNow=ds.val()||[],pile=p.discard||[];
-  const privateSnap=await roomRef.child("private/specialRanks").get(),specialRanks=privateSnap.val()||{};\n  const player={...bot,unlocked:!!bot.unlocked,specialRank:specialRanks[uid]||null};
+  const privateSnap=await roomRef.child("private/specialRanks").get(),specialRanks=privateSnap.val()||{};
+  const player={...bot,unlocked:!!bot.unlocked,specialRank:specialRanks[uid]||null};
   const open=pile.length?pile[pile.length-1]:null;
   const openPlan=open?findBestArrangement([...hand,open],player):null;
   const closedPlan=deckNow.length?findBestArrangement([...hand,deckNow[deckNow.length-1]],player):null;
