@@ -773,6 +773,8 @@ function render(){
   }
   const discardBtn=document.getElementById("discardBtn");
   if(discardBtn)discardBtn.disabled=!(turn===0&&drawn&&selected>=0);
+  const dropBtn=document.getElementById("dropRoundBtn");
+  if(dropBtn){const me=onlineMode?(onlinePublic?.players||[]).find(p=>p.id===roomPlayerId):players[0];const dropCount=Number(me?.roundDrawCount)||0;dropBtn.textContent="DROP "+(dropCount<=1?20:40);dropBtn.disabled=gameOver||!me||me.active===false||!!me.roundDropped;}
  }catch(error){
   console.error("Game render error:",error);
   if(playersEl&&players.length){
@@ -1344,7 +1346,7 @@ async function shareRoomInvite(){
 async function startOnlineRoom(){
  if(!isRoomHost||!roomRef)return;try{const snap=await roomRef.child("lobby").get(),l=snap.val(),m=onlineMembers(l);if(m.length<2){setLobbyNotice("Invite at least one friend before starting.");return;}
  const d=shuffle(makeDeck(m.length)),hands={};m.forEach(p=>hands[p.id]=d.splice(0,13));const first=d.pop();
- const limit=Math.max(1,Number(l.scoreLimit)||200);const pub={status:"playing",round:1,scoreLimit:limit,turnUid:l.hostId,roundStarterUid:l.hostId,deckCount:d.length,discard:[first],drawnByUid:null,specialRank:null,players:m.map(p=>({id:p.id,name:p.name,isBot:!!p.isBot,active:true,score:0,cardCount:13,unlocked:false,unmatchedCount:bestUnmatchedScore(hands[p.id]||[],p),status:"Ready"})),message:"Cards dealt. Elimination limit: "+limit+" points. "+m[0].name+"'s turn. Draw a card."};
+ const limit=Math.max(1,Number(l.scoreLimit)||200);const pub={status:"playing",round:1,scoreLimit:limit,turnUid:l.hostId,roundStarterUid:l.hostId,deckCount:d.length,discard:[first],drawnByUid:null,specialRank:null,players:m.map(p=>({id:p.id,name:p.name,isBot:!!p.isBot,active:true,score:0,cardCount:13,roundDrawCount:0,roundDropped:false,dropPenalty:0,unlocked:false,unmatchedCount:bestUnmatchedScore(hands[p.id]||[],p),status:"Ready"})),message:"Cards dealt. Elimination limit: "+limit+" points. "+m[0].name+"'s turn. Draw a card."};
  await roomRef.child("private").set({deck:d,hands,specialRank:null,specialRanks:{}});await roomRef.child("public").set(pub);await roomRef.child("lobby/status").set("started");enterOnlineGame(pub);
  }catch(e){setLobbyNotice("Could not start game: "+e.message);}
 }
@@ -1494,9 +1496,10 @@ async function processOnlineAction(uid,a){
   if(player.active===false||player.roundDropped)return;
   const dropPenalty=(Number(player.roundDrawCount)||0)<=1?20:40;
   p.players[playerIndex]={...p.players[playerIndex],roundDropped:true,dropPenalty,score:(p.players[playerIndex].score||0)+dropPenalty,status:"Dropped this round"};
+  if(p.drawnByUid===uid){p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;}
   p.message=player.name+" dropped this round for "+dropPenalty+" points.";
   const remaining=(p.players||[]).filter(x=>x.active!==false&&!x.roundDropped);
-  if(p.turnUid===uid&&remaining.length)p.turnUid=remaining[0].id;
+  if(p.turnUid===uid&&remaining.length){const next=remaining.find(x=>(p.players.indexOf(x))>playerIndex)||remaining[0];p.turnUid=next.id;}
   if(!remaining.length){
    const penalties={},totals={};
    (p.players||[]).forEach(x=>{penalties[x.id]=x.dropPenalty||0;totals[x.id]=x.score||0;});
@@ -1561,7 +1564,7 @@ function openOnlineRoundResults(result){
   const resultPlayer={...p,unlocked:!!p.unlocked,specialRank:(result.specialRanks||{})[p.id]||null};const winning=p.id===winner?'<div class="results-winning-groups">'+result.groups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':renderScoringBreakdown(hand,resultPlayer,penalty);
   return '<div class="results-hand '+(p.id===winner?'winner-hand':'')+'"><div class="results-hand-head"><strong>'+(p.id===winner?'🏆🎉 ':'')+escapeLobbyText(p.name)+'</strong><span>'+hand.length+' cards · +'+penalty+' points</span></div>'+winning+'</div>';
  }).join('');
- document.getElementById("resultsSummary").textContent=result.winnerName+" showed successfully. All hands are revealed and scores are updated.";
+ document.getElementById("resultsSummary").textContent=result.winnerUid?result.winnerName+" showed successfully. All hands are revealed and scores are updated.":"All players dropped this round. Drop penalties have been added to their scores.";
  const footer=screen.querySelector(".results-footer");
  if(footer)footer.innerHTML=isRoomHost?'<button onclick="startOnlineNextRound()">Start next round</button>':'<p>Waiting for the host to start the next round…</p><button onclick="closeResults()">Back to table</button>';
  screen.classList.remove("hidden");
