@@ -575,8 +575,8 @@ body.show-player-scores .player-strip .profile-score{display:block!important;mar
   </div>
   <div id="friendsPanel" class="friends-panel hidden">
    <div class="lobby-section-title">FIND AND ADD FRIENDS</div>
-   <p class="lobby-hint">Search using someone's exact Moddu Set username.</p>
-   <div class="friend-search-row"><input id="friendSearchInput" class="lobby-input" maxlength="16" placeholder="Enter username"><button class="lobby-join" onclick="searchPlayer()">Search</button></div>
+   <p class="lobby-hint">Type the first few letters of a username to see matching players.</p>
+   <div class="friend-search-row"><input id="friendSearchInput" class="lobby-input" maxlength="16" placeholder="Type a name, e.g. sa" oninput="suggestPlayers()"><button class="lobby-join" onclick="searchPlayer()">Search</button></div>
    <div id="friendSearchResult" class="friend-list"></div>
    <div class="lobby-section-title friend-section-heading">FRIEND REQUESTS <span id="friendRequestCount"></span></div>
    <div id="friendRequestsList" class="friend-list"><p class="lobby-hint">No pending requests.</p></div>
@@ -789,23 +789,44 @@ function friendRowMarkup(uid,profile,actionHtml){
  const display=profile&&profile.displayName?profile.displayName:username;
  return '<div class="friend-row"><div><strong>'+escapeLobbyText(display)+'</strong><small>@'+escapeLobbyText(username)+'</small></div>'+actionHtml+'</div>';
 }
+let friendSuggestTimer=null,friendSuggestToken=0;
+function suggestPlayers(){
+ clearTimeout(friendSuggestTimer);
+ const input=document.getElementById("friendSearchInput"),out=document.getElementById("friendSearchResult");
+ const prefix=(input.value||"").trim().toLowerCase().replace(/^@/,"");
+ if(!prefix){out.innerHTML='<p class="friend-empty">Start typing to find players by username.</p>';return;}
+ if(!/^[a-z0-9_]{1,16}$/.test(prefix)){out.innerHTML='<p class="friend-empty">Use letters, numbers or underscores.</p>';return;}
+ friendSuggestTimer=setTimeout(()=>searchPlayer(),250);
+}
 async function searchPlayer(){
  const input=document.getElementById("friendSearchInput"),out=document.getElementById("friendSearchResult");
- const username=(input.value||"").trim().toLowerCase().replace(/^@/,"");
- if(!/^[a-z0-9_]{3,16}$/.test(username)){out.innerHTML='<p class="friend-empty">Enter a valid username (3–16 letters, numbers or underscores).</p>';return;}
- out.innerHTML='<p class="friend-empty">Searching…</p>';
+ const prefix=(input.value||"").trim().toLowerCase().replace(/^@/,"");
+ if(!/^[a-z0-9_]{1,16}$/.test(prefix)){out.innerHTML='<p class="friend-empty">Use 1–16 letters, numbers or underscores.</p>';return;}
+ const token=++friendSuggestToken;
+ out.innerHTML='<p class="friend-empty">Finding players…</p>';
  try{
-  const db=firebase.database(),claim=await db.ref("usernames/"+username).get();
-  if(!claim.exists()){out.innerHTML='<p class="friend-empty">No player found with @'+escapeLobbyText(username)+'.</p>';return;}
-  const uid=claim.val();
-  if(uid===authUser.uid){out.innerHTML='<p class="friend-empty">That is your own username.</p>';return;}
-  const profileSnap=await db.ref("users/"+uid).get(),profile=profileSnap.val()||{username};
-  const friendSnap=await db.ref("friends/"+authUser.uid+"/"+uid).get();
-  if(friendSnap.exists()){out.innerHTML=friendRowMarkup(uid,profile,'<span>Already friends ✓</span>');return;}
-  const requestSnap=await db.ref("friendRequests/"+uid+"/"+authUser.uid).get();
-  if(requestSnap.exists()){out.innerHTML=friendRowMarkup(uid,profile,'<span>Request sent</span>');return;}
-  out.innerHTML=friendRowMarkup(uid,profile,'<button onclick="sendFriendRequest(\''+uid+'\')">Add friend</button>');
- }catch(e){out.innerHTML='<p class="friend-empty">Search failed: '+escapeLobbyText(e.message)+'</p>';}
+  const db=firebase.database();
+  const matches=await db.ref("usernames").orderByKey().startAt(prefix).endAt(prefix+"\uf8ff").limitToFirst(8).get();
+  if(token!==friendSuggestToken)return;
+  const claims=matches.val()||{};
+  const players=Object.entries(claims).filter(([username,uid])=>uid!==authUser.uid);
+  if(!players.length){out.innerHTML='<p class="friend-empty">No players found starting with @'+escapeLobbyText(prefix)+'. Try another spelling.</p>';return;}
+  const rows=await Promise.all(players.map(async ([username,uid])=>{
+   const [profileSnap,friendSnap,requestSnap]=await Promise.all([
+    db.ref("users/"+uid).get(),
+    db.ref("friends/"+authUser.uid+"/"+uid).get(),
+    db.ref("friendRequests/"+uid+"/"+authUser.uid).get()
+   ]);
+   const profile=profileSnap.val()||{username};
+   let action='<button onclick="sendFriendRequest(\''+uid+'\')">Add friend</button>';
+   if(friendSnap.exists())action='<span>Already friends ✓</span>';
+   else if(requestSnap.exists())action='<span>Request sent</span>';
+   return friendRowMarkup(uid,profile,action);
+  }));
+  if(token===friendSuggestToken)out.innerHTML=rows.join("");
+ }catch(e){
+  if(token===friendSuggestToken)out.innerHTML='<p class="friend-empty">Search failed: '+escapeLobbyText(e.message)+'</p>';
+ }
 }
 async function sendFriendRequest(targetUid){
  if(!authUser||!targetUid||targetUid===authUser.uid)return;
