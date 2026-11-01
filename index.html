@@ -619,7 +619,7 @@ body.app-locked{overflow:hidden}
 
 
 /* Floating reactions live at the document level so table re-renders cannot erase or clip them */
-.player-reaction-floating{position:fixed!important;z-index:99999!important;transform:translateX(-50%);pointer-events:none!important;max-width:calc(100vw - 16px);animation:playerReactionPop 3.2s ease forwards!important}
+.player-reaction-floating{position:fixed!important;z-index:99999!important;transform:translateX(-50%);pointer-events:none!important;max-width:calc(100vw - 16px);animation:none!important;opacity:1!important;transition:opacity .4s ease!important}
 .player-reaction-floating .reaction-content{display:block;max-width:calc(100vw - 24px);overflow-wrap:anywhere}
 
 /* Keep floating reactions visible above player cards on narrow screens */
@@ -2045,7 +2045,7 @@ function showPlayerReaction(item){
  const sender=document.createElement("span");sender.className="reaction-sender";sender.textContent=item.senderName;
  burst.append(content,sender);document.body.appendChild(burst);
  const prior=playerReactionTimers.get(item.senderId);if(prior)clearTimeout(prior);
- const timer=setTimeout(()=>{burst.remove();playerReactionTimers.delete(item.senderId);},3300);
+ const timer=setTimeout(()=>{burst.style.setProperty("opacity","0","important");const fadeTimer=setTimeout(()=>{burst.remove();if(playerReactionTimers.get(item.senderId)===timer)playerReactionTimers.delete(item.senderId);},450);playerReactionTimers.set(item.senderId,fadeTimer);},3000);
  playerReactionTimers.set(item.senderId,timer);
 }
 function receiveGameChat(snapshot,showReaction=true){
