@@ -512,6 +512,18 @@ body.show-player-scores .player-strip .profile-score{display:block!important;mar
 #saveUsernameBtn{width:100%}
 #roomActions{margin-top:20px}
 #roomActions .lobby-text-button{display:block;margin:10px auto 0}
+.friends-panel{margin-top:16px;padding:16px;border:1px solid #d9b66b66;border-radius:15px;background:#08291f99}
+.friend-search-row{display:flex;gap:8px;align-items:center}
+.friend-search-row input{min-width:0;flex:1}
+.friend-search-row button{white-space:nowrap}
+.friend-section-heading{display:flex;justify-content:space-between;align-items:center;margin-top:18px}
+.friend-list{display:grid;gap:8px;margin-top:9px}
+.friend-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px;border:1px solid #d9b66b40;border-radius:10px;background:#123b2d}
+.friend-row strong{display:block;color:#ffe2a1;font-size:13px}
+.friend-row small{display:block;color:#b8c9bd;font-size:11px;margin-top:3px}
+.friend-row button{padding:8px 10px;font-size:11px;white-space:nowrap}
+.friend-empty{font-size:12px;color:#b8c9bd;margin:4px 0}
+@media(max-width:390px){.friend-search-row{flex-wrap:wrap}.friend-search-row button{width:100%}}
 
 </style>
 </head>
@@ -558,6 +570,16 @@ body.show-player-scores .player-strip .profile-score{display:block!important;mar
     <option value="100">100 points</option><option value="150">150 points</option><option value="200" selected>200 points</option><option value="250">250 points</option><option value="300">300 points</option>
    </select>
    <button class="lobby-text-button" onclick="signOutPlayer()">Sign out</button>
+  </div>
+  <div id="friendsPanel" class="friends-panel hidden">
+   <div class="lobby-section-title">FIND AND ADD FRIENDS</div>
+   <p class="lobby-hint">Search using someone's exact Moddu Set username.</p>
+   <div class="friend-search-row"><input id="friendSearchInput" class="lobby-input" maxlength="16" placeholder="Enter username"><button class="lobby-join" onclick="searchPlayer()">Search</button></div>
+   <div id="friendSearchResult" class="friend-list"></div>
+   <div class="lobby-section-title friend-section-heading">FRIEND REQUESTS <span id="friendRequestCount"></span></div>
+   <div id="friendRequestsList" class="friend-list"><p class="lobby-hint">No pending requests.</p></div>
+   <div class="lobby-section-title friend-section-heading">MY FRIENDS <span id="friendCount"></span></div>
+   <div id="myFriendsList" class="friend-list"><p class="lobby-hint">No friends added yet.</p></div>
   </div>
  <div id="lobbyNotice" class="lobby-notice">Private rooms are being connected. Add your Firebase project settings to enable friends joining live.</div>
 </section>
@@ -669,13 +691,14 @@ function setUsernameNotice(t,isError=false){const el=document.getElementById("us
 function showAccountState(user,profile){
  const btn=document.getElementById("googleSignInBtn"),setup=document.getElementById("usernameSetup"),actions=document.getElementById("roomActions");
  const name=document.getElementById("accountDisplayName"),email=document.getElementById("accountEmail"),avatar=document.getElementById("accountAvatar");
- if(!user){if(btn)btn.classList.remove("hidden");if(setup)setup.classList.add("hidden");if(actions)actions.classList.add("hidden");if(name)name.textContent="Welcome to Moddu Set";if(email)email.textContent="Sign in to create your player account.";if(avatar)avatar.textContent="👤";return;}
+ const friendsPanel=document.getElementById("friendsPanel");
+ if(!user){if(btn)btn.classList.remove("hidden");if(setup)setup.classList.add("hidden");if(actions)actions.classList.add("hidden");if(friendsPanel)friendsPanel.classList.add("hidden");if(name)name.textContent="Welcome to Moddu Set";if(email)email.textContent="Sign in to create your player account.";if(avatar)avatar.textContent="👤";return;}
  if(btn)btn.classList.add("hidden");
  if(name)name.textContent=user.displayName||"Welcome, player";
  if(email)email.textContent=user.email||"Google account connected";
  if(avatar){avatar.textContent="";avatar.style.backgroundImage=user.photoURL?"url('"+user.photoURL.replace(/['()]/g,"")+"')":"";avatar.style.backgroundSize="cover";avatar.style.backgroundPosition="center";}
- if(profile){playerProfile=profile;profileReady=true;const input=document.getElementById("playerName");if(input)input.value=profile.displayName||user.displayName||"Player";if(setup)setup.classList.add("hidden");if(actions)actions.classList.remove("hidden");setAuthStatus("Signed in as @"+profile.username);}
- else{playerProfile=null;profileReady=false;if(setup)setup.classList.remove("hidden");if(actions)actions.classList.add("hidden");const input=document.getElementById("usernameInput");if(input&&!input.value){const suggested=(user.displayName||"player").toLowerCase().replace(/[^a-z0-9_]/g,"").slice(0,12);input.value=suggested.length>=3?suggested:"player"+String(user.uid).slice(0,4);}setAuthStatus("Google connected. Choose a username once to finish setting up your player account.");}
+ if(profile){playerProfile=profile;profileReady=true;const input=document.getElementById("playerName");if(input)input.value=profile.displayName||user.displayName||"Player";if(setup)setup.classList.add("hidden");if(actions)actions.classList.remove("hidden");if(friendsPanel)friendsPanel.classList.remove("hidden");setAuthStatus("Signed in as @"+profile.username);loadFriends();}
+ else{playerProfile=null;profileReady=false;if(setup)setup.classList.remove("hidden");if(actions)actions.classList.add("hidden");if(friendsPanel)friendsPanel.classList.add("hidden");const input=document.getElementById("usernameInput");if(input&&!input.value){const suggested=(user.displayName||"player").toLowerCase().replace(/[^a-z0-9_]/g,"").slice(0,12);input.value=suggested.length>=3?suggested:"player"+String(user.uid).slice(0,4);}setAuthStatus("Google connected. Choose a username once to finish setting up your player account.");}
 }
 async function loadPlayerProfile(user){
  if(!user||!firebaseReady)return;
@@ -739,6 +762,68 @@ async function savePlayerUsername(){
 async function signOutPlayer(){
  try{await firebase.auth().signOut();setLobbyNotice("You have signed out.");}
  catch(e){setLobbyNotice("Could not sign out: "+e.message);}
+}
+
+function friendRowMarkup(uid,profile,actionHtml){
+ const username=profile&&profile.username?profile.username:uid;
+ const display=profile&&profile.displayName?profile.displayName:username;
+ return '<div class="friend-row"><div><strong>'+escapeLobbyText(display)+'</strong><small>@'+escapeLobbyText(username)+'</small></div>'+actionHtml+'</div>';
+}
+async function searchPlayer(){
+ const input=document.getElementById("friendSearchInput"),out=document.getElementById("friendSearchResult");
+ const username=(input.value||"").trim().toLowerCase().replace(/^@/,"");
+ if(!/^[a-z0-9_]{3,16}$/.test(username)){out.innerHTML='<p class="friend-empty">Enter a valid username (3–16 letters, numbers or underscores).</p>';return;}
+ out.innerHTML='<p class="friend-empty">Searching…</p>';
+ try{
+  const db=firebase.database(),claim=await db.ref("usernames/"+username).get();
+  if(!claim.exists()){out.innerHTML='<p class="friend-empty">No player found with @'+escapeLobbyText(username)+'.</p>';return;}
+  const uid=claim.val();
+  if(uid===authUser.uid){out.innerHTML='<p class="friend-empty">That is your own username.</p>';return;}
+  const profileSnap=await db.ref("users/"+uid).get(),profile=profileSnap.val()||{username};
+  const friendSnap=await db.ref("friends/"+authUser.uid+"/"+uid).get();
+  if(friendSnap.exists()){out.innerHTML=friendRowMarkup(uid,profile,'<span>Already friends ✓</span>');return;}
+  const requestSnap=await db.ref("friendRequests/"+uid+"/"+authUser.uid).get();
+  if(requestSnap.exists()){out.innerHTML=friendRowMarkup(uid,profile,'<span>Request sent</span>');return;}
+  out.innerHTML=friendRowMarkup(uid,profile,'<button onclick="sendFriendRequest(\''+uid+'\')">Add friend</button>');
+ }catch(e){out.innerHTML='<p class="friend-empty">Search failed: '+escapeLobbyText(e.message)+'</p>';}
+}
+async function sendFriendRequest(targetUid){
+ if(!authUser||!targetUid||targetUid===authUser.uid)return;
+ try{
+  const existing=await firebase.database().ref("friends/"+authUser.uid+"/"+targetUid).get();
+  if(existing.exists()){setLobbyNotice("You are already friends.");return;}
+  await firebase.database().ref("friendRequests/"+targetUid+"/"+authUser.uid).set({fromUid:authUser.uid,username:playerProfile.username,displayName:playerProfile.displayName,createdAt:firebase.database.ServerValue.TIMESTAMP});
+  const out=document.getElementById("friendSearchResult");if(out)out.innerHTML='<p class="friend-empty">Friend request sent successfully.</p>';
+  setLobbyNotice("Friend request sent!");
+ }catch(e){setLobbyNotice("Could not send friend request: "+e.message);}
+}
+async function loadFriends(){
+ if(!authUser||!profileReady)return;
+ const db=firebase.database(),requestsEl=document.getElementById("friendRequestsList"),friendsEl=document.getElementById("myFriendsList");
+ try{
+  const reqSnap=await db.ref("friendRequests/"+authUser.uid).get(),requests=reqSnap.val()||{},entries=Object.entries(requests);
+  document.getElementById("friendRequestCount").textContent=entries.length?"("+entries.length+")":"";
+  if(requestsEl)requestsEl.innerHTML=entries.length?entries.map(([uid,r])=>friendRowMarkup(uid,{username:r.username||"player",displayName:r.displayName||r.username||"Player"},'<div><button onclick="acceptFriendRequest(\''+uid+'\')">Accept</button> <button onclick="declineFriendRequest(\''+uid+'\')">Decline</button></div>')).join(""):'<p class="friend-empty">No pending requests.</p>';
+  const friendSnap=await db.ref("friends/"+authUser.uid).get(),friendIds=Object.keys(friendSnap.val()||{});
+  document.getElementById("friendCount").textContent=friendIds.length?"("+friendIds.length+")":"";
+  if(!friendIds.length){if(friendsEl)friendsEl.innerHTML='<p class="friend-empty">No friends added yet. Search for a username above.</p>';return;}
+  const profiles=await Promise.all(friendIds.map(uid=>db.ref("users/"+uid).get()));
+  if(friendsEl)friendsEl.innerHTML=profiles.map((snap,i)=>friendRowMarkup(friendIds[i],snap.val()||{username:"player",displayName:"Player"},'<span>Friend ✓</span>')).join("");
+ }catch(e){if(requestsEl)requestsEl.innerHTML='<p class="friend-empty">Could not load friend data: '+escapeLobbyText(e.message)+'</p>';}
+}
+async function acceptFriendRequest(senderUid){
+ if(!authUser||!senderUid)return;
+ try{
+  const db=firebase.database(),requestRef=db.ref("friendRequests/"+authUser.uid+"/"+senderUid),snap=await requestRef.get();
+  if(!snap.exists()){setLobbyNotice("That friend request is no longer available.");await loadFriends();return;}
+  const updates={};updates["friends/"+authUser.uid+"/"+senderUid]={since:firebase.database.ServerValue.TIMESTAMP};updates["friends/"+senderUid+"/"+authUser.uid]={since:firebase.database.ServerValue.TIMESTAMP};updates["friendRequests/"+authUser.uid+"/"+senderUid]=null;
+  await db.ref().update(updates);setLobbyNotice("Friend added successfully!");await loadFriends();
+ }catch(e){setLobbyNotice("Could not accept friend request: "+e.message);}
+}
+async function declineFriendRequest(senderUid){
+ if(!authUser||!senderUid)return;
+ try{await firebase.database().ref("friendRequests/"+authUser.uid+"/"+senderUid).remove();await loadFriends();}
+ catch(e){setLobbyNotice("Could not decline request: "+e.message);}
 }
 function setLobbyNotice(t){const el=document.getElementById("lobbyNotice");if(el)el.textContent=t;}
 function lobbyName(){if(!authUser||!profileReady||!playerProfile){setLobbyNotice("Sign in with Google and choose your username first.");return "";}const v=playerProfile.displayName||authUser.displayName||playerProfile.username;document.getElementById("playerName").value=v;return v.slice(0,18);}
