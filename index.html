@@ -1168,6 +1168,80 @@ function showRules(){
  );
 }
 </script>
+
+<script>
+/* Multiplayer v1: host-authoritative draw/discard with private hands. */
+let onlineMode=false,onlinePublic=null,onlinePublicRef=null,onlineHandRef=null,onlineActionRef=null;
+let onlinePublicListener=null,onlineHandListener=null,onlineActionListener=null,onlineLobbyListener=null,onlineBusy={};
+function onlineMembers(l){return Object.values(l.players||{}).sort((a,b)=>(a.joinedAt||0)-(b.joinedAt||0));}
+function createRoom(){
+ const name=lobbyName();if(!name)return;if(!firebaseReady||!authUser){setLobbyNotice("Firebase sign-in is still loading.");return;}
+ (async()=>{try{let code=makeRoomCode(),ref=firebase.database().ref("rooms/"+code),snap=await ref.child("lobby").get();while(snap.exists()){code=makeRoomCode();ref=firebase.database().ref("rooms/"+code);snap=await ref.child("lobby").get();}
+ roomCode=code;roomRef=ref;roomPlayerId=authUser.uid;isRoomHost=true;
+ await ref.set({hostId:authUser.uid,lobby:{code,hostId:authUser.uid,status:"waiting",maxPlayers:6,players:{[authUser.uid]:{id:authUser.uid,name,ready:true,joinedAt:firebase.database.ServerValue.TIMESTAMP}}},public:{},private:{deck:[],hands:{}},actions:{}});
+ showWaitingRoom();}catch(e){setLobbyNotice("Could not create room: "+e.message);}})();
+}
+async function joinRoom(){
+ const name=lobbyName();if(!name)return;if(!firebaseReady||!authUser){setLobbyNotice("Firebase sign-in is still loading.");return;}
+ const code=document.getElementById("roomCodeInput").value.trim().toUpperCase();if(!/^[A-Z0-9]{6}$/.test(code)){setLobbyNotice("Enter the six-character room code.");return;}
+ try{const ref=firebase.database().ref("rooms/"+code),snap=await ref.child("lobby").get();if(!snap.exists()){setLobbyNotice("Room not found.");return;}
+ const l=snap.val(),members=onlineMembers(l);if(l.status!=="waiting"){setLobbyNotice("This game has already started.");return;}if(members.length>=l.maxPlayers){setLobbyNotice("This table is full.");return;}if(members.some(p=>p.id===authUser.uid)){setLobbyNotice("You are already in this room.");return;}
+ await ref.child("lobby/players/"+authUser.uid).set({id:authUser.uid,name,ready:true,joinedAt:firebase.database.ServerValue.TIMESTAMP});
+ roomCode=code;roomRef=ref;roomPlayerId=authUser.uid;isRoomHost=false;showWaitingRoom();}catch(e){setLobbyNotice("Could not join room: "+e.message);}
+}
+function showWaitingRoom(){
+ document.getElementById("setup").classList.add("hidden");document.getElementById("waitingRoom").classList.remove("hidden");document.getElementById("roomCodeLabel").textContent=roomCode;document.getElementById("startRoomBtn").classList.toggle("hidden",!isRoomHost);
+ if(onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
+ onlineLobbyListener=snap=>{if(!snap.exists())return;const l=snap.val(),m=onlineMembers(l);document.getElementById("roomPlayerCount").textContent=m.length+"/"+l.maxPlayers;
+ document.getElementById("roomPlayers").innerHTML=m.map((p,i)=>'<div class="room-player"><span class="avatar">'+(["🃏","🌟","🍀","🔥","🎯","👑"][i]||"🃏")+'</span><strong>'+escapeLobbyText(p.name)+'</strong><small>'+(p.id===l.hostId?"HOST":"READY")+'</small></div>').join("");
+ if(l.status==="started")roomRef.child("public").get().then(x=>{if(x.exists())enterOnlineGame(x.val());});};
+ roomRef.child("lobby").on("value",onlineLobbyListener);
+}
+async function startOnlineRoom(){
+ if(!isRoomHost||!roomRef)return;try{const snap=await roomRef.child("lobby").get(),l=snap.val(),m=onlineMembers(l);if(m.length<2){setLobbyNotice("Invite at least one friend before starting.");return;}
+ const d=shuffle(makeDeck(m.length)),hands={};m.forEach(p=>hands[p.id]=d.splice(0,13));const first=d.pop();
+ const pub={status:"playing",round:1,turnUid:l.hostId,deckCount:d.length,discard:[first],drawnByUid:null,specialRank:null,players:m.map(p=>({id:p.id,name:p.name,score:0,cardCount:13,unlocked:false,status:"Ready"})),message:"Cards dealt. "+m[0].name+"'s turn. Draw a card."};
+ await roomRef.child("private").set({deck:d,hands});await roomRef.child("public").set(pub);await roomRef.child("lobby/status").set("started");enterOnlineGame(pub);
+ }catch(e){setLobbyNotice("Could not start game: "+e.message);}
+}
+function enterOnlineGame(state){
+ if(!roomRef||!roomPlayerId)return;onlineMode=true;onlinePublic=state;document.getElementById("setup").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");document.getElementById("game").classList.remove("hidden");
+ onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");
+ if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();}};onlinePublicRef.on("value",onlinePublicListener);
+ if(onlineHandListener)onlineHandRef.off("value",onlineHandListener);onlineHandListener=s=>{if(!s.exists())return;const h=s.val()||[];if(!players.length)players=[{id:roomPlayerId,name:"You",hand:h,score:0,human:true}];else players[0]={...players[0],hand:h};selected=-1;selectedIndices=[];arrangedGroups=[];applyOnlinePublic();};onlineHandRef.on("value",onlineHandListener);
+ if(isRoomHost){if(onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);onlineActionListener=s=>{if(!s.exists())return;const uid=s.key;if(onlineBusy[uid])return;onlineBusy[uid]=true;processOnlineAction(uid,s.val()).catch(e=>setLobbyNotice("Game action failed: "+e.message)).finally(()=>{onlineActionRef.child(uid).remove().catch(()=>{});delete onlineBusy[uid];});};onlineActionRef.on("child_added",onlineActionListener);}
+ applyOnlinePublic();
+}
+function applyOnlinePublic(){
+ if(!onlineMode||!onlinePublic)return;const st=onlinePublic,prior=players[0]||{},m=st.players||[];
+ const ordered=[...m].sort((a,b)=>a.id===roomPlayerId?-1:b.id===roomPlayerId?1:0);
+ players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,unlocked:!!p.unlocked,active:true,human:p.id===roomPlayerId,cardCount:p.cardCount||0,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
+ if(!players.length)return;turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);specialRank=st.specialRank||null;round=st.round||1;drawn=st.drawnByUid===roomPlayerId;
+ const el=document.getElementById("message");if(el)el.textContent=st.message||"Online game";render();
+}
+async function processOnlineAction(uid,a){
+ if(!isRoomHost)return;const [ps,ds,ls]=await Promise.all([roomRef.child("public").get(),roomRef.child("private").get(),roomRef.child("lobby").get()]);
+ const p=ps.val(),priv=ds.val()||{},l=ls.val();if(!p||p.status!=="playing"||p.turnUid!==uid)return;
+ let d=priv.deck||[],h=priv.hands||{},hand=h[uid]||[],pile=p.discard||[];
+ if(a.type==="drawClosed"||a.type==="drawOpen"){if(p.drawnByUid)return;if(a.type==="drawOpen"){if(!pile.length)return;hand.push(pile.pop());}else{if(!d.length&&pile.length>1){const top=pile.pop();d=shuffle(pile);pile=[top];}if(!d.length)return;hand.push(d.pop());}h[uid]=hand;p.drawnByUid=uid;p.message="Card drawn. Select one card and discard it.";
+ }else if(a.type==="discard"){if(p.drawnByUid!==uid)return;const i=hand.findIndex(c=>c.id===a.cardId);if(i<0)return;pile.push(hand.splice(i,1)[0]);h[uid]=hand;p.drawnByUid=null;const m=onlineMembers(l),at=m.findIndex(x=>x.id===uid),next=m[(at+1)%m.length];p.turnUid=next.id;p.message=next.name+"'s turn. Draw a card.";}
+ p.discard=pile;p.deckCount=d.length;p.players=(p.players||[]).map(x=>({...x,cardCount:(h[x.id]||[]).length}));
+ await Promise.all([roomRef.child("private/deck").set(d),roomRef.child("private/hands").set(h),roomRef.child("public").set(p)]);
+}
+async function sendOnlineAction(a){if(!onlinePublic||onlinePublic.turnUid!==roomPlayerId){message("Please wait for your turn.");return;}try{if(isRoomHost)await processOnlineAction(roomPlayerId,a);else await onlineActionRef.child(roomPlayerId).set({...a,requestedAt:Date.now()});}catch(e){message("Action failed: "+e.message);}}
+const _soloDrawClosed=drawClosed,_soloDrawOpen=drawOpen,_soloDiscardSelected=discardSelected,_soloShowHand=showHand,_soloStartGame=startGame;
+function drawClosed(){if(!onlineMode)return _soloDrawClosed();if(turn!==0||drawn)return;sendOnlineAction({type:"drawClosed"});}
+function drawOpen(){if(!onlineMode)return _soloDrawOpen();if(turn!==0||drawn)return;sendOnlineAction({type:"drawOpen"});}
+function discardSelected(){if(!onlineMode)return _soloDiscardSelected();if(turn!==0||!drawn||selected<0)return;const c=players[0].hand[selected];if(c)sendOnlineAction({type:"discard",cardId:c.id});selected=-1;}
+function showHand(){if(!onlineMode)return _soloShowHand();message("Multiplayer SHOW and scoring are not enabled yet. Draw and discard are synchronised.");}
+function startGame(){if(!onlineMode)return _soloStartGame();message("Leave the online table before starting a solo game.");}
+function leaveRoom(showLobby=true){
+ if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
+ if(roomRef&&roomPlayerId)roomRef.child("lobby/players/"+roomPlayerId).remove().catch(()=>{});onlineMode=false;onlinePublic=null;onlinePublicRef=onlineHandRef=onlineActionRef=null;roomRef=null;roomCode=null;roomPlayerId=null;isRoomHost=false;onlineLobbyListener=null;
+ document.getElementById("game").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");if(showLobby)document.getElementById("setup").classList.remove("hidden");
+}
+</script>
+
 </body>
   </html>
   
