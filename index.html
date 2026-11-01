@@ -1288,10 +1288,18 @@ async function shareRoomInvite(){
  }catch(e){if(e.name!=="AbortError")setLobbyNotice("Room code: "+roomCode);}
 }
 async function startOnlineRoom(){
- if(!isRoomHost||!roomRef)return;try{const snap=await roomRef.child("lobby").get(),l=snap.val(),m=onlineMembers(l);if(m.length<2){setLobbyNotice("Invite at least one friend before starting.");return;}
- const d=shuffle(makeDeck(m.length)),hands={};m.forEach(p=>hands[p.id]=d.splice(0,13));const first=d.pop();
- const pub={status:"playing",round:1,turnUid:l.hostId,deckCount:d.length,discard:[first],drawnByUid:null,specialRank:null,players:m.map(p=>({id:p.id,name:p.name,isBot:!!p.isBot,active:true,score:0,cardCount:13,unlocked:false,status:"Ready"})),message:"Cards dealt. "+m[0].name+"'s turn. Draw a card."};
- await roomRef.child("private").set({deck:d,hands});await roomRef.child("public").set(pub);await roomRef.child("lobby/status").set("started");enterOnlineGame(pub);
+ if(!isRoomHost||!roomRef)return;
+ try{
+  const snap=await roomRef.child("lobby").get(),l=snap.val(),m=onlineMembers(l);
+  if(m.length<2){setLobbyNotice("Invite at least one friend before starting.");return;}
+  const d=shuffle(makeDeck(m.length)),hands={};
+  m.forEach(p=>hands[p.id]=d.splice(0,13));
+  const first=d.pop();
+  const pub={status:"playing",round:1,turnUid:l.hostId,deckCount:d.length,discard:[first],drawnByUid:null,players:m.map(p=>({id:p.id,name:p.name,isBot:!!p.isBot,active:true,score:0,cardCount:13,jokerEligible:hasNaturalFour(hands[p.id]),unlocked:false,status:"Ready"})),message:"Cards dealt. "+m[0].name+"'s turn. Draw a card."};
+  await roomRef.child("private").set({deck:d,hands,specialRanks:{}});
+  await roomRef.child("public").set(pub);
+  await roomRef.child("lobby/status").set("started");
+  enterOnlineGame(pub);
  }catch(e){setLobbyNotice("Could not start game: "+e.message);}
 }
 function enterOnlineGame(state){
@@ -1299,6 +1307,10 @@ function enterOnlineGame(state){
  onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");
  if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();if(isRoomHost)runOnlineBotTurn();}};onlinePublicRef.on("value",onlinePublicListener);
  if(onlineHandListener)onlineHandRef.off("value",onlineHandListener);onlineHandListener=s=>{if(!s.exists())return;const h=s.val()||[];if(!players.length)players=[{id:roomPlayerId,name:"You",hand:h,score:0,human:true}];else players[0]={...players[0],hand:h};selected=-1;selectedIndices=[];arrangedGroups=[];applyOnlinePublic();};onlineHandRef.on("value",onlineHandListener);
+ onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);
+ if(onlineSpecialListener)onlineSpecialRef.off("value",onlineSpecialListener);
+ onlineSpecialListener=s=>{specialRank=s.exists()?s.val():null;if(players[0]&&specialRank)players[0].unlocked=true;render();};
+ onlineSpecialRef.on("value",onlineSpecialListener);
  if(isRoomHost){if(onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);onlineActionListener=s=>{if(!s.exists())return;const uid=s.key;if(onlineBusy[uid])return;onlineBusy[uid]=true;processOnlineAction(uid,s.val()).catch(e=>setLobbyNotice("Game action failed: "+e.message)).finally(()=>{onlineActionRef.child(uid).remove().catch(()=>{});delete onlineBusy[uid];});};onlineActionRef.on("child_added",onlineActionListener);}
  applyOnlinePublic();
 }
@@ -1306,7 +1318,7 @@ function applyOnlinePublic(){
  if(!onlineMode||!onlinePublic)return;const st=onlinePublic,prior=players[0]||{},m=st.players||[];
  if(st.status==="playing"){const resultScreen=document.getElementById("roundResults");if(resultScreen)resultScreen.classList.add("hidden");}
  const ordered=[...m].sort((a,b)=>a.id===roomPlayerId?-1:b.id===roomPlayerId?1:0);
- players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,unlocked:!!p.unlocked,active:true,human:p.id===roomPlayerId,cardCount:p.cardCount||0,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
+ players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,unlocked:!!p.unlocked,active:true,human:p.id===roomPlayerId,cardCount:p.cardCount||0,jokerEligible:!!p.jokerEligible,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
  if(!players.length)return;turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);specialRank=st.specialRank||null;round=st.round||1;drawn=st.drawnByUid===roomPlayerId;gameOver=st.status==="roundComplete"||st.status==="gameComplete";
  const el=document.getElementById("message");if(el)el.textContent=st.message||"Online game";render();
  if(st.status==="roundComplete"&&st.roundResult)openOnlineRoundResults(st.roundResult);
