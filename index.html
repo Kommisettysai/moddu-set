@@ -1312,6 +1312,11 @@ async function processOnlineAction(uid,a){
  }else if(a.type==="show"){
   if(a.discardCardId){if(p.drawnByUid!==uid)return;const i=hand.findIndex(c=>c.id===a.discardCardId);if(i<0||hand.length!==14)return;pile.push(hand.splice(i,1)[0]);h[uid]=hand;p.drawnByUid=null;}
   else if(p.drawnByUid||hand.length!==13)return;
+  if(player.isBot&&!player.unlocked&&hand.length===13&&hasNaturalFour(hand)){
+   player.eligible=true;
+   if(!special){const skipped=[];let reveal=null;while(d.length&&!reveal){const card=d.pop();if(card.joker)skipped.push(card);else reveal=card;}if(skipped.length)d.push(...skipped);if(reveal)special=reveal.rank;}
+   if(special){player.unlocked=true;specialRanks[uid]=special;}
+  }
   const invalid=validateOnlineShow(hand,a.groups,player);
   if(invalid){p.message=invalid;p.discard=pile;p.deckCount=d.length;await roomRef.child("public").set(p);return;}
   const penalties={},totals={};(p.players||[]).forEach(x=>{const penalty=x.id===uid?0:bestUnmatchedScore(h[x.id]||[],x);penalties[x.id]=penalty;totals[x.id]=(x.score||0)+penalty;});
