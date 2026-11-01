@@ -265,15 +265,7 @@ function render(){
  document.getElementById("players").innerHTML=phtml;
 
  if(players[0]){
-  document.getElementById("hand").innerHTML=players[0].hand.map((c,i)=>{
-   let red=["♥","♦"].includes(c.suit);
-   return `<div class="card ${red?"red":""} ${(drawn?selected===i:selectedIndices.includes(i))?"selected":""}"
-   onclick="selectCard(${i})">
-   <span>${c.rank==="JOKER"?"★":c.rank}</span>
-   <span style="text-align:center">${c.suit}</span>
-   <span style="text-align:right">${c.rank==="JOKER"?"★":c.rank}</span>
-   </div>`;
-  }).join("");
+  document.getElementById("hand").innerHTML=renderHandLayout();
  }
  document.getElementById("discardBtn").disabled=
  !(turn===0&&drawn&&selected>=0);
@@ -310,7 +302,8 @@ function drawClosed(){
  players[0].hand.push(deck.pop());
  drawn=true;
  selected=-1;
- message("Card drawn. Select one card to discard.");
+ autoArrange(false);
+ message("Card drawn. Your cards are arranged automatically. Select one card to discard.");
  render();
 }
 
@@ -320,7 +313,8 @@ function drawOpen(){
  players[0].hand.push(discard.pop());
  drawn=true;
  selected=-1;
- message("Open card taken. Select one card to discard.");
+ autoArrange(false);
+ message("Open card taken. Your cards are arranged automatically. Select one card to discard.");
  render();
 }
 
@@ -440,7 +434,7 @@ function renderHandLayout(){
   const cards=ids.map(id=>({card:hand.find(c=>c.id===id),index:hand.findIndex(c=>c.id===id)})).filter(x=>x.card);
   html+='<div class="hand-group"><div class="hand-group-title">'+(g===0?'✦ PURE FOUR-CARD SET':'✦ THREE-CARD SET')+' <button class="group-remove" onclick="removeGroup('+g+')">Undo</button></div><div class="hand-group-cards">'+cards.map(x=>cardMarkup(x.card,x.index)).join('')+'</div></div>';
  });
- const loose=hand.map((card,index)=>({card,index})).filter(x=>!grouped.has(x.card.id));
+ const loose=sortCardsLowToHigh(hand.map((card,index)=>({card,index})).filter(x=>!grouped.has(x.card.id)).map(x=>x.card)).map(card=>({card,index:hand.findIndex(x=>x.id===card.id)}));
  html+='<div class="loose-area"><div class="loose-title">YOUR UNGROUPED CARDS</div><div class="loose-cards">'+loose.map(x=>cardMarkup(x.card,x.index)).join('')+'</div></div></div>';
  return html;
 }
@@ -452,7 +446,7 @@ function renderGroups(){
  el.innerHTML=arrangedGroups.map((g,i)=>'<div class="group-row"><span class="group-label">'+(g.length===4?'PURE 4-SET':'3-SET')+'</span>'+g.map(id=>{const card=players[0].hand.find(x=>x.id===id);return card?'<span class="group-card '+(['♥','♦'].includes(card.suit)?'red':'')+'">'+(card.joker?'🃏':card.rank+card.suit)+'</span>':''}).join('')+'<button class="group-remove" onclick="removeGroup('+i+')">Undo</button></div>').join('');
 }
 function makeManualGroup(size){
- if(!players.length||turn!==0||drawn){message("Arrange sets after completing your discard.");return;}
+ if(!players.length||turn!==0){message("Arrange sets during your turn.");return;}
  if(selectedIndices.length!==size){message("Select exactly "+size+" cards, then press this group button.");return;}
  const chosen=selectedIndices.map(i=>players[0].hand[i]);
  if(arrangedGroups.flat().some(id=>chosen.some(c=>c.id===id))){message("A selected card is already in another group. Clear groups or undo one first.");return;}
@@ -469,36 +463,48 @@ function validThree(cards){
  if(!natural.length)return true;
  return natural.every(c=>c.rank===natural[0].rank);
 }
-function autoArrange(){
- if(!players.length||turn!==0||drawn||players[0].hand.length!==13){message("Auto arrange is available when you have 13 cards.");return;}
+function rankValue(c){
+ if(c.joker)return -1;
+ return ranks.indexOf(c.rank);
+}
+function sortCardsLowToHigh(cards){
+ return [...cards].sort((a,b)=>rankValue(a)-rankValue(b)||suits.indexOf(a.suit)-suits.indexOf(b.suit));
+}
+function autoArrange(showMessage=true){
+ if(!players.length||turn!==0){if(showMessage)message("Auto arrange is available on your turn.");return;}
  const hand=players[0].hand;
- const ranksFound=[...new Set(hand.filter(c=>!c.joker).map(c=>c.rank))];
- let pure=null;
- for(const r of ranksFound){
-  const same=hand.filter(c=>!c.joker&&c.rank===r);
-  if(same.length>=4){pure=same.slice(0,4);break;}
+ arrangedGroups=[];
+ const available=[...hand];
+ const pureRank=ranks.find(r=>available.filter(c=>!c.joker&&c.rank===r).length>=4);
+ if(pureRank){
+  const pure=available.filter(c=>!c.joker&&c.rank===pureRank).slice(0,4);
+  arrangedGroups.push(pure.map(c=>c.id));
+  pure.forEach(c=>available.splice(available.findIndex(x=>x.id===c.id),1));
  }
- if(!pure){message("No natural four-card set found. A pure four-set is required.");return;}
- const remaining=hand.filter(c=>!pure.some(x=>x.id===c.id));
- const triples=[];
  function search(pool,groups){
-  if(pool.length===0){return groups.length===3?groups:null;}
-  if(groups.length>=3)return null;
-  const first=pool[0];
-  for(let a=1;a<pool.length-1;a++)for(let b=a+1;b<pool.length;b++){
-   const g=[first,pool[a],pool[b]];
-   if(!validThree(g))continue;
-   const used=new Set(g.map(x=>x.id));
-   const rest=pool.filter(x=>!used.has(x.id));
-   const found=search(rest,[...groups,g]);
-   if(found)return found;
+  if(groups.length===3||pool.length<3)return groups;
+  const sorted=sortCardsLowToHigh(pool);
+  for(let i=0;i<sorted.length-2;i++){
+   for(let j=i+1;j<sorted.length-1;j++){
+    for(let k=j+1;k<sorted.length;k++){
+     const set=[sorted[i],sorted[j],sorted[k]];
+     if(!validThree(set))continue;
+     const ids=new Set(set.map(c=>c.id));
+     const result=search(pool.filter(c=>!ids.has(c.id)),[...groups,set]);
+     if(result.length>groups.length)return result;
+    }
+   }
   }
-  return null;
+  return groups;
  }
- const found=search(remaining,[]);
- if(!found){arrangedGroups=[];render();message("Couldn't find three valid sets with the current joker eligibility.");return;}
- arrangedGroups=[pure.map(c=>c.id),...found.map(g=>g.map(c=>c.id))];selectedIndices=[];
- render();message("Cards arranged! Check the four groups, then press SHOW.");
+ const triples=search(available,[]);
+ triples.forEach(g=>arrangedGroups.push(g.map(c=>c.id)));
+ selectedIndices=[];
+ render();
+ if(showMessage){
+  const loose=hand.length-arrangedGroups.flat().length;
+  message("Sorted low to high. "+arrangedGroups.length+" set(s) arranged; "+loose+" card(s) remain loose.");
+ }
 }
 function showHand(){
  if(!players.length||turn!==0||drawn){message("Finish your turn before showing.");return;}
