@@ -137,6 +137,22 @@ footer{color:#9bb9a9;padding:20px 12px 28px;letter-spacing:.7px}
 @media(min-width:451px){
  .hand-group-cards,.loose-cards{flex-wrap:wrap}
 }
+
+/* Two-row hand layout for phone screens */
+.hand-layout{display:flex;flex-direction:column;gap:8px;width:100%;min-width:0}
+.hand-group-cards,.loose-cards{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:7px;justify-items:center;overflow:visible;padding:5px 0}
+.hand-group .card,.loose-cards .card{width:100%;max-width:43px;height:62px;min-width:0;flex:none}
+.loose-area{width:100%;min-width:0;overflow:hidden}
+.pair-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:5px 0 10px}
+.hand-pair{display:flex;align-items:center;justify-content:center;gap:4px;border:1px solid #d9b66b55;border-radius:8px;padding:5px 2px;background:#08291f88;min-width:0}
+.hand-pair .card{width:38px;height:56px;min-width:0;flex:0 1 38px;font-size:11px}
+.pair-label{font-size:8px;color:#f4d28a;writing-mode:vertical-rl;letter-spacing:.5px}
+.singles-title{margin-top:8px}
+@media(max-width:450px){
+ .hand-group-cards,.loose-cards{grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+ .hand-group .card,.loose-cards .card{max-width:39px;height:57px}
+ .hand-pair .card{width:34px;height:51px;flex-basis:34px}
+}
 </style>
 </head>
 <body>
@@ -267,7 +283,8 @@ function startGame(){
  discard.push(deck.pop());
  document.getElementById("setup").classList.add("hidden");
  document.getElementById("game").classList.remove("hidden");
- message("Your turn. You may take the open card or draw from the closed pile.");
+ autoArrange(false);
+ message("Your cards are arranged. Your turn: choose a pile.");
  render();
 }
 
@@ -496,8 +513,20 @@ function renderHandLayout(){
   const cards=ids.map(id=>({card:hand.find(c=>c.id===id),index:hand.findIndex(c=>c.id===id)})).filter(x=>x.card);
   html+='<div class="hand-group" ondragover="event.preventDefault()" ondrop="dropOnGroup(event,'+g+')"><div class="hand-group-title">'+(ids.length===4?'✦ PURE FOUR-CARD SET':'✦ THREE-CARD SET')+'</div><div class="hand-group-cards">'+cards.map(x=>cardMarkup(x.card,x.index)).join('')+'</div></div>';
  });
- const loose=sortCardsLowToHigh(hand.map((card,index)=>({card,index})).filter(x=>!grouped.has(x.card.id)).map(x=>x.card)).map(card=>({card,index:hand.findIndex(x=>x.id===card.id)}));
- html+='<div class="loose-area"><div class="loose-title">OTHER CARDS · LOW TO HIGH</div><div class="loose-cards">'+loose.map(x=>cardMarkup(x.card,x.index)).join('')+'</div></div></div>';
+ const loose=sortCardsLowToHigh(hand.filter(card=>!grouped.has(card.id)));
+ const byRank={};
+ loose.filter(c=>!isWild(c)).forEach(c=>{(byRank[c.rank]||(byRank[c.rank]=[])).push(c);});
+ const pairIds=new Set();
+ let pairHtml='';
+ Object.keys(byRank).sort((a,b)=>ranks.indexOf(a)-ranks.indexOf(b)).forEach(rank=>{
+  const pair=byRank[rank];
+  while(pair.length>=2){
+   const a=pair.shift(),b=pair.shift();pairIds.add(a.id);pairIds.add(b.id);
+   pairHtml+='<div class="hand-pair"><span class="pair-label">PAIR</span>'+cardMarkup(a,hand.findIndex(x=>x.id===a.id))+cardMarkup(b,hand.findIndex(x=>x.id===b.id))+'</div>';
+  }
+ });
+ const singles=loose.filter(c=>!pairIds.has(c.id));
+ html+='<div class="loose-area"><div class="loose-title">MATCHING PAIRS</div><div class="pair-row">'+(pairHtml||'<span class="empty-groups">No pairs yet</span>')+'</div><div class="loose-title singles-title">OTHER CARDS · LOW TO HIGH</div><div class="loose-cards">'+singles.map(c=>cardMarkup(c,hand.findIndex(x=>x.id===c.id))).join('')+'</div></div></div>';
  return html;
 }
 
