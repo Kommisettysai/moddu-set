@@ -497,6 +497,22 @@ body.show-player-scores .player-strip .profile-score{display:block!important;mar
  .results-card{height:66px!important}
 }
 
+
+/* Google-first account onboarding */
+.account-welcome{display:flex;align-items:center;gap:12px;margin:5px 0 16px;padding:12px;border:1px solid #d9b66b55;border-radius:14px;background:#08291f88}
+.account-avatar{width:46px;height:46px;flex:0 0 46px;display:grid;place-items:center;border-radius:50%;background:linear-gradient(145deg,#f7dfa5,#c99b4b);color:#38270d;font-size:23px;border:2px solid #ffe5a8}
+.account-welcome strong,.account-welcome span{display:block}
+.account-welcome strong{font-size:16px;color:#ffe2a1}
+.account-welcome span{font-size:12px;color:#b8c9bd;margin-top:3px;overflow-wrap:anywhere}
+.google-signin{width:100%;min-height:52px;font-size:16px;font-weight:850}
+.username-setup{margin-top:17px;padding:15px;border:1px solid #d9b66b88;border-radius:14px;background:#08291f99}
+.username-input-row{display:flex;align-items:center;gap:7px;margin:10px 0}
+.username-input-row>span{font-size:20px;color:#f4d28a;font-weight:900}
+.username-input-row input{min-width:0;flex:1}
+#saveUsernameBtn{width:100%}
+#roomActions{margin-top:20px}
+#roomActions .lobby-text-button{display:block;margin:10px auto 0}
+
 </style>
 </head>
 <body>
@@ -514,32 +530,35 @@ body.show-player-scores .player-strip .profile-score{display:block!important;mar
   <p>One table. A few friends. Let the cards decide.</p>
  </div>
  <div class="lobby-card">
-  <label class="lobby-label" for="playerName">YOUR NAME</label>
-  <input id="playerName" class="lobby-input" maxlength="18" placeholder="Enter the name friends know you by" autocomplete="nickname">
-  <button class="lobby-secondary google-signin" onclick="continueWithGoogle()">Continue with Google</button>
-  <p class="lobby-hint" id="authStatus">You can also join instantly as a guest.</p>
-  <div class="lobby-section-title">PLAY WITH FRIENDS</div>
-  <button class="lobby-primary" onclick="createRoom()">＋ Create a private table</button>
-  <div class="lobby-or"><span></span> OR JOIN YOUR FRIENDS <span></span></div>
-  <div class="lobby-join-row">
-   <input id="roomCodeInput" class="lobby-input lobby-code-input" maxlength="6" placeholder="ROOM CODE" autocapitalize="characters">
-   <button class="lobby-join" onclick="joinRoom()">Join</button>
+  <input id="playerName" type="hidden" maxlength="18" autocomplete="nickname">
+  <div class="account-welcome" id="accountWelcome">
+   <div class="account-avatar" id="accountAvatar">👤</div>
+   <div><strong id="accountDisplayName">Welcome to Moddu Set</strong><span id="accountEmail">Sign in to create your player account.</span></div>
   </div>
-  <p class="lobby-hint">Create a room and share its code on WhatsApp. Friends can join from their own phones.</p>
-  <label class="lobby-label" for="soloScoreLimit">SCORE LIMIT</label>
-  <select id="soloScoreLimit" class="lobby-input" aria-label="Solo game elimination score limit">
-   <option value="100">100 points</option><option value="150">150 points</option><option value="200" selected>200 points</option><option value="250">250 points</option><option value="300">300 points</option>
-  </select>
- </div>
- <div class="lobby-quick">
-  <div class="lobby-section-title">OR PLAY SOLO</div>
-  <div class="lobby-solo-row">
-   <select id="playerCount" aria-label="Number of players">
-    <option value="4">4 players</option><option value="5">5 players</option><option value="6">6 players</option>
+  <button class="google-signin" id="googleSignInBtn" onclick="continueWithGoogle()">🌐 Continue with Google</button>
+  <p class="lobby-hint" id="authStatus">One tap creates your account the first time. Next time, Google signs you straight in.</p>
+  <div class="username-setup hidden" id="usernameSetup">
+   <div class="lobby-section-title">CHOOSE YOUR PLAYER USERNAME</div>
+   <p class="lobby-hint">Your friends can find you using this unique username.</p>
+   <div class="username-input-row"><span>@</span><input id="usernameInput" class="lobby-input" maxlength="16" placeholder="yourname" autocomplete="username" autocapitalize="none"></div>
+   <button class="lobby-primary" id="saveUsernameBtn" onclick="savePlayerUsername()">Save username</button>
+   <p class="lobby-hint" id="usernameNotice">Use 3 to 16 letters, numbers or underscores.</p>
+  </div>
+  <div id="roomActions" class="hidden">
+   <div class="lobby-section-title">PLAY WITH FRIENDS</div>
+   <button class="lobby-primary" onclick="createRoom()">＋ Create a private table</button>
+   <div class="lobby-or"><span></span> OR JOIN YOUR FRIENDS <span></span></div>
+   <div class="lobby-join-row">
+    <input id="roomCodeInput" class="lobby-input lobby-code-input" maxlength="6" placeholder="ROOM CODE" autocapitalize="characters">
+    <button class="lobby-join" onclick="joinRoom()">Join</button>
+   </div>
+   <p class="lobby-hint">Create a room and share its code. Friends can join from their own phones.</p>
+   <label class="lobby-label" for="soloScoreLimit">MATCH SCORE LIMIT</label>
+   <select id="soloScoreLimit" class="lobby-input" aria-label="Match elimination score limit">
+    <option value="100">100 points</option><option value="150">150 points</option><option value="200" selected>200 points</option><option value="250">250 points</option><option value="300">300 points</option>
    </select>
-   <button class="lobby-secondary" onclick="startBots()">🤖 Play vs bots</button>
+   <button class="lobby-text-button" onclick="signOutPlayer()">Sign out</button>
   </div>
- </div>
  <div id="lobbyNotice" class="lobby-notice">Private rooms are being connected. Add your Firebase project settings to enable friends joining live.</div>
 </section>
 
@@ -644,56 +663,85 @@ const FIREBASE_CONFIG = {
  appId: "1:802935295929:web:458f8ad392b18ac9cd7068"
 };
 let firebaseReady=false,roomRef=null,roomCode=null,roomListener=null,roomPlayerId=null,isRoomHost=false;
-let authUser=null;
+let authUser=null,playerProfile=null,profileReady=false,authCheckInProgress=false;
 function setAuthStatus(t){const el=document.getElementById("authStatus");if(el)el.textContent=t;}
+function setUsernameNotice(t,isError=false){const el=document.getElementById("usernameNotice");if(el){el.textContent=t;el.style.color=isError?"#ffb6a8":"#b8c9bd";}}
+function showAccountState(user,profile){
+ const btn=document.getElementById("googleSignInBtn"),setup=document.getElementById("usernameSetup"),actions=document.getElementById("roomActions");
+ const name=document.getElementById("accountDisplayName"),email=document.getElementById("accountEmail"),avatar=document.getElementById("accountAvatar");
+ if(!user){if(btn)btn.classList.remove("hidden");if(setup)setup.classList.add("hidden");if(actions)actions.classList.add("hidden");if(name)name.textContent="Welcome to Moddu Set";if(email)email.textContent="Sign in to create your player account.";if(avatar)avatar.textContent="👤";return;}
+ if(btn)btn.classList.add("hidden");
+ if(name)name.textContent=user.displayName||"Welcome, player";
+ if(email)email.textContent=user.email||"Google account connected";
+ if(avatar){avatar.textContent="";avatar.style.backgroundImage=user.photoURL?"url('"+user.photoURL.replace(/['()]/g,"")+"')":"";avatar.style.backgroundSize="cover";avatar.style.backgroundPosition="center";}
+ if(profile){playerProfile=profile;profileReady=true;const input=document.getElementById("playerName");if(input)input.value=profile.displayName||user.displayName||"Player";if(setup)setup.classList.add("hidden");if(actions)actions.classList.remove("hidden");setAuthStatus("Signed in as @"+profile.username);}
+ else{playerProfile=null;profileReady=false;if(setup)setup.classList.remove("hidden");if(actions)actions.classList.add("hidden");const input=document.getElementById("usernameInput");if(input&&!input.value){const suggested=(user.displayName||"player").toLowerCase().replace(/[^a-z0-9_]/g,"").slice(0,12);input.value=suggested.length>=3?suggested:"player"+String(user.uid).slice(0,4);}setAuthStatus("Google connected. Choose a username once to finish setting up your player account.");}
+}
+async function loadPlayerProfile(user){
+ if(!user||!firebaseReady)return;
+ try{const snap=await firebase.database().ref("users/"+user.uid).get();if(authUser&&authUser.uid===user.uid)showAccountState(user,snap.exists()?snap.val():null);}
+ catch(e){setAuthStatus("Could not load your player profile: "+e.message);setLobbyNotice("Profile loading failed. Please refresh and try again.");}
+}
 function initFirebase(){
- if(!window.firebase){setLobbyNotice("Firebase SDK could not load. Check your internet connection and refresh.");return;}
+ if(!window.firebase){setLobbyNotice("Firebase could not load. Check your connection and refresh.");return;}
  try{
   if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
   firebaseReady=true;
-  const syncGoogleProfile=user=>{
-   if(!user)return;
-   const nameInput=document.getElementById("playerName");
-   if(nameInput&&user.displayName&&!nameInput.value.trim())nameInput.value=user.displayName.slice(0,18);
-   if(user.isAnonymous)setAuthStatus("Playing as guest. You can connect Google any time.");
-   else setAuthStatus("Google account connected: "+(user.displayName||user.email||"signed in"));
-  };
+  firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>setAuthStatus("Session setting: "+e.message));
   firebase.auth().onAuthStateChanged(user=>{
    authUser=user||null;
-   if(user)syncGoogleProfile(user);
-   else setAuthStatus("Connecting as a guest…");
-  });
-  firebase.auth().getRedirectResult().then(result=>{
-   if(result&&result.user){
-    syncGoogleProfile(result.user);
-    setLobbyNotice("Google account connected successfully. Your profile name has been filled in; you can edit it before creating a table.");
-   }
-   if(!firebase.auth().currentUser)return firebase.auth().signInAnonymously();
-  }).catch(e=>{
-   if(e.code==="auth/credential-already-in-use"||e.code==="auth/account-exists-with-different-credential"){
-    setLobbyNotice("This Google account already has a player login. Signing in to that account…");
-    firebase.auth().signInWithRedirect(new firebase.auth.GoogleAuthProvider()).catch(x=>setLobbyNotice("Google sign-in failed: "+x.message));
-   }else{
-    setLobbyNotice("Google sign-in error: "+e.message);
-    if(!firebase.auth().currentUser)firebase.auth().signInAnonymously().catch(x=>setLobbyNotice("Guest sign-in failed: "+x.message));
-   }
+   if(user)loadPlayerProfile(user);
+   else{playerProfile=null;profileReady=false;showAccountState(null,null);setAuthStatus("Sign in with Google to create your player account.");}
   });
  }catch(e){setLobbyNotice("Firebase setup error: "+e.message);}
 }
 async function continueWithGoogle(){
- if(!firebaseReady){setLobbyNotice("Firebase is still connecting. Please try again in a moment.");return;}
- const provider=new firebase.auth.GoogleAuthProvider();
- provider.setCustomParameters({prompt:"select_account"});
+ const btn=document.getElementById("googleSignInBtn");
+ if(!firebaseReady){setLobbyNotice("Google sign-in is still connecting. Please try again in a moment.");return;}
+ if(btn){btn.disabled=true;btn.textContent="Connecting to Google…";}
+ setAuthStatus("Opening Google sign-in. Please choose your account.");
  try{
-  const user=firebase.auth().currentUser;
-  if(user&&user.isAnonymous)await user.linkWithRedirect(provider);
-  else await firebase.auth().signInWithRedirect(provider);
+  const provider=new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({prompt:"select_account"});
+  const result=await firebase.auth().signInWithPopup(provider);
+  authUser=result.user;
+  await loadPlayerProfile(result.user);
+  if(!result.additionalUserInfo?.isNewUser&&playerProfile)setLobbyNotice("Welcome back, @"+playerProfile.username+"!");
+  else if(!playerProfile)setLobbyNotice("Your Moddu Set account is created. Choose your username to continue.");
  }catch(e){
-  setLobbyNotice("Google sign-in could not start: "+e.message);
- }
+  const messages={
+   "auth/popup-blocked":"Your browser blocked the sign-in window. Allow pop-ups for this site and try again.",
+   "auth/popup-closed-by-user":"Google sign-in was closed before it finished. Tap Continue with Google to try again.",
+   "auth/unauthorized-domain":"This website domain is not authorised in Firebase Authentication. Add kommisettysai.github.io to Firebase's authorised domains.",
+   "auth/operation-not-allowed":"Google sign-in is not enabled in Firebase Authentication yet.",
+   "auth/network-request-failed":"Network connection failed while contacting Google. Check your connection and try again."
+  };
+  const msg=messages[e.code]||("Google sign-in failed ("+(e.code||"unknown")+"): "+e.message);
+  setAuthStatus(msg);setLobbyNotice(msg);
+ }finally{if(btn){btn.disabled=false;btn.textContent="🌐 Continue with Google";}}
+}
+async function savePlayerUsername(){
+ if(!authUser||!firebaseReady){setUsernameNotice("Please sign in with Google first.",true);return;}
+ const input=document.getElementById("usernameInput"),btn=document.getElementById("saveUsernameBtn");
+ const username=(input.value||"").trim().toLowerCase();
+ if(!/^[a-z0-9_]{3,16}$/.test(username)){setUsernameNotice("Use 3 to 16 characters: letters, numbers or underscore.",true);input.focus();return;}
+ if(btn){btn.disabled=true;btn.textContent="Saving…";}
+ try{
+  const db=firebase.database(),indexRef=db.ref("usernames/"+username),claim=await indexRef.transaction(current=>current===null?authUser.uid:undefined);
+  if(!claim.committed){setUsernameNotice("That username is already taken. Try another one.",true);return;}
+  const profile={uid:authUser.uid,username,displayName:(authUser.displayName||username).slice(0,30),email:authUser.email||"",photoURL:authUser.photoURL||"",createdAt:firebase.database.ServerValue.TIMESTAMP};
+  await db.ref("users/"+authUser.uid).set(profile);
+  playerProfile={...profile,createdAt:Date.now()};profileReady=true;showAccountState(authUser,playerProfile);
+  setLobbyNotice("Your player account is ready, @"+username+"! Create a table or join your friends.");
+ }catch(e){setUsernameNotice("Could not save username: "+e.message,true);}
+ finally{if(btn){btn.disabled=false;btn.textContent="Save username";}}
+}
+async function signOutPlayer(){
+ try{await firebase.auth().signOut();setLobbyNotice("You have signed out.");}
+ catch(e){setLobbyNotice("Could not sign out: "+e.message);}
 }
 function setLobbyNotice(t){const el=document.getElementById("lobbyNotice");if(el)el.textContent=t;}
-function lobbyName(){const v=document.getElementById("playerName").value.trim();if(!v){setLobbyNotice("Please enter your name first.");document.getElementById("playerName").focus();return "";}return v.slice(0,18);}
+function lobbyName(){if(!authUser||!profileReady||!playerProfile){setLobbyNotice("Sign in with Google and choose your username first.");return "";}const v=playerProfile.displayName||authUser.displayName||playerProfile.username;document.getElementById("playerName").value=v;return v.slice(0,18);}
 function makeRoomCode(){return Math.random().toString(36).slice(2,8).toUpperCase();}
 function createRoom(){
  const name=lobbyName();if(!name)return;
