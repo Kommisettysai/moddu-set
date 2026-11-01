@@ -1276,7 +1276,6 @@ function validateOnlineShow(hand,groupIds,player){
  if(used.length!==13||new Set(used).size!==13||hand.length!==13)return "All 13 cards must be used exactly once.";
  const pure=groups[0];
  if(pure.some(c=>c.joker)||!pure.every(c=>c.rank===pure[0].rank))return "The first group must be a natural four-set of the same rank.";
- if(!player?.unlocked)return "You must unlock the special joker with a natural four-set before SHOW.";
  if(!groups.slice(1).every(g=>validThree(g,player)))return "Each three-card set must have the same rank, except for valid jokers.";
  return null;
 }
