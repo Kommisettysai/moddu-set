@@ -780,6 +780,40 @@ async function savePlayerUsername(){
  finally{if(btn){btn.disabled=false;btn.textContent="Save username";}}
 }
 async function signOutPlayer(){
+ const user=firebase.auth().currentUser;
+ if(!user){setLobbyNotice("You are already signed out.");return;}
+ if(user.isAnonymous){
+  const username=playerProfile&&playerProfile.username;
+  const warning=username
+   ?"Signing out will permanently delete this guest account and release @"+username+". You will not be able to sign back into this guest account. Continue?"
+   :"Signing out will permanently delete this temporary guest account. Continue?";
+  if(!confirm(warning))return;
+  try{
+   const db=firebase.database(),profileRef=db.ref("users/"+user.uid);
+   const profileSnap=await profileRef.get(),savedProfile=profileSnap.exists()?profileSnap.val():null;
+   let releasedUsername=null;
+   if(savedProfile&&savedProfile.username){
+    const usernameRef=db.ref("usernames/"+savedProfile.username);
+    const claim=await usernameRef.transaction(current=>current===user.uid?null:undefined);
+    if(claim.committed)releasedUsername=savedProfile.username;
+   }
+   try{
+    if(savedProfile&&savedProfile.uid===user.uid)await profileRef.remove();
+    await user.delete();
+    setLobbyNotice("Guest account deleted. @"+(releasedUsername||username||"guest")+" is now available again.");
+   }catch(deleteError){
+    if(savedProfile&&savedProfile.uid===user.uid)await profileRef.set(savedProfile).catch(()=>{});
+    if(releasedUsername)await db.ref("usernames/"+releasedUsername).transaction(current=>current===null?user.uid:undefined).catch(()=>{});
+    throw deleteError;
+   }
+  }catch(e){
+   const messageText=e.code==="auth/requires-recent-login"
+    ?"For safety, this guest session is too old to delete. Refresh the page, then try signing out again."
+    :"Could not delete guest account: "+e.message;
+   setLobbyNotice(messageText);
+  }
+  return;
+ }
  try{await firebase.auth().signOut();setLobbyNotice("You have signed out.");}
  catch(e){setLobbyNotice("Could not sign out: "+e.message);}
 }
