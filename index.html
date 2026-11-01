@@ -627,7 +627,7 @@ body.app-locked{overflow:hidden}
 .player-strip .players{position:relative;isolation:isolate}
 .player-strip .player{z-index:1}
 .player-strip .player:has(.player-reaction-burst){z-index:20}
-.player-reaction-burst{z-index:100!important;top:-22px!important}.player-reaction-floating{top:auto!important;left:auto!important}
+.player-reaction-burst{z-index:100!important;top:-22px!important}
 
 /* Eliminated players remain at the table as read-only spectators */
 #game.spectator-mode .spectator-notice{display:block}
@@ -2038,8 +2038,8 @@ function showPlayerReaction(item){
  const rect=profile.getBoundingClientRect();
  const burst=document.createElement("div");
  burst.className="player-reaction-burst player-reaction-floating"+(item.type==="emoji"?"":" is-message");
- burst.style.left=Math.max(8,Math.min(window.innerWidth-8,rect.left+rect.width/2))+"px";
- burst.style.top=Math.max(8,rect.top-12)+"px";
+ burst.style.setProperty("left",Math.max(8,Math.min(window.innerWidth-8,rect.left+rect.width/2))+"px","important");
+ burst.style.setProperty("top",Math.max(8,rect.top-12)+"px","important");
  burst.style.setProperty("--reaction-x","-50%");
  const content=document.createElement("span");content.className="reaction-content";content.textContent=item.text;
  const sender=document.createElement("span");sender.className="reaction-sender";sender.textContent=item.senderName;
