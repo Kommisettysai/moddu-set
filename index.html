@@ -534,10 +534,35 @@ body.show-player-scores .player-strip .profile-score{display:block!important;mar
 .history-empty{font-size:11px;color:#b8c9bd}
 @media(max-width:390px){.friend-search-row{flex-wrap:wrap}.friend-search-row button{width:100%}}
 
+
+/* SAI personal brand identity */
+.sai-brand{display:inline-flex;align-items:center;justify-content:center;gap:9px;color:#f4d28a;line-height:1;text-align:left}
+.sai-brand-mark{display:grid;place-items:center;width:39px;height:39px;flex:0 0 39px}
+.sai-brand-mark svg{display:block;width:100%;height:100%;filter:drop-shadow(0 2px 5px #0006)}
+.sai-brand-copy{display:flex;flex-direction:column;gap:3px}
+.sai-brand-copy strong{font-family:Georgia,serif;font-size:19px;font-weight:900;letter-spacing:3px}
+.sai-brand-copy small{font-size:7px;font-weight:800;letter-spacing:1.8px;color:#d9c18d}
+header .sai-brand{margin:0 auto 11px}
+header .sai-brand-mark{width:35px;height:35px;flex-basis:35px}
+header .sai-brand-copy strong{font-size:17px}
+.lobby-brand,.game-brand,.results-brand,.footer-brand{display:flex;justify-content:center;margin:0 0 12px}
+.lobby-brand .sai-brand-mark,.results-brand .sai-brand-mark{width:34px;height:34px;flex-basis:34px}
+.game-brand{margin:0 0 8px;padding:4px 0}
+.game-brand .sai-brand-mark{width:29px;height:29px;flex-basis:29px}
+.game-brand .sai-brand-copy strong{font-size:15px}
+.game-brand .sai-brand-copy small{font-size:6px}
+.results-brand{margin-bottom:14px}
+.footer-brand{margin-bottom:7px}
+footer .sai-brand-mark{width:27px;height:27px;flex-basis:27px}
+footer .sai-brand-copy strong{font-size:13px}
+footer .sai-brand-copy small{font-size:6px}
+@media(max-width:450px){header{padding-top:17px}.sai-brand-mark{width:34px;height:34px;flex-basis:34px}.sai-brand-copy strong{font-size:16px}}
+
 </style>
 </head>
 <body>
 <header>
+<div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong><small>PERSONAL BRAND</small></span></div>
 <h1>🃏 MODDU SET</h1>
 <div class="sub">Traditional Telugu Card Game</div>
 </header>
@@ -545,6 +570,7 @@ body.show-player-scores .player-strip .profile-score{display:block!important;mar
 <main>
 <section class="lobby-shell" id="setup">
  <div class="lobby-intro">
+  <div class="lobby-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong><small>PERSONAL BRAND</small></span></div></div>
   <div class="lobby-mark">🃏</div>
   <div class="lobby-eyebrow">TRADITIONAL TELUGU CARD GAME</div>
   <h2>Gather your people.</h2>
@@ -611,6 +637,7 @@ body.show-player-scores .player-strip .profile-score{display:block!important;mar
 
 <section class="lobby-shell hidden" id="waitingRoom">
  <div class="lobby-wait-head">
+  <div class="lobby-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong><small>PERSONAL BRAND</small></span></div></div>
   <div class="lobby-eyebrow">PRIVATE TABLE</div>
   <h2>Waiting for friends</h2>
   <p>Share this code so your friends can take a seat.</p>
@@ -635,6 +662,7 @@ body.show-player-scores .player-strip .profile-score{display:block!important;mar
 </section>
 
 <section id="game" class="hidden">
+<div class="game-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong><small>PERSONAL BRAND</small></span></div></div>
 <div class="panel player-strip">
 <div class="table-status"><span id="roundInfo">Round 1</span><span id="turnInfo"></span></div>
 <div class="players-heading"><h3>Players</h3><button type="button" id="scoresToggle" class="scores-toggle" onclick="togglePlayerScores()" aria-pressed="false">Scores</button></div>
@@ -679,6 +707,7 @@ body.show-player-scores .player-strip .profile-score{display:block!important;mar
 
 <div id="roundResults" class="round-results hidden">
  <div class="results-header">
+  <div class="results-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong><small>PERSONAL BRAND</small></span></div></div>
   <div class="results-kicker">ROUND COMPLETE</div>
   <h2>Show Results</h2>
   <p id="resultsSummary">All players' cards are revealed.</p>
@@ -693,7 +722,7 @@ body.show-player-scores .player-strip .profile-score{display:block!important;mar
 </section>
 </main>
 
-<footer>Moddu Set • Early development version</footer>
+<footer><div class="footer-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong><small>PERSONAL BRAND</small></span></div></div><span>Moddu Set • Created by Sai</span></footer>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
