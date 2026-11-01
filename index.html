@@ -213,6 +213,10 @@ footer{color:#9bb9a9;padding:20px 12px 28px;letter-spacing:.7px}
 
 /* Stronger player names for quick recognition */
 .player-strip .player b{font-size:12px!important;font-weight:900!important;letter-spacing:.15px!important;text-shadow:0 1px 2px #0006}
+.player-unmatched{display:block;margin-top:5px;padding:3px 6px;border-radius:7px;background:#6b3528;color:#ffe0c9;font-size:10px;font-weight:900;letter-spacing:.2px}
+.player-unmatched.low{background:#245b42;color:#c8f5d8}
+.player-unmatched.medium{background:#73551f;color:#ffedb0}
+.player-unmatched.high{background:#783629;color:#ffe0d5}
 @media(max-width:450px){.player-strip .player b{font-size:11px!important;font-weight:900!important}}
 
 /* Full-screen round reveal */
@@ -753,7 +757,7 @@ function render(){
   if(players[0]){
    document.getElementById("handCount").textContent=players[0].hand.length;
    if(playersEl){
-    playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+'"><b>'+escapeLobbyText(p.name)+'</b><span class="profile-count">'+p.hand.length+' cards</span><span class="profile-score">Score: '+p.score+'</span>'+(i===turn?'<span class="player-turn-badge">🎯 TURN</span>':'')+(p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+'<span class="profile-status">'+(p.status||"🎴 Ready")+'</span>'+(onlineMode&&isRoomHost&&p.id!==roomPlayerId&&p.active!==false&&onlinePublic?.status==="playing"?'<button class="host-remove-player" onclick="removeOnlinePlayer(\''+p.id+'\')">Remove player</button>':'')+'</div>').join('');
+    playersEl.innerHTML=players.map((p,i)=>{const unmatched=onlineMode?Math.max(0,Number(p.unmatchedCount)||0):bestUnmatchedScore(p.hand||[],p);const level=unmatched<=10?'low':unmatched<=25?'medium':'high';return '<div class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+'"><b>'+escapeLobbyText(p.name)+'</b><span class="profile-count">'+p.hand.length+' cards</span><span class="profile-score">Score: '+p.score+'</span><span class="player-unmatched '+level+'">Unmatched: '+unmatched+' pts</span>'+(i===turn?'<span class="player-turn-badge">🎯 TURN</span>':'')+(p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+'<span class="profile-status">'+(p.status||"🎴 Ready")+'</span>'+(onlineMode&&isRoomHost&&p.id!==roomPlayerId&&p.active!==false&&onlinePublic?.status==="playing"?'<button class="host-remove-player" onclick="removeOnlinePlayer(\''+p.id+'\')">Remove player</button>':'')+'</div>';}).join('');
    }
    if(handEl){
     try{handEl.innerHTML=renderHandLayout();}
@@ -1361,7 +1365,7 @@ function applyOnlinePublic(){
  if(!onlineMode||!onlinePublic)return;onlineActionPending=false;const st=onlinePublic,prior=players[0]||{},m=st.players||[];specialRank=st.specialRank||null;showSharedAction(st.lastAction);
  if(st.status==="playing"){const resultScreen=document.getElementById("roundResults");if(resultScreen)resultScreen.classList.add("hidden");}
  const ordered=[...m].sort((a,b)=>a.id===roomPlayerId?-1:b.id===roomPlayerId?1:0);
- players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,unlocked:!!p.unlocked,active:p.active!==false,human:p.id===roomPlayerId,cardCount:p.cardCount||0,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
+ players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,unmatchedCount:p.unmatchedCount||0,unlocked:!!p.unlocked,active:p.active!==false,human:p.id===roomPlayerId,cardCount:p.cardCount||0,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
  if(!players.length)return;
  const myPublicPlayer=m.find(p=>p.id===roomPlayerId);
  if(myPublicPlayer&&myPublicPlayer.active===false){setLobbyNotice("The host removed you from this game.");leaveRoom(true);return;}turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);round=st.round||1;drawn=st.drawnByUid===roomPlayerId;gameOver=st.status==="roundComplete"||st.status==="gameComplete";
@@ -1444,6 +1448,13 @@ function validateOnlineShow(hand,groupIds,player){
  if(!groups.slice(1).every(g=>validThree(g,player)))return "Each three-card set must have the same rank, except for valid jokers.";
  return null;
 }
+function refreshPublicUnmatchedCounts(publicState,hands,specialRanks){
+ const ranksByPlayer=specialRanks||{};
+ publicState.players=(publicState.players||[]).map(player=>{
+  const scoringPlayer={...player,specialRank:ranksByPlayer[player.id]||null};
+  return {...player,unmatchedCount:bestUnmatchedScore(hands[player.id]||[],scoringPlayer)};
+ });
+}
 async function processOnlineAction(uid,a){
  if(!isRoomHost)return;
  const [ps,ds]=await Promise.all([roomRef.child("public").get(),roomRef.child("private").get()]);
@@ -1486,13 +1497,14 @@ async function processOnlineAction(uid,a){
   }
   const invalid=validateOnlineShow(hand,a.groups,player);
   if(invalid){p.message=invalid;p.discard=pile;p.deckCount=d.length;await roomRef.child("public").set(p);return;}
+  refreshPublicUnmatchedCounts(p,h,specialRanks);
   const penalties={},totals={},limit=Math.max(1,Number(p.scoreLimit)||200);(p.players||[]).forEach(x=>{const scorePlayer={...x,specialRank:specialRanks[x.id]||null};const penalty=x.id===uid?0:bestUnmatchedScore(h[x.id]||[],scorePlayer);penalties[x.id]=penalty;totals[x.id]=(x.score||0)+penalty;});
   p.players=(p.players||[]).map(x=>{const active=x.active!==false&&totals[x.id]<limit;return {...x,score:totals[x.id],active,status:active?"Ready":"Eliminated",cardCount:(h[x.id]||[]).length};});
   p.status="roundComplete";p.discard=pile;p.deckCount=d.length;p.message=player.name+" showed successfully. All hands are revealed.";
   p.roundResult={winnerUid:uid,winnerName:player.name,groups:a.groups,penalties,totals,hands:h,specialRanks,completedAt:Date.now()};
   await Promise.all([roomRef.child("private/deck").set(d),roomRef.child("private/hands").set(h),roomRef.child("private/specialRank").set(special),roomRef.child("private/specialRanks").set(specialRanks),roomRef.child("public").set(p)]);return;
  }
- p.discard=pile;p.deckCount=d.length;p.players=(p.players||[]).map(x=>({...x,cardCount:(h[x.id]||[]).length}));
+ p.discard=pile;p.deckCount=d.length;p.players=(p.players||[]).map(x=>({...x,cardCount:(h[x.id]||[]).length}));refreshPublicUnmatchedCounts(p,h,specialRanks);
  await Promise.all([roomRef.child("private/deck").set(d),roomRef.child("private/hands").set(h),roomRef.child("private/specialRank").set(special),roomRef.child("private/specialRanks").set(specialRanks),roomRef.child("public").set(p)]);
 }
 function openOnlineRoundResults(result){
