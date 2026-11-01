@@ -854,30 +854,81 @@ function revealSpecialForCurrentPlayer(){
  }
 }
 
+function findWinningGroups(hand,player){
+ const solveThirteen=cards=>{
+  const n=cards.length,triples=[],fours=[],full=(1<<n)-1;
+  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)for(let k=j+1;k<n;k++){
+   const g=[cards[i],cards[j],cards[k]],natural=g.filter(c=>!isWildForPlayer(c,player));
+   if(!natural.length||natural.every(c=>c.rank===natural[0].rank))triples.push({ids:g.map(c=>c.id),mask:(1<<i)|(1<<j)|(1<<k)});
+  }
+  for(let i=0;i<n;i++)for(let j=i+1;j<n-1;j++)for(let k=j+1;k<n-1;k++)for(let l=k+1;l<n;l++){
+   const g=[cards[i],cards[j],cards[k],cards[l]];
+   if(g.every(c=>!c.joker&&!(player.unlocked&&specialRank&&c.rank===specialRank)&&c.rank===g[0].rank))fours.push({ids:g.map(c=>c.id),mask:(1<<i)|(1<<j)|(1<<k)|(1<<l)});
+  }
+  for(const pure of fours){
+   const chosen=[pure];
+   function walk(mask,depth){
+    if(depth===3)return mask===full?chosen.map(x=>x.ids):null;
+    for(const t of triples)if(!(t.mask&mask)){chosen.push(t);const out=walk(mask|t.mask,depth+1);if(out)return out;chosen.pop();}
+    return null;
+   }
+   const out=walk(pure.mask,0);if(out)return out;
+  }
+  return null;
+ };
+ if(hand.length===13){const groups=solveThirteen(hand);return groups?{groups}:null;}
+ if(hand.length===14)for(let i=0;i<hand.length;i++){
+  const cards=hand.filter((_,j)=>j!==i),groups=solveThirteen(cards);
+  if(groups)return {groups,discardIndex:i};
+ }
+ return null;
+}
+function chooseBotDiscardIndex(hand,player){
+ let best=0,bestValue=Infinity;
+ for(let i=0;i<hand.length;i++){
+  const rest=hand.filter((_,j)=>j!==i),card=hand[i];
+  const score=bestUnmatchedScore(rest,player);
+  const same=rest.filter(c=>!c.joker&&c.rank===card.rank).length;
+  const penalty=card.joker?100:(player.unlocked&&specialRank&&card.rank===specialRank?90:same*12);
+  const value=score*100+penalty;
+  if(value<bestValue){bestValue=value;best=i;}
+ }
+ return best;
+}
+function finishSoloRound(winnerIndex,groups){
+ roundWinnerIndex=winnerIndex;winningGroups=groups.map(g=>g.slice());
+ const penalties={};
+ players.forEach((p,i)=>{const points=i===winnerIndex?0:bestUnmatchedScore(p.hand,p);p.score+=points;penalties[i]=points;});
+ gameOver=true;render();
+ openRoundResults(players.map((p,i)=>p.name+": +"+penalties[i]+" (total "+p.score+")"));
+}
 function aiTurn(){
  if(gameOver||turn===0)return;
- let p=players[turn];
+ const p=players[turn];
  recycleDeck();
- if(discard.length&&Math.random()<0.35){
-  p.hand.push(discard.pop());
- }else if(deck.length){
-  p.hand.push(deck.pop());
+ if(discard.length){
+  const top=discard[discard.length-1];
+  const takeOpen=top.joker||bestUnmatchedScore([...p.hand,top],p)<=bestUnmatchedScore(p.hand,p);
+  if(takeOpen)p.hand.push(discard.pop());
+  else if(deck.length)p.hand.push(deck.pop());
+  else p.hand.push(discard.pop());
+ }else if(deck.length)p.hand.push(deck.pop());
+ else{nextTurn();return;}
+ const possible=findWinningGroups(p.hand,p);
+ if(possible){
+  discard.push(p.hand.splice(possible.discardIndex,1)[0]);
+  checkUnlock(turn);
+  const final=findWinningGroups(p.hand,p);
+  if(final){finishSoloRound(turn,final.groups);return;}
  }else{
-  nextTurn();return;
+  const index=chooseBotDiscardIndex(p.hand,p);
+  discard.push(p.hand.splice(index,1)[0]);
+  checkUnlock(turn);
+  const final=findWinningGroups(p.hand,p);
+  if(final){finishSoloRound(turn,final.groups);return;}
  }
-
- // Basic random AI discard. Improved strategy will be added later.
- let index=Math.floor(Math.random()*p.hand.length);
- discard.push(p.hand.splice(index,1)[0]);
-
- checkUnlock(turn);
- render();
- nextTurn();
-}
-
-
-
-function cardMarkup(c,i){
+ render();nextTurn();
+}function cardMarkup(c,i){
  const red=["♥","♦"].includes(c.suit);
  return `<div class="card ${red?"red":""} ${(drawn?selected===i:selectedIndices.includes(i))?"selected":""}" draggable="true" ondragstart="dragCard(event,${i})" onclick="selectCard(${i})">
  <span>${c.joker?"★":c.rank}</span><span style="text-align:center">${c.suit}</span><span style="text-align:right">${c.joker?"★":c.rank}</span></div>`;
