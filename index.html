@@ -1225,7 +1225,7 @@ function createRoom(){
  const name=lobbyName();if(!name)return;if(!firebaseReady||!authUser){setLobbyNotice("Firebase sign-in is still loading.");return;}
  (async()=>{try{let code=makeRoomCode(),ref=firebase.database().ref("rooms/"+code),snap=await ref.child("lobby").get();while(snap.exists()){code=makeRoomCode();ref=firebase.database().ref("rooms/"+code);snap=await ref.child("lobby").get();}
  roomCode=code;roomRef=ref;roomPlayerId=authUser.uid;isRoomHost=true;
- await ref.set({hostId:authUser.uid,lobby:{code,hostId:authUser.uid,status:"waiting",maxPlayers:6,players:{[authUser.uid]:{id:authUser.uid,name,ready:true,joinedAt:firebase.database.ServerValue.TIMESTAMP}}},public:{},private:{deck:[],hands:{},specialRank:null,specialRanks:{}},actions:{}});
+ await ref.set({hostId:authUser.uid,lobby:{code,hostId:authUser.uid,status:"waiting",maxPlayers:6,scoreLimit:200,players:{[authUser.uid]:{id:authUser.uid,name,ready:true,joinedAt:firebase.database.ServerValue.TIMESTAMP}}},public:{},private:{deck:[],hands:{},specialRank:null,specialRanks:{}},actions:{}});
  showWaitingRoom();}catch(e){setLobbyNotice("Could not create room: "+e.message);}})();
 }
 async function joinRoom(){
@@ -1245,13 +1245,19 @@ function showWaitingRoom(){
  document.getElementById("addBotBtn").classList.toggle("hidden",!isRoomHost);
  document.getElementById("waitingRoom").scrollIntoView({behavior:"smooth",block:"start"});
  if(onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
- onlineLobbyListener=snap=>{if(!snap.exists())return;const l=snap.val(),m=onlineMembers(l);document.getElementById("roomPlayerCount").textContent=m.length+"/"+l.maxPlayers;
+ onlineLobbyListener=snap=>{if(!snap.exists())return;const l=snap.val(),m=onlineMembers(l),limitEl=document.getElementById("roomScoreLimit");if(limitEl){limitEl.value=String(l.scoreLimit||200);limitEl.disabled=!isRoomHost||l.status!=="waiting";}document.getElementById("roomPlayerCount").textContent=m.length+"/"+l.maxPlayers;
  document.getElementById("roomPlayers").innerHTML=m.map((p,i)=>'<div class="room-player"><span class="avatar">'+(p.isBot?"🤖":(["🃏","🌟","🍀","🔥","🎯","👑"][i]||"🃏"))+'</span><strong>'+escapeLobbyText(p.name)+'</strong><small>'+(p.id===l.hostId?"HOST":p.isBot?"BOT":"READY")+'</small></div>').join("");
  document.getElementById("addBotBtn").disabled=m.length>=l.maxPlayers;
  if(l.status==="started")roomRef.child("public").get().then(x=>{if(x.exists())enterOnlineGame(x.val());});};
  roomRef.child("lobby").on("value",onlineLobbyListener);
 }
 
+async function updateRoomScoreLimit(value){
+ if(!isRoomHost||!roomRef)return;
+ const limit=[100,150,200,250,300].includes(Number(value))?Number(value):200;
+ try{await roomRef.child("lobby/scoreLimit").set(limit);setLobbyNotice("Elimination limit set to "+limit+" points.");}
+ catch(e){setLobbyNotice("Could not update score limit: "+e.message);}
+}
 async function addBotToRoom(){
  if(!isRoomHost||!roomRef)return;
  try{
