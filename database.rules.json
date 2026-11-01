@@ -23,6 +23,11 @@
             "$playerId": {
               ".read": "auth != null && (auth.uid === $playerId || root.child('rooms').child($roomCode).child('hostId').val() === auth.uid)"
             }
+          },
+          "specialRanks": {
+            "$playerId": {
+              ".read": "auth != null && (auth.uid === $playerId || root.child('rooms').child($roomCode).child('hostId').val() === auth.uid)"
+            }
           }
         },
         "actions": {

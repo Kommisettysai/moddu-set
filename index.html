@@ -441,7 +441,7 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 </div>
 
 <div class="panel">
-<div class="hand-heading"><h3>Your cards (<span id="handCount">13</span>)</h3><div class="joker-slot" id="jokerSlot"><span class="card back joker-card">★</span><small>Special joker</small></div></div>
+<div class="hand-heading"><h3>Your cards (<span id="handCount">13</span>)</h3><div class="joker-slot" id="jokerSlot"><span class="card back joker-card">★</span><small>Special joker</small></div><button id="revealJokerBtn" class="hidden" onclick="revealSpecialForCurrentPlayer()">Reveal special joker</button></div>
 <div class="cards" id="hand"></div>
 <div class="actions hand-actions">
 <button id="discardBtn" onclick="discardSelected()" disabled>Discard selected</button>
@@ -545,7 +545,15 @@ async function continueWithGoogle(){
  }
 }
 function setLobbyNotice(t){const el=document.getElementById("lobbyNotice");if(el)el.textContent=t;}
-function lobbyName(){const v=document.getElementById("playerName").value.trim();if(!v){setLobbyNotice("Please enter your name first.");document.getElementById("playerName").focus();return "";}return v.slice(0,18);}
+function lobbyName(){
+ const input=document.getElementById("playerName");
+ const typed=input?input.value.trim():"";
+ const profile=authUser&&(authUser.displayName||(authUser.email?authUser.email.split("@")[0]:""));
+ const value=(typed||profile||"").slice(0,18);
+ if(!value){setLobbyNotice("Please enter your name first, or connect Google so we can use your profile name.");if(input)input.focus();return "";}
+ if(input&&!typed)input.value=value;
+ return value;
+}
 function makeRoomCode(){return Math.random().toString(36).slice(2,8).toUpperCase();}
 function createRoom(){
  const name=lobbyName();if(!name)return;
@@ -620,13 +628,13 @@ const suits=["♠","♥","♦","♣"];
 const ranks=["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
 
 let deck=[],discard=[],players=[],turn=0,selected=-1;
-let drawn=false,specialRank=null,round=1,gameOver=false;
+let drawn=false,specialRank=null,round=1,gameOver=false,roundWinnerIndex=0;
 let arrangedGroups=[],winningGroups=[];
 let selectedIndices=[];
 
 function makeDeck(count){
  let cards=[];
- let packs=count<=4?2:3;
+ let packs=count<=2?1:(count<=4?2:3);
 
  for(let d=0;d<packs;d++){
   for(let s of suits){
@@ -667,6 +675,8 @@ function startGame(){
    hand:deck.splice(0,13),
    score:0,
    unlocked:false,
+   jokerEligible:false,
+   jokerPrompted:false,
    active:true,
    human:i===0
   });
@@ -676,7 +686,8 @@ function startGame(){
  document.getElementById("setup").classList.add("hidden");
  document.getElementById("game").classList.remove("hidden");
  autoArrange(false);
- message("Your cards are arranged. Your turn: choose a pile.");
+ checkUnlock(0);
+ message(players[0].jokerEligible&&!players[0].unlocked?"You have a natural four-set. Choose whether to reveal the special joker.":"Your cards are arranged. Your turn: choose a pile.");
  render();
 }
 
@@ -697,6 +708,7 @@ function render(){
   if(oldJokerInfo)oldJokerInfo.textContent="";
   const slot=document.getElementById("jokerSlot");
   if(slot)slot.innerHTML=specialRank&&players[0]&&players[0].unlocked?'<span class="card joker-face">'+specialRank+'★</span><small>Special joker</small>':'<span class="card back joker-card">★</span><small>Special joker</small>';
+  const revealBtn=document.getElementById("revealJokerBtn");if(revealBtn)revealBtn.classList.toggle("hidden",!(players[0]&&players[0].jokerEligible&&!players[0].unlocked));
   const turnEl=document.getElementById("turnInfo");
   if(turnEl&&players[turn])turnEl.textContent=players[turn].name+"'s turn";
   if(players[0]){
@@ -802,27 +814,17 @@ function checkFourSet(){
 
 function checkUnlock(index,manual=false){
  const p=players[index];
- if(!p||p.hand.length!==13||p.unlocked||!hasNaturalFour(p.hand))return;
- if(specialRank){
-  p.unlocked=true;
-  if(p.human){
-   message("✨ Special joker opened: "+specialRank+". The joker is highlighted.");
-   render();
-   highlightSpecialJoker();
-  }
- }else{
-  if(p.human){
-   revealSpecial(p);
-   if(p.unlocked){
-    message("✨ Special joker opened: "+specialRank+". The joker is highlighted.");
-    render();
-    highlightSpecialJoker();
-   }
-  }else revealSpecial(p);
- }
+ if(!p||p.hand.length!==13||!hasNaturalFour(p.hand))return;
+ p.jokerEligible=true;
+ if(specialRank){p.unlocked=true;render();if(p.human)highlightSpecialJoker();return;}
+ if(!p.human){revealSpecial(p);return;}
  render();
-}
-function highlightSpecialJoker(){
+ if(!p.jokerPrompted||manual){
+  p.jokerPrompted=true;
+  if(confirm("You have a natural four-set. Reveal the special joker now?"))revealSpecialForCurrentPlayer();
+  else message("You can reveal the special joker later using the button beside your cards.");
+ }
+}function highlightSpecialJoker(){
  const slot=document.getElementById("jokerSlot");
  if(!slot)return;
  slot.classList.remove("joker-reveal-pulse");
@@ -832,61 +834,110 @@ function highlightSpecialJoker(){
 }
 
 function revealSpecial(p){
- let c;
+ if(!p||!p.jokerEligible)return;
+ if(specialRank){players.forEach(x=>{if(x.jokerEligible)x.unlocked=true;});render();return;}
  recycleDeck();
- if(deck.length===0){message("No card available to reveal special joker.");return;}
- do{
-  c=deck.pop();
-  if(c.joker){
-   // Printed joker is not used as the special rank.
-   if(deck.length===0)recycleDeck();
-  }
- }while(c.joker&&deck.length>0);
-
- if(c.joker){
-  message("Could not find a normal card for special joker.");
-  return;
- }
+ if(deck.length===0){message("No card available to reveal the special joker.");return;}
+ let c;
+ do{c=deck.pop();if(c&&c.joker){discard.push(c);if(deck.length===0)recycleDeck();}}while(c&&c.joker&&deck.length>0);
+ if(!c||c.joker){message("Could not find a normal card for the special joker.");return;}
  specialRank=c.rank;
- p.unlocked=true;
- message("Special joker revealed: "+specialRank+". The card is kept aside.");
+ players.forEach(x=>{if(x.jokerEligible)x.unlocked=true;});
+ render();highlightSpecialJoker();
+ message("Special joker revealed: "+specialRank+". It is kept aside, not added to the deck.");
 }
-
-function nextTurn(){
+function revealSpecialForCurrentPlayer(){
+ const p=players[0];
+ if(!p||!p.jokerEligible){message("A natural four-set is needed first.");return;}
+ if(p.unlocked){message("Your special joker is already available.");return;}
+ revealSpecial(p);
+}function nextTurn(){
  if(gameOver)return;
- turn=(turn+1)%players.length;
- render();
+ let next=turn;
+ for(let step=0;step<players.length;step++){
+  next=(next+1)%players.length;
+  if(players[next].active!==false)break;
+ }
+ turn=next;render();
  if(turn!==0)setTimeout(aiTurn,700);
  else{
   checkUnlock(0);
   message("Your turn. Draw from either pile.");
  }
 }
-
+function findWinningGroups(hand,player){
+ const makeGroups=cards=>{
+  const n=cards.length,triples=[],fours=[],full=(1<<n)-1;
+  for(let i=0;i<n;i++)for(let j=i+1;j<n-1;j++)for(let k=j+1;k<n;k++){
+   const g=[cards[i],cards[j],cards[k]],natural=g.filter(c=>!isWildForPlayer(c,player));
+   if(!natural.length||natural.every(c=>c.rank===natural[0].rank))triples.push({ids:g.map(c=>c.id),mask:(1<<i)|(1<<j)|(1<<k)});
+  }
+  for(let i=0;i<n;i++)for(let j=i+1;j<n-2;j++)for(let k=j+1;k<n-1;k++)for(let l=k+1;l<n;l++){
+   const g=[cards[i],cards[j],cards[k],cards[l]];
+   if(g.every(c=>!c.joker&&!(player.unlocked&&specialRank&&c.rank===specialRank)&&c.rank===g[0].rank))fours.push({ids:g.map(c=>c.id),mask:(1<<i)|(1<<j)|(1<<k)|(1<<l)});
+  }
+  for(const pure of fours){
+   const chosen=[pure];
+   function walk(mask,depth){
+    if(depth===3)return mask===full?chosen.map(x=>x.ids):null;
+    for(const t of triples)if(!(t.mask&mask)){chosen.push(t);const result=walk(mask|t.mask,depth+1);if(result)return result;chosen.pop();}
+    return null;
+   }
+   const result=walk(pure.mask,0);if(result)return result;
+  }
+  return null;
+ };
+ if(hand.length===13){const groups=makeGroups(hand);return groups?{groups}:null;}
+ if(hand.length===14)for(let i=0;i<hand.length;i++){
+  const cards=hand.filter((_,j)=>j!==i),groups=makeGroups(cards);
+  if(groups)return {groups,discardIndex:i};
+ }
+ return null;
+}
+function chooseBotDiscardIndex(hand,player){
+ let best=0,bestValue=Infinity;
+ for(let i=0;i<hand.length;i++){
+  const rest=hand.filter((_,j)=>j!==i),card=hand[i],score=bestUnmatchedScore(rest,player);
+  const pairs=rest.filter(c=>!c.joker&&c.rank===card.rank).length;
+  const penalty=card.joker?100:(player.unlocked&&specialRank&&card.rank===specialRank?90:pairs*12);
+  if(score*100+penalty<bestValue){bestValue=score*100+penalty;best=i;}
+ }
+ return best;
+}
+function finishSoloRound(winnerIndex,groups){
+ roundWinnerIndex=winnerIndex;winningGroups=groups.map(g=>g.slice());
+ const penalties={};
+ players.forEach((p,i)=>{const points=i===winnerIndex?0:bestUnmatchedScore(p.hand,p);p.score+=points;penalties[i]=points;});
+ gameOver=true;render();
+ openRoundResults(players.map((p,i)=>p.name+": +"+penalties[i]+" (total "+p.score+")"));
+}
 function aiTurn(){
  if(gameOver||turn===0)return;
- let p=players[turn];
+ const p=players[turn];
  recycleDeck();
- if(discard.length&&Math.random()<0.35){
-  p.hand.push(discard.pop());
- }else if(deck.length){
-  p.hand.push(deck.pop());
+ if(discard.length){
+  const top=discard[discard.length-1];
+  const takeOpen=top.joker||deck.length===0||bestUnmatchedScore([...p.hand,top],p)<=bestUnmatchedScore(p.hand,p);
+  if(takeOpen)p.hand.push(discard.pop());
+  else if(deck.length)p.hand.push(deck.pop());
+  else p.hand.push(discard.pop());
+ }else if(deck.length)p.hand.push(deck.pop());
+ else{nextTurn();return;}
+ const possible=findWinningGroups(p.hand,p);
+ if(possible){
+  discard.push(p.hand.splice(possible.discardIndex,1)[0]);
+  checkUnlock(turn);
+  const final=findWinningGroups(p.hand,p);
+  if(final){finishSoloRound(turn,final.groups);return;}
  }else{
-  nextTurn();return;
+  const index=chooseBotDiscardIndex(p.hand,p);
+  discard.push(p.hand.splice(index,1)[0]);
+  checkUnlock(turn);
+  const final=findWinningGroups(p.hand,p);
+  if(final){finishSoloRound(turn,final.groups);return;}
  }
-
- // Basic random AI discard. Improved strategy will be added later.
- let index=Math.floor(Math.random()*p.hand.length);
- discard.push(p.hand.splice(index,1)[0]);
-
- checkUnlock(turn);
- render();
- nextTurn();
-}
-
-
-
-function cardMarkup(c,i){
+ render();nextTurn();
+}function cardMarkup(c,i){
  const red=["♥","♦"].includes(c.suit);
  return `<div class="card ${red?"red":""} ${(drawn?selected===i:selectedIndices.includes(i))?"selected":""}" draggable="true" ondragstart="dragCard(event,${i})" onclick="selectCard(${i})">
  <span>${c.joker?"★":c.rank}</span><span style="text-align:center">${c.suit}</span><span style="text-align:right">${c.joker?"★":c.rank}</span></div>`;
@@ -916,7 +967,7 @@ function dropOnGroup(event,g){
  if(ids.includes(card.id)||existing.length>=4)return;
  const candidate=[...existing,card];
  if(candidate.length===4){
-  if(candidate.some(c=>c.joker)||!candidate.every(c=>c.rank===candidate[0].rank)){message("A pure four-set needs four natural cards of one rank.");return;}
+  if(candidate.some(c=>isWild(c))||!candidate.every(c=>c.rank===candidate[0].rank)){message("A pure four-set needs four natural cards of one rank.");return;}
  }else if(!validThree(candidate)){message("That card does not fit this set.");return;}
  ids.push(card.id);
  render();
@@ -1076,8 +1127,8 @@ function autoArrange(showMessage=true){
 function isWildForPlayer(card,player){
  return !!card.joker||(!!player.unlocked&&!!specialRank&&card.rank===specialRank);
 }
-function unmatchedCardPoints(card){
- if(card.joker||specialRank&&card.rank===specialRank)return 0;
+function unmatchedCardPoints(card,player){
+ if(card.joker||(player&&player.unlocked&&specialRank&&card.rank===specialRank))return 0;
  if(card.rank==="A")return 1;
  if(card.rank==="J")return 11;
  if(card.rank==="Q")return 12;
@@ -1085,94 +1136,88 @@ function unmatchedCardPoints(card){
  return Number(card.rank)||0;
 }
 function bestUnmatchedScore(hand,player){
- const n=hand.length,triples=[],fours=[];
+ const n=hand.length,triples=[],fours=[],memo=new Map(),full=(1<<n)-1;
  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)for(let k=j+1;k<n;k++){
-  const set=[hand[i],hand[j],hand[k]],natural=set.filter(c=>!isWildForPlayer(c,player));
+  const group=[hand[i],hand[j],hand[k]],natural=group.filter(c=>!isWildForPlayer(c,player));
   if(!natural.length||natural.every(c=>c.rank===natural[0].rank))triples.push((1<<i)|(1<<j)|(1<<k));
  }
  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)for(let k=j+1;k<n;k++)for(let l=k+1;l<n;l++){
-  const set=[hand[i],hand[j],hand[k],hand[l]];
-  if(set.every(c=>!c.joker&&!isWildForPlayer(c,player)&&c.rank===set[0].rank))fours.push((1<<i)|(1<<j)|(1<<k)|(1<<l));
+  const group=[hand[i],hand[j],hand[k],hand[l]];
+  if(group.every(c=>!c.joker&&!(player&&player.unlocked&&specialRank&&c.rank===specialRank)&&c.rank===group[0].rank))fours.push((1<<i)|(1<<j)|(1<<k)|(1<<l));
  }
- const melds=[...triples,...fours],memo=new Map();
- const full=(1<<n)-1;
+ const melds=[...triples,...fours];
  function solve(mask){
   if(mask===full)return 0;
   if(memo.has(mask))return memo.get(mask);
   let first=0;while(mask&(1<<first))first++;
-  let best=unmatchedCardPoints(hand[first])+solve(mask|(1<<first));
-  for(const meld of melds){
-   if((meld&(1<<first))&&!(meld&mask))best=Math.min(best,solve(mask|meld));
-  }
+  let best=unmatchedCardPoints(hand[first],player)+solve(mask|(1<<first));
+  for(const meld of melds)if((meld&(1<<first))&&!(meld&mask))best=Math.min(best,solve(mask|meld));
   memo.set(mask,best);return best;
  }
  return solve(0);
 }
 function showHand(){
  if(!players.length||turn!==0||gameOver){message("You cannot show right now.");return;}
- let hand=[...players[0].hand],showDiscard=null;
+ let hand=[...players[0].hand],extra=null;
  if(drawn){
-  if(selected<0||selected>=hand.length){message("Select the extra card to discard before SHOW.");return;}
-  showDiscard=hand.splice(selected,1)[0];
- }else if(hand.length!==13){
-  message("You must have 13 cards to show, or select your 14th card as the discard.");return;
- }
- if(hand.length!==13){message("A valid SHOW needs exactly 13 cards after the discard.");return;}
- if(showDiscard){
-  players[0].hand=hand;
-  discard.push(showDiscard);
-  drawn=false;selected=-1;
-  autoArrange(false);
- }
+  if(selected<0||selected>=hand.length){message("Select the 14th card to discard before SHOW.");return;}
+  extra=hand.splice(selected,1)[0];
+ }else if(hand.length!==13){message("A valid SHOW needs exactly 13 cards.");return;}
+ if(extra){players[0].hand=hand;discard.push(extra);drawn=false;selected=-1;}
+ checkUnlock(0);
+ autoArrange(false);
  const byId=new Map(players[0].hand.map(c=>[c.id,c]));
  const groups=arrangedGroups.map(ids=>ids.map(id=>byId.get(id)).filter(Boolean));
- if(groups.length!==4||groups.some((g,i)=>g.length!==(i===0?4:3))){
-  message("Your 13 cards must form one pure four-set and three three-card sets. Try Auto arrange.");return;
- }
+ if(groups.length!==4||groups.some((g,i)=>g.length!==(i===0?4:3))){message("Your 13 cards must form one pure four-set and three three-card sets. Try Auto arrange.");if(extra)nextTurn();return;}
  const used=groups.flat().map(c=>c.id);
- if(used.length!==13||new Set(used).size!==13){message("Every card must be used exactly once. Arrange again.");return;}
+ if(used.length!==13||new Set(used).size!==13){message("Every card must be used exactly once.");if(extra)nextTurn();return;}
  const pure=groups[0];
- if(pure.length!==4||pure.some(c=>c.joker)||!pure.every(c=>c.rank===pure[0].rank)){
-  message("Your first group must be a pure natural four-set.");return;
- }
- if(!groups.slice(1).every(g=>{
-  const natural=g.filter(c=>!isWildForPlayer(c,players[0]));
-  return !natural.length||natural.every(c=>c.rank===natural[0].rank);
- })){
-  message("One or more three-card sets are invalid. Check your joker use.");return;
- }
- arrangedGroups=groups.map(g=>g.map(c=>c.id));
- winningGroups=arrangedGroups.map(g=>g.slice());
- const results=[];
- players.forEach((p,i)=>{
-  const penalty=i===0?0:bestUnmatchedScore(p.hand,p);
-  p.score+=penalty;
-  results.push(p.name+": +"+penalty+" (total "+p.score+")");
- });
- gameOver=true;
- render();
- openRoundResults(results);
-}
-
-
-function renderResultCard(card){
+ if(pure.some(c=>c.joker||isWildForPlayer(c,players[0]))||!pure.every(c=>c.rank===pure[0].rank)){message("The first group must be a pure natural four-set.");if(extra)nextTurn();return;}
+ if(!groups.slice(1).every(g=>{const natural=g.filter(c=>!isWildForPlayer(c,players[0]));return !natural.length||natural.every(c=>c.rank===natural[0].rank);})){message("One or more three-card sets are invalid.");if(extra)nextTurn();return;}
+ finishSoloRound(0,groups.map(g=>g.map(c=>c.id)));
+}function renderResultCard(card){
  const red=["♥","♦"].includes(card.suit);
  if(card.joker)return '<div class="results-card joker">★<small>JOKER</small></div>';
  return '<div class="results-card '+(red?'red':'')+'"><span>'+card.rank+card.suit+'</span><span class="bottom">'+card.rank+'</span></div>';
 }
+function bestMeldsForDisplay(hand,player){
+ const n=hand.length,full=(1<<n)-1,melds=[],memo=new Map();
+ for(let i=0;i<n;i++)for(let j=i+1;j<n-1;j++)for(let k=j+1;k<n;k++){
+  const cards=[hand[i],hand[j],hand[k]],natural=cards.filter(c=>!isWildForPlayer(c,player));
+  if(!natural.length||natural.every(c=>c.rank===natural[0].rank))melds.push({mask:(1<<i)|(1<<j)|(1<<k),cards});
+ }
+ for(let i=0;i<n;i++)for(let j=i+1;j<n-2;j++)for(let k=j+1;k<n-1;k++)for(let l=k+1;l<n;l++){
+  const cards=[hand[i],hand[j],hand[k],hand[l]];
+  if(cards.every(c=>!c.joker&&!(player.unlocked&&specialRank&&c.rank===specialRank)&&c.rank===cards[0].rank))melds.push({mask:(1<<i)|(1<<j)|(1<<k)|(1<<l),cards});
+ }
+ function solve(mask){
+  if(mask===full)return {score:0,groups:[],covered:0};
+  if(memo.has(mask))return memo.get(mask);
+  let first=0;while(mask&(1<<first))first++;
+  const rest=solve(mask|(1<<first));
+  let best={score:unmatchedCardPoints(hand[first],player)+rest.score,groups:rest.groups,covered:rest.covered};
+  for(const m of melds)if((m.mask&(1<<first))&&!(m.mask&mask)){
+   const tail=solve(mask|m.mask),candidate={score:tail.score,groups:[m.cards,...tail.groups],covered:m.cards.length+tail.covered};
+   if(candidate.score<best.score||(candidate.score===best.score&&candidate.covered>best.covered))best=candidate;
+  }
+  memo.set(mask,best);return best;
+ }
+ const best=solve(0),used=new Set(best.groups.flat().map(c=>c.id));
+ return {groups:best.groups,loose:hand.filter(c=>!used.has(c.id))};
+}
 function openRoundResults(results){
- const screen=document.getElementById("roundResults");
- const profiles=document.getElementById("resultsProfiles");
- const hands=document.getElementById("resultsHands");
+ const screen=document.getElementById("roundResults"),profiles=document.getElementById("resultsProfiles"),hands=document.getElementById("resultsHands");
  if(!screen||!profiles||!hands)return;
- const penalties=players.map((p,i)=>i===0?0:bestUnmatchedScore(p.hand,p));
- profiles.innerHTML=players.map((p,i)=>'<div class="results-profile '+(i===0?'show-winner':'')+'"><strong>'+p.name+'</strong><span class="result-count">'+p.hand.length+' cards revealed</span><span class="result-points">+'+penalties[i]+' points · Total '+p.score+'</span>'+(i===0?'<span class="winner-tag">🏆 SHOWED</span>':'')+'</div>').join('');
+ const winner=roundWinnerIndex,penalties=players.map((p,i)=>i===winner?0:bestUnmatchedScore(p.hand,p));
+ profiles.innerHTML=players.map((p,i)=>'<div class="results-profile '+(i===winner?'show-winner':'')+'"><strong>'+p.name+'</strong><span class="result-count">'+p.hand.length+' cards revealed</span><span class="result-points">+'+penalties[i]+' points · Total '+p.score+'</span>'+(i===winner?'<span class="winner-tag">🏆 SHOWED</span>':'')+'</div>').join('');
  hands.innerHTML=players.map((p,i)=>{
-  const cards=i===0&&winningGroups.length?winningGroups.flat().map(id=>p.hand.find(c=>c.id===id)).filter(Boolean):p.hand;
-  const groupsHtml=i===0&&winningGroups.length?'<div class="results-winning-groups">'+winningGroups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>p.hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':'<div class="results-card-grid">'+cards.map(renderResultCard).join('')+'</div>';
-  return '<div class="results-hand '+(i===0?'winner-hand':'')+'"><div class="results-hand-head"><strong>'+(i===0?'🏆 ':'')+p.name+'</strong><span>'+p.hand.length+' cards · +'+penalties[i]+' points</span></div>'+groupsHtml+'</div>';
+  let groups=[],loose=[];
+  if(i===winner&&winningGroups.length)groups=winningGroups.map(ids=>ids.map(id=>p.hand.find(c=>c.id===id)).filter(Boolean));
+  else{const best=bestMeldsForDisplay(p.hand,p);groups=best.groups;loose=best.loose;}
+  const groupHtml=groups.map(g=>'<div class="results-winning-group"><span>'+(g.length===4?'FOUR-CARD SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+g.map(renderResultCard).join('')+'</div></div>').join('');
+  return '<div class="results-hand '+(i===winner?'winner-hand':'')+'"><div class="results-hand-head"><strong>'+(i===winner?'🏆 ':'')+p.name+'</strong><span>'+p.hand.length+' cards · +'+penalties[i]+' points</span></div>'+(groupHtml?'<div class="results-winning-groups">'+groupHtml+'</div>':'')+(loose.length?'<div class="results-card-grid">'+loose.map(renderResultCard).join('')+'</div>':'')+'</div>';
  }).join('');
- document.getElementById("resultsSummary").textContent=players[0].name+" showed successfully. Their score is 0. All hands are now revealed.";
+ document.getElementById("resultsSummary").textContent=players[winner].name+" showed successfully. All hands are revealed and scores are updated.";
  screen.classList.remove("hidden");
 }
 function closeResults(){
@@ -1182,39 +1227,32 @@ function closeResults(){
  startNextRound();
 }
 function startNextRound(){
- const count=players.length;
  round++;
- deck=shuffle(makeDeck(count));
- discard=[];
- turn=0;selected=-1;drawn=false;
- specialRank=null;gameOver=false;arrangedGroups=[];selectedIndices=[];
- players.forEach(p=>{
-  p.hand=deck.splice(0,13);
-  p.unlocked=false;
-  p.active=p.score<200;
-  p.status=p.active?"🎴 Ready":"🚫 Eliminated";
- });
+ players.forEach(p=>{p.active=p.score<200;p.status=p.active?"🎴 Ready":"🚫 Eliminated";p.unlocked=false;p.jokerEligible=false;p.jokerPrompted=false;p.hand=[];});
  const activePlayers=players.filter(p=>p.active);
  if(activePlayers.length<=1){
   gameOver=true;
   const champ=activePlayers[0]||players.reduce((best,p)=>p.score<best.score?p:best,players[0]);
-  message(champ.name+" wins the game!");
-  render();return;
+  message(champ.name+" wins the game!");render();return;
  }
+ deck=shuffle(makeDeck(activePlayers.length));discard=[];turn=players.indexOf(activePlayers[0]);selected=-1;drawn=false;specialRank=null;gameOver=false;arrangedGroups=[];winningGroups=[];selectedIndices=[];
+ activePlayers.forEach(p=>{p.hand=deck.splice(0,13);});
  discard.push(deck.pop());
  autoArrange(false);
- message("Round "+round+". Scores carried forward. Your turn: draw from either pile.");
+ checkUnlock(0);
+ message("Round "+round+". Scores carried forward. "+players[turn].name+"'s turn.");
  render();
+ if(turn!==0)setTimeout(aiTurn,700);
 }
 function showRules(){
  alert(
  "MODDU SET RULES\\n\\n"+
- "13 cards per player. Draw one card and discard one card.\\n"+
- "Winning hand: one pure four-card set and three valid three-card sets.\\n"+
- "A natural four-set unlocks special joker eligibility.\\n"+
- "Printed jokers and special joker ranks score zero when unmatched.\\n"+
- "Cumulative score of 200 eliminates a player.\\n\\n"+
- "This prototype does not yet validate winning hands or calculate final scores."
+ "Each player receives 13 cards. On your turn, draw one card from the closed pile or the top open card, then discard one card.\\n"+
+ "A show must use all 13 cards: one pure natural four-card set and three valid three-card sets. Suits and colours do not matter; ranks must match.\\n"+
+ "Printed jokers are wild in three-card sets. A natural four-set makes you eligible to reveal the special joker. You may decline and reveal it later.\\n"+
+ "The special joker is a normal rank card kept aside. Once revealed, that rank acts as a joker for eligible players. A pure four-set is still required when showing.\\n"+
+ "Unmatched printed jokers and a player's revealed special-rank cards score zero. A=1, 2-10 face value, J=11, Q=12, K=13.\\n"+
+ "After a show, the winner scores zero and other players receive the lowest possible unmatched-card penalty using valid sets. Scores carry forward; 200 points eliminates a player. Last active player wins."
  );
 }
 </script>
@@ -1222,7 +1260,7 @@ function showRules(){
 <script>
 /* Multiplayer v1: host-authoritative draw/discard with private hands. */
 let onlineMode=false,onlinePublic=null,onlinePublicRef=null,onlineHandRef=null,onlineActionRef=null;
-let onlinePublicListener=null,onlineHandListener=null,onlineActionListener=null,onlineLobbyListener=null,onlineBusy={},onlineBotBusy=false;
+let onlinePublicListener=null,onlineHandListener=null,onlineActionListener=null,onlineLobbyListener=null,onlineBusy={},onlineBotBusy=false,onlineSpecialRef=null,onlineSpecialListener=null;
 function onlineMembers(l){return Object.values(l.players||{}).sort((a,b)=>(a.joinedAt||0)-(b.joinedAt||0));}
 function createRoom(){
  const name=lobbyName();if(!name)return;if(!firebaseReady||!authUser){setLobbyNotice("Firebase sign-in is still loading.");return;}
@@ -1277,10 +1315,18 @@ async function shareRoomInvite(){
  }catch(e){if(e.name!=="AbortError")setLobbyNotice("Room code: "+roomCode);}
 }
 async function startOnlineRoom(){
- if(!isRoomHost||!roomRef)return;try{const snap=await roomRef.child("lobby").get(),l=snap.val(),m=onlineMembers(l);if(m.length<2){setLobbyNotice("Invite at least one friend before starting.");return;}
- const d=shuffle(makeDeck(m.length)),hands={};m.forEach(p=>hands[p.id]=d.splice(0,13));const first=d.pop();
- const pub={status:"playing",round:1,turnUid:l.hostId,deckCount:d.length,discard:[first],drawnByUid:null,specialRank:null,players:m.map(p=>({id:p.id,name:p.name,isBot:!!p.isBot,active:true,score:0,cardCount:13,unlocked:false,status:"Ready"})),message:"Cards dealt. "+m[0].name+"'s turn. Draw a card."};
- await roomRef.child("private").set({deck:d,hands});await roomRef.child("public").set(pub);await roomRef.child("lobby/status").set("started");enterOnlineGame(pub);
+ if(!isRoomHost||!roomRef)return;
+ try{
+  const snap=await roomRef.child("lobby").get(),l=snap.val(),m=onlineMembers(l);
+  if(m.length<2){setLobbyNotice("Invite at least one friend before starting.");return;}
+  const d=shuffle(makeDeck(m.length)),hands={};
+  m.forEach(p=>hands[p.id]=d.splice(0,13));
+  const first=d.pop();
+  const pub={status:"playing",round:1,turnUid:l.hostId,deckCount:d.length,discard:[first],drawnByUid:null,players:m.map(p=>({id:p.id,name:p.name,isBot:!!p.isBot,active:true,score:0,cardCount:13,jokerEligible:hasNaturalFour(hands[p.id]),unlocked:false,status:"Ready"})),message:"Cards dealt. "+m[0].name+"'s turn. Draw a card."};
+  await roomRef.child("private").set({deck:d,hands,specialRanks:{}});
+  await roomRef.child("public").set(pub);
+  await roomRef.child("lobby/status").set("started");
+  enterOnlineGame(pub);
  }catch(e){setLobbyNotice("Could not start game: "+e.message);}
 }
 function enterOnlineGame(state){
@@ -1288,6 +1334,10 @@ function enterOnlineGame(state){
  onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");
  if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();if(isRoomHost)runOnlineBotTurn();}};onlinePublicRef.on("value",onlinePublicListener);
  if(onlineHandListener)onlineHandRef.off("value",onlineHandListener);onlineHandListener=s=>{if(!s.exists())return;const h=s.val()||[];if(!players.length)players=[{id:roomPlayerId,name:"You",hand:h,score:0,human:true}];else players[0]={...players[0],hand:h};selected=-1;selectedIndices=[];arrangedGroups=[];applyOnlinePublic();};onlineHandRef.on("value",onlineHandListener);
+ onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);
+ if(onlineSpecialListener)onlineSpecialRef.off("value",onlineSpecialListener);
+ onlineSpecialListener=s=>{const previous=specialRank;specialRank=s.exists()?s.val():null;if(players[0]&&specialRank)players[0].unlocked=true;render();if(specialRank&&specialRank!==previous)highlightSpecialJoker();};
+ onlineSpecialRef.on("value",onlineSpecialListener);
  if(isRoomHost){if(onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);onlineActionListener=s=>{if(!s.exists())return;const uid=s.key;if(onlineBusy[uid])return;onlineBusy[uid]=true;processOnlineAction(uid,s.val()).catch(e=>setLobbyNotice("Game action failed: "+e.message)).finally(()=>{onlineActionRef.child(uid).remove().catch(()=>{});delete onlineBusy[uid];});};onlineActionRef.on("child_added",onlineActionListener);}
  applyOnlinePublic();
 }
@@ -1295,8 +1345,8 @@ function applyOnlinePublic(){
  if(!onlineMode||!onlinePublic)return;const st=onlinePublic,prior=players[0]||{},m=st.players||[];
  if(st.status==="playing"){const resultScreen=document.getElementById("roundResults");if(resultScreen)resultScreen.classList.add("hidden");}
  const ordered=[...m].sort((a,b)=>a.id===roomPlayerId?-1:b.id===roomPlayerId?1:0);
- players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,unlocked:!!p.unlocked,active:true,human:p.id===roomPlayerId,cardCount:p.cardCount||0,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
- if(!players.length)return;turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);specialRank=st.specialRank||null;round=st.round||1;drawn=st.drawnByUid===roomPlayerId;gameOver=st.status==="roundComplete"||st.status==="gameComplete";
+ players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,unlocked:!!p.unlocked,active:true,human:p.id===roomPlayerId,cardCount:p.cardCount||0,jokerEligible:!!p.jokerEligible,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
+ if(!players.length)return;turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);round=st.round||1;drawn=st.drawnByUid===roomPlayerId;gameOver=st.status==="roundComplete"||st.status==="gameComplete";
  const el=document.getElementById("message");if(el)el.textContent=st.message||"Online game";render();
  if(st.status==="roundComplete"&&st.roundResult)openOnlineRoundResults(st.roundResult);
  if(st.status==="gameComplete")openOnlineGameComplete(st.champion||"A player");
@@ -1308,64 +1358,107 @@ function validateOnlineShow(hand,groupIds,player){
  const used=groups.flat().map(c=>c.id);
  if(used.length!==13||new Set(used).size!==13||hand.length!==13)return "All 13 cards must be used exactly once.";
  const pure=groups[0];
- if(pure.some(c=>c.joker)||!pure.every(c=>c.rank===pure[0].rank))return "The first group must be a natural four-set of the same rank.";
+ if(pure.some(c=>c.joker||isWildForPlayer(c,player))||!pure.every(c=>c.rank===pure[0].rank))return "The first group must be a natural four-set of the same rank.";
  if(!groups.slice(1).every(g=>{const natural=g.filter(c=>!isWildForPlayer(c,player));return !natural.length||natural.every(c=>c.rank===natural[0].rank);}))return "Each three-card set must have the same rank, except for valid jokers.";
  return null;
 }
 async function processOnlineAction(uid,a){
  if(!isRoomHost)return;
- const [ps,ds,ls]=await Promise.all([roomRef.child("public").get(),roomRef.child("private").get(),roomRef.child("lobby").get()]);
- const p=ps.val(),priv=ds.val()||{},l=ls.val();if(!p||p.status!=="playing"||p.turnUid!==uid)return;
+ const [ps,ds]=await Promise.all([roomRef.child("public").get(),roomRef.child("private").get()]);
+ const p=ps.val(),priv=ds.val()||{};
+ if(!p||p.status!=="playing"||(p.turnUid!==uid&&a.type!=="revealSpecial"))return;
  let d=priv.deck||[],h=priv.hands||{},hand=h[uid]||[],pile=p.discard||[];
+ let special=priv.specialRank||null,specialRanks=priv.specialRanks||{};
+ specialRank=special;
+ const actor=(p.players||[]).find(x=>x.id===uid);
  if(a.type==="drawClosed"||a.type==="drawOpen"){
   if(p.drawnByUid)return;
   if(a.type==="drawOpen"){if(!pile.length)return;hand.push(pile.pop());}
-  else{if(!d.length&&pile.length>1){const top=pile.pop();d=shuffle(pile);pile=[top];}if(!d.length)return;hand.push(d.pop());}
+  else{
+   if(!d.length&&pile.length>1){const top=pile.pop();d=shuffle(pile);pile=[top];}
+   if(!d.length)return;
+   hand.push(d.pop());
+  }
   h[uid]=hand;p.drawnByUid=uid;p.message="Card drawn. Select one card and discard it.";
  }else if(a.type==="discard"){
   if(p.drawnByUid!==uid)return;
   const i=hand.findIndex(c=>c.id===a.cardId);if(i<0)return;
   pile.push(hand.splice(i,1)[0]);h[uid]=hand;p.drawnByUid=null;
-  const active=(p.players||[]).filter(x=>x.active!==false),at=active.findIndex(x=>x.id===uid),next=active[(at+1)%active.length];if(!next)return;p.turnUid=next.id;p.message=next.name+"'s turn. Draw a card.";
+  if(actor&&hasNaturalFour(hand)){
+   actor.jokerEligible=true;
+   if(special){actor.unlocked=true;specialRanks[uid]=special;}
+  }
+  const active=(p.players||[]).filter(x=>x.active!==false),at=active.findIndex(x=>x.id===uid),next=active[(at+1)%active.length];
+  if(!next)return;
+  p.turnUid=next.id;p.message=next.name+"'s turn. Draw a card.";
+ }else if(a.type==="revealSpecial"){
+  if(!actor||!actor.jokerEligible)return;
+  if(!special){
+   while(!d.length&&pile.length>1){const top=pile.pop();d=shuffle(pile);pile=[top];}
+   while(d.length&&!special){
+    const card=d.pop();
+    if(card.joker)pile.push(card);
+    else special=card.rank;
+   }
+  }
+  if(!special){p.message="No normal card is available to reveal the special joker.";p.discard=pile;p.deckCount=d.length;await roomRef.child("public").set(p);return;}
+  p.players.forEach(x=>{if(x.jokerEligible){x.unlocked=true;specialRanks[x.id]=special;}});
+  p.message="The special joker has been revealed to eligible players.";
  }else if(a.type==="show"){
   if(a.discardCardId){
    if(p.drawnByUid!==uid)return;
    const i=hand.findIndex(c=>c.id===a.discardCardId);if(i<0||hand.length!==14)return;
    pile.push(hand.splice(i,1)[0]);h[uid]=hand;p.drawnByUid=null;
   }else if(p.drawnByUid||hand.length!==13)return;
-  const winner=(p.players||[]).find(x=>x.id===uid);
-  const invalid=validateOnlineShow(hand,a.groups,winner||{unlocked:false});
-  if(invalid){p.message=invalid;p.discard=pile;p.deckCount=d.length;await roomRef.child("public").set(p);return;}
+  if(actor&&hasNaturalFour(hand)){
+   actor.jokerEligible=true;
+   if(special){actor.unlocked=true;specialRanks[uid]=special;}
+  }
+  const invalid=validateOnlineShow(hand,a.groups,actor||{unlocked:false});
+  if(invalid){
+   p.message=invalid;p.discard=pile;p.deckCount=d.length;
+   if(a.discardCardId){
+    const active=(p.players||[]).filter(x=>x.active!==false),at=active.findIndex(x=>x.id===uid),next=active[(at+1)%active.length];
+    if(next)p.turnUid=next.id;
+    p.players=p.players.map(x=>({...x,cardCount:(h[x.id]||[]).length}));
+    await Promise.all([roomRef.child("private/deck").set(d),roomRef.child("private/hands").set(h),roomRef.child("private/specialRank").set(special),roomRef.child("private/specialRanks").set(specialRanks),roomRef.child("public").set(p)]);
+   }else await roomRef.child("public").set(p);
+   return;
+  }
   const penalties={},totals={};
-  (p.players||[]).forEach(player=>{
+  p.players.forEach(player=>{
    const penalty=player.id===uid?0:bestUnmatchedScore(h[player.id]||[],player);
    penalties[player.id]=penalty;totals[player.id]=(player.score||0)+penalty;
   });
-  p.players=(p.players||[]).map(player=>({...player,score:totals[player.id],cardCount:(h[player.id]||[]).length}));
-  p.status="roundComplete";p.discard=pile;p.deckCount=d.length;p.message=winner.name+" showed successfully. All hands are revealed.";
-  p.roundResult={winnerUid:uid,winnerName:winner.name,groups:a.groups,penalties,totals,hands:h,completedAt:Date.now()};
-  await Promise.all([roomRef.child("private/deck").set(d),roomRef.child("private/hands").set(h),roomRef.child("public").set(p)]);
+  p.players=p.players.map(player=>({...player,score:totals[player.id],cardCount:(h[player.id]||[]).length}));
+  p.status="roundComplete";p.discard=pile;p.deckCount=d.length;p.message=(actor&&actor.name||"A player")+" showed successfully. All hands are revealed.";
+  p.roundResult={winnerUid:uid,winnerName:actor&&actor.name||"Player",groups:a.groups,penalties,totals,hands:h,completedAt:Date.now(),specialRank:special};
+  await Promise.all([roomRef.child("private/deck").set(d),roomRef.child("private/hands").set(h),roomRef.child("private/specialRank").set(special),roomRef.child("private/specialRanks").set(specialRanks),roomRef.child("public").set(p)]);
   return;
  }
- p.discard=pile;p.deckCount=d.length;p.players=(p.players||[]).map(x=>({...x,cardCount:(h[x.id]||[]).length}));
- await Promise.all([roomRef.child("private/deck").set(d),roomRef.child("private/hands").set(h),roomRef.child("public").set(p)]);
+ p.discard=pile;p.deckCount=d.length;
+ p.players=p.players.map(x=>({...x,cardCount:(h[x.id]||[]).length}));
+ await Promise.all([roomRef.child("private/deck").set(d),roomRef.child("private/hands").set(h),roomRef.child("private/specialRank").set(special),roomRef.child("private/specialRanks").set(specialRanks),roomRef.child("public").set(p)]);
 }
 function openOnlineRoundResults(result){
  const screen=document.getElementById("roundResults"),profiles=document.getElementById("resultsProfiles"),handsEl=document.getElementById("resultsHands");
  if(!screen||!profiles||!handsEl)return;
- const list=(onlinePublic.players||[]),winner=result.winnerUid;
+ specialRank=result.specialRank||null;
+ const list=onlinePublic.players||[],winner=result.winnerUid;
  profiles.innerHTML=list.map(p=>'<div class="results-profile '+(p.id===winner?'show-winner':'')+'"><strong>'+escapeLobbyText(p.name)+'</strong><span class="result-count">'+((result.hands[p.id]||[]).length)+' cards revealed</span><span class="result-points">+'+(result.penalties[p.id]||0)+' points · Total '+(result.totals[p.id]||0)+'</span>'+(p.id===winner?'<span class="winner-tag">🏆 SHOWED</span>':'')+'</div>').join('');
  handsEl.innerHTML=list.map(p=>{
   const hand=result.hands[p.id]||[];
-  const winning=p.id===winner?'<div class="results-winning-groups">'+result.groups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':'<div class="results-card-grid">'+hand.map(renderResultCard).join('')+'</div>';
-  return '<div class="results-hand '+(p.id===winner?'winner-hand':'')+'"><div class="results-hand-head"><strong>'+(p.id===winner?'🏆 ':'')+escapeLobbyText(p.name)+'</strong><span>'+hand.length+' cards · +'+(result.penalties[p.id]||0)+' points</span></div>'+winning+'</div>';
+  let groups=[],loose=[];
+  if(p.id===winner)groups=(result.groups||[]).map(ids=>ids.map(id=>hand.find(c=>c.id===id)).filter(Boolean));
+  else{const best=bestMeldsForDisplay(hand,p);groups=best.groups;loose=best.loose;}
+  const groupHtml=groups.map(g=>'<div class="results-winning-group"><span>'+(g.length===4?'FOUR-CARD SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+g.map(renderResultCard).join('')+'</div></div>').join('');
+  return '<div class="results-hand '+(p.id===winner?'winner-hand':'')+'"><div class="results-hand-head"><strong>'+(p.id===winner?'🏆 ':'')+escapeLobbyText(p.name)+'</strong><span>'+hand.length+' cards · +'+(result.penalties[p.id]||0)+' points</span></div>'+(groupHtml?'<div class="results-winning-groups">'+groupHtml+'</div>':'')+(loose.length?'<div class="results-card-grid">'+loose.map(renderResultCard).join('')+'</div>':'')+'</div>';
  }).join('');
  document.getElementById("resultsSummary").textContent=result.winnerName+" showed successfully. All hands are revealed and scores are updated.";
  const footer=screen.querySelector(".results-footer");
  if(footer)footer.innerHTML=isRoomHost?'<button onclick="startOnlineNextRound()">Start next round</button>':'<p>Waiting for the host to start the next round…</p><button onclick="closeResults()">Back to table</button>';
  screen.classList.remove("hidden");
 }
-
 function openOnlineGameComplete(champion){
  const screen=document.getElementById("roundResults"),profiles=document.getElementById("resultsProfiles"),handsEl=document.getElementById("resultsHands");
  if(!screen||!profiles||!handsEl)return;
@@ -1393,8 +1486,8 @@ async function startOnlineNextRound(){
   const d=shuffle(makeDeck(active.length)),hands={};
   active.forEach(x=>hands[x.id]=d.splice(0,13));
   const first=d.pop(),nextRound=(p.round||1)+1;
-  const next={status:"playing",round:nextRound,turnUid:active[0].id,deckCount:d.length,discard:[first],drawnByUid:null,specialRank:null,players:roundPlayers.map(x=>({...x,cardCount:(hands[x.id]||[]).length})),message:"Round "+nextRound+". "+active[0].name+"'s turn. Draw a card."};
-  await roomRef.child("private").set({deck:d,hands});
+  const next={status:"playing",round:nextRound,turnUid:active[0].id,deckCount:d.length,discard:[first],drawnByUid:null,players:roundPlayers.map(x=>({...x,jokerEligible:hasNaturalFour(hands[x.id]||[]),unlocked:false,cardCount:(hands[x.id]||[]).length})),message:"Round "+nextRound+". "+active[0].name+"'s turn. Draw a card."};
+  await roomRef.child("private").set({deck:d,hands,specialRanks:{}});
   await roomRef.child("public").set(next);
   const screen=document.getElementById("roundResults");if(screen)screen.classList.add("hidden");
   onlinePublic=next;applyOnlinePublic();
@@ -1402,18 +1495,30 @@ async function startOnlineNextRound(){
 }
 async function runOnlineBotTurn(){
  if(!isRoomHost||!onlineMode||onlineBotBusy||!onlinePublic||onlinePublic.status!=="playing")return;
- const uid=onlinePublic.turnUid,bot=(onlinePublic.players||[]).find(x=>x.id===uid&&x.isBot&&x.active!==false);
+ const uid=onlinePublic.turnUid;let bot=(onlinePublic.players||[]).find(x=>x.id===uid&&x.isBot&&x.active!==false);
  if(!bot)return;
  onlineBotBusy=true;
  try{
-  const snap=await roomRef.child("public").get(),p=snap.val();
+  let [ps,ds]=await Promise.all([roomRef.child("public").get(),roomRef.child("private").get()]);
+  let p=ps.val(),priv=ds.val()||{},hand=(priv.hands||{})[uid]||[];
+  specialRank=priv.specialRank||null;
   if(!p||p.status!=="playing"||p.turnUid!==uid)return;
-  if(!p.drawnByUid)await processOnlineAction(uid,{type:Math.random()<0.5?"drawClosed":"drawOpen"});
-  const hs=await roomRef.child("private/hands/"+uid).get(),hand=hs.val()||[];
-  const latest=await roomRef.child("public").get(),state=latest.val();
-  if(state&&state.status==="playing"&&state.turnUid===uid&&state.drawnByUid===uid&&hand.length){
-   const card=hand[Math.floor(Math.random()*hand.length)];
-   await processOnlineAction(uid,{type:"discard",cardId:card.id});
+  if(bot.jokerEligible&&!bot.unlocked){
+   await processOnlineAction(uid,{type:"revealSpecial"});
+   [ps,ds]=await Promise.all([roomRef.child("public").get(),roomRef.child("private").get()]);
+   p=ps.val();priv=ds.val()||{};hand=(priv.hands||{})[uid]||[];specialRank=priv.specialRank||null;bot=(p.players||[]).find(x=>x.id===uid)||bot;
+  }
+  if(!p.drawnByUid){
+   const top=(p.discard||[]).slice(-1)[0];
+   const takeOpen=top&&(top.joker||!((priv.deck||[]).length)||bestUnmatchedScore([...hand,top],bot)<=bestUnmatchedScore(hand,bot));
+   await processOnlineAction(uid,{type:takeOpen?"drawOpen":"drawClosed"});
+  }
+  [ps,ds]=await Promise.all([roomRef.child("public").get(),roomRef.child("private").get()]);
+  p=ps.val();priv=ds.val()||{};hand=(priv.hands||{})[uid]||[];specialRank=priv.specialRank||null;
+  if(p&&p.status==="playing"&&p.turnUid===uid&&p.drawnByUid===uid&&hand.length===14){
+   const winning=findWinningGroups(hand,bot);
+   if(winning)await processOnlineAction(uid,{type:"show",discardCardId:hand[winning.discardIndex].id,groups:winning.groups});
+   else await processOnlineAction(uid,{type:"discard",cardId:hand[chooseBotDiscardIndex(hand,bot)].id});
   }
  }catch(e){setLobbyNotice("Bot turn error: "+e.message);}
  finally{
@@ -1422,8 +1527,8 @@ async function runOnlineBotTurn(){
   if(state&&state.status==="playing"&&state.turnUid!==uid)runOnlineBotTurn();
  }
 }
-async function sendOnlineAction(a){if(!onlinePublic||onlinePublic.turnUid!==roomPlayerId){message("Please wait for your turn.");return;}try{if(isRoomHost)await processOnlineAction(roomPlayerId,a);else await onlineActionRef.child(roomPlayerId).set({...a,requestedAt:Date.now()});}catch(e){message("Action failed: "+e.message);}}
-const _soloDrawClosed=drawClosed,_soloDrawOpen=drawOpen,_soloDiscardSelected=discardSelected,_soloShowHand=showHand,_soloStartGame=startGame;
+async function sendOnlineAction(a){if(!onlinePublic||(a.type!=="revealSpecial"&&onlinePublic.turnUid!==roomPlayerId)){message("Please wait for your turn.");return;}try{if(isRoomHost)await processOnlineAction(roomPlayerId,a);else await onlineActionRef.child(roomPlayerId).set({...a,requestedAt:Date.now()});}catch(e){message("Action failed: "+e.message);}}
+const _soloDrawClosed=drawClosed,_soloDrawOpen=drawOpen,_soloDiscardSelected=discardSelected,_soloShowHand=showHand,_soloStartGame=startGame,_soloRevealSpecial=revealSpecialForCurrentPlayer;
 function drawClosed(){if(!onlineMode)return _soloDrawClosed();if(turn!==0||drawn)return;sendOnlineAction({type:"drawClosed"});}
 function drawOpen(){if(!onlineMode)return _soloDrawOpen();if(turn!==0||drawn)return;sendOnlineAction({type:"drawOpen"});}
 function discardSelected(){if(!onlineMode)return _soloDiscardSelected();if(turn!==0||!drawn||selected<0)return;const c=players[0].hand[selected];if(c)sendOnlineAction({type:"discard",cardId:c.id});selected=-1;}
@@ -1442,10 +1547,11 @@ function showHand(){
  players[0].hand=original;
  sendOnlineAction({type:"show",discardCardId,groups});
 }
+function revealSpecialForCurrentPlayer(){if(!onlineMode)return _soloRevealSpecial();sendOnlineAction({type:"revealSpecial"});}
 function startGame(){if(!onlineMode)return _soloStartGame();message("Leave the online table before starting a solo game.");}
 function leaveRoom(showLobby=true){
- if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
- if(roomRef&&roomPlayerId)roomRef.child("lobby/players/"+roomPlayerId).remove().catch(()=>{});onlineMode=false;onlinePublic=null;onlinePublicRef=onlineHandRef=onlineActionRef=null;roomRef=null;roomCode=null;roomPlayerId=null;isRoomHost=false;onlineLobbyListener=null;
+ if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);if(onlineSpecialRef&&onlineSpecialListener)onlineSpecialRef.off("value",onlineSpecialListener);if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
+ if(roomRef&&roomPlayerId)roomRef.child("lobby/players/"+roomPlayerId).remove().catch(()=>{});onlineMode=false;onlinePublic=null;onlinePublicRef=onlineHandRef=onlineActionRef=onlineSpecialRef=null;roomRef=null;roomCode=null;roomPlayerId=null;isRoomHost=false;onlineLobbyListener=null;onlineSpecialListener=null;specialRank=null;
  document.getElementById("game").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");if(showLobby)document.getElementById("setup").classList.remove("hidden");
 }
 </script>
