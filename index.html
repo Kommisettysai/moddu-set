@@ -1009,6 +1009,16 @@ function shuffle(a){
  return a;
 }
 
+const BOT_NAMES=["Aarav","Vivaan","Arjun","Kabir","Aditya","Ishaan","Rohan","Karthik","Rahul","Varun","Teja","Harsha","Naveen","Rohit","Vikram","Ananya","Aadhya","Priya","Kavya","Meera","Diya","Nisha","Sneha","Saanvi"];
+function randomBotName(existingNames=[]){
+ const used=new Set(existingNames.map(name=>String(name||"").trim().toLowerCase()));
+ const available=BOT_NAMES.filter(name=>!used.has(name.toLowerCase()));
+ if(available.length)return available[Math.floor(Math.random()*available.length)];
+ let suffix=2,name=BOT_NAMES[Math.floor(Math.random()*BOT_NAMES.length)];
+ while(used.has((name+" "+suffix).toLowerCase()))suffix++;
+ return name+" "+suffix;
+}
+
 function startGame(){
  scoreLimit=Number(document.getElementById("soloScoreLimit")?.value||200);
  let count=Number(document.getElementById("playerCount").value);
@@ -1020,7 +1030,7 @@ function startGame(){
 
  for(let i=0;i<count;i++){
   players.push({
-   name:i===0?(document.getElementById("playerName")?.value.trim()||"You"):"Computer "+i,
+   name:i===0?(document.getElementById("playerName")?.value.trim()||"You"):randomBotName(players.map(p=>p.name)),
    hand:deck.splice(0,13),
    score:0,
    unlocked:false,
@@ -1681,9 +1691,9 @@ async function addBotToRoom(){
   const snap=await roomRef.child("lobby").get(),l=snap.val(),m=onlineMembers(l);
   if(l.status!=="waiting"){setLobbyNotice("Bots can only be added before the game starts.");return;}
   if(m.length>=l.maxPlayers){setLobbyNotice("The table is full.");return;}
-  const n=m.filter(p=>p.isBot).length+1,id="bot-"+Date.now().toString(36);
-  await roomRef.child("lobby/players/"+id).set({id,name:"Computer "+n,isBot:true,ready:true,joinedAt:Date.now()});
-  setLobbyNotice("Computer "+n+" joined the table.");
+  const name=randomBotName(m.map(p=>p.name)),id="bot-"+Date.now().toString(36);
+  await roomRef.child("lobby/players/"+id).set({id,name,isBot:true,ready:true,joinedAt:Date.now()});
+  setLobbyNotice(name+" joined the table.");
  }catch(e){setLobbyNotice("Could not add bot: "+e.message);}
 }
 async function shareRoomInvite(){
