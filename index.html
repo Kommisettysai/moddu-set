@@ -857,6 +857,52 @@ function revealSpecialForCurrentPlayer(){
   message("Your turn. Draw from either pile.");
  }
 }
+function findWinningGroups(hand,player){
+ const makeGroups=cards=>{
+  const n=cards.length,triples=[],fours=[],full=(1<<n)-1;
+  for(let i=0;i<n;i++)for(let j=i+1;j<n-1;j++)for(let k=j+1;k<n;k++){
+   const g=[cards[i],cards[j],cards[k]],natural=g.filter(c=>!isWildForPlayer(c,player));
+   if(!natural.length||natural.every(c=>c.rank===natural[0].rank))triples.push({ids:g.map(c=>c.id),mask:(1<<i)|(1<<j)|(1<<k)});
+  }
+  for(let i=0;i<n;i++)for(let j=i+1;j<n-2;j++)for(let k=j+1;k<n-1;k++)for(let l=k+1;l<n;l++){
+   const g=[cards[i],cards[j],cards[k],cards[l]];
+   if(g.every(c=>!c.joker&&!(player.unlocked&&specialRank&&c.rank===specialRank)&&c.rank===g[0].rank))fours.push({ids:g.map(c=>c.id),mask:(1<<i)|(1<<j)|(1<<k)|(1<<l)});
+  }
+  for(const pure of fours){
+   const chosen=[pure];
+   function walk(mask,depth){
+    if(depth===3)return mask===full?chosen.map(x=>x.ids):null;
+    for(const t of triples)if(!(t.mask&mask)){chosen.push(t);const result=walk(mask|t.mask,depth+1);if(result)return result;chosen.pop();}
+    return null;
+   }
+   const result=walk(pure.mask,0);if(result)return result;
+  }
+  return null;
+ };
+ if(hand.length===13){const groups=makeGroups(hand);return groups?{groups}:null;}
+ if(hand.length===14)for(let i=0;i<hand.length;i++){
+  const cards=hand.filter((_,j)=>j!==i),groups=makeGroups(cards);
+  if(groups)return {groups,discardIndex:i};
+ }
+ return null;
+}
+function chooseBotDiscardIndex(hand,player){
+ let best=0,bestValue=Infinity;
+ for(let i=0;i<hand.length;i++){
+  const rest=hand.filter((_,j)=>j!==i),card=hand[i],score=bestUnmatchedScore(rest,player);
+  const pairs=rest.filter(c=>!c.joker&&c.rank===card.rank).length;
+  const penalty=card.joker?100:(player.unlocked&&specialRank&&card.rank===specialRank?90:pairs*12);
+  if(score*100+penalty<bestValue){bestValue=score*100+penalty;best=i;}
+ }
+ return best;
+}
+function finishSoloRound(winnerIndex,groups){
+ roundWinnerIndex=winnerIndex;winningGroups=groups.map(g=>g.slice());
+ const penalties={};
+ players.forEach((p,i)=>{const points=i===winnerIndex?0:bestUnmatchedScore(p.hand,p);p.score+=points;penalties[i]=points;});
+ gameOver=true;render();
+ openRoundResults(players.map((p,i)=>p.name+": +"+penalties[i]+" (total "+p.score+")"));
+}
 function aiTurn(){
  if(gameOver||turn===0)return;
  const p=players[turn];
