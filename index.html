@@ -1077,8 +1077,8 @@ function autoArrange(showMessage=true){
 function isWildForPlayer(card,player){
  return !!card.joker||(!!player.unlocked&&!!specialRank&&card.rank===specialRank);
 }
-function unmatchedCardPoints(card){
- if(card.joker||specialRank&&card.rank===specialRank)return 0;
+function unmatchedCardPoints(card,player){
+ if(card.joker||(player&&player.unlocked&&specialRank&&card.rank===specialRank))return 0;
  if(card.rank==="A")return 1;
  if(card.rank==="J")return 11;
  if(card.rank==="Q")return 12;
@@ -1086,30 +1086,80 @@ function unmatchedCardPoints(card){
  return Number(card.rank)||0;
 }
 function bestUnmatchedScore(hand,player){
- const n=hand.length,triples=[],fours=[];
+ const n=hand.length,triples=[],fours=[],full=(1<<n)-1,memo=new Map();
  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)for(let k=j+1;k<n;k++){
-  const set=[hand[i],hand[j],hand[k]],natural=set.filter(c=>!isWildForPlayer(c,player));
+  const group=[hand[i],hand[j],hand[k]],natural=group.filter(c=>!isWildForPlayer(c,player));
   if(!natural.length||natural.every(c=>c.rank===natural[0].rank))triples.push((1<<i)|(1<<j)|(1<<k));
  }
  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)for(let k=j+1;k<n;k++)for(let l=k+1;l<n;l++){
-  const set=[hand[i],hand[j],hand[k],hand[l]];
-  if(set.every(c=>!c.joker&&!isWildForPlayer(c,player)&&c.rank===set[0].rank))fours.push((1<<i)|(1<<j)|(1<<k)|(1<<l));
+  const group=[hand[i],hand[j],hand[k],hand[l]];
+  if(group.every(c=>!c.joker&&!(player&&player.unlocked&&specialRank&&c.rank===specialRank)&&c.rank===group[0].rank))fours.push((1<<i)|(1<<j)|(1<<k)|(1<<l));
  }
- const melds=[...triples,...fours],memo=new Map();
- const full=(1<<n)-1;
+ const melds=[...triples,...fours];
  function solve(mask){
   if(mask===full)return 0;
   if(memo.has(mask))return memo.get(mask);
   let first=0;while(mask&(1<<first))first++;
-  let best=unmatchedCardPoints(hand[first])+solve(mask|(1<<first));
-  for(const meld of melds){
-   if((meld&(1<<first))&&!(meld&mask))best=Math.min(best,solve(mask|meld));
-  }
+  let best=unmatchedCardPoints(hand[first],player)+solve(mask|(1<<first));
+  for(const meld of melds)if((meld&(1<<first))&&!(meld&mask))best=Math.min(best,solve(mask|meld));
   memo.set(mask,best);return best;
  }
  return solve(0);
 }
-function showHand(){
+function chooseBotDiscardIndex(hand,player){
+ let bestIndex=0,bestValue=Infinity;
+ for(let i=0;i<hand.length;i++){
+  const remaining=hand.filter((_,j)=>j!==i),card=hand[i];
+  const score=bestUnmatchedScore(remaining,player);
+  const sameRank=remaining.filter(c=>!c.joker&&c.rank===card.rank).length;
+  const keepPenalty=card.joker?100:(player.unlocked&&specialRank&&card.rank===specialRank?90:sameRank*12);
+  const value=score*100+keepPenalty;
+  if(value<bestValue){bestValue=value;bestIndex=i;}
+ }
+ return bestIndex;
+}
+function findWinningGroups(hand,player){
+ if(hand.length!==13&&hand.length!==14)return null;
+ const solveThirteen=cards=>{
+  const n=cards.length,triples=[],fours=[],full=(1<<n)-1;
+  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)for(let k=j+1;k<n;k++){
+   const group=[cards[i],cards[j],cards[k]],natural=group.filter(c=>!isWildForPlayer(c,player));
+   if(!natural.length||natural.every(c=>c.rank===natural[0].rank))triples.push({ids:group.map(c=>c.id),mask:(1<<i)|(1<<j)|(1<<k)});
+  }
+  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)for(let k=j+1;k<n;k++)for(let l=k+1;l<n;l++){
+   const group=[cards[i],cards[j],cards[k],cards[l]];
+   if(group.every(c=>!c.joker&&!(player.unlocked&&specialRank&&c.rank===specialRank)&&c.rank===group[0].rank))fours.push({ids:group.map(c=>c.id),mask:(1<<i)|(1<<j)|(1<<k)|(1<<l)});
+  }
+  for(const pure of fours){
+   const chosen=[pure];
+   function search(mask,depth){
+    if(depth===3)return mask===full?chosen.map(g=>g.ids):null;
+    for(const t of triples)if(!(t.mask&mask)){
+     chosen.push(t);const result=search(mask|t.mask,depth+1);if(result)return result;chosen.pop();
+    }
+    return null;
+   }
+   const result=search(pure.mask,0);if(result)return result;
+  }
+  return null;
+ };
+ if(hand.length===13){const groups=solveThirteen(hand);return groups?{groups}:null;}
+ for(let i=0;i<hand.length;i++){
+  const cards=hand.filter((_,j)=>j!==i),groups=solveThirteen(cards);
+  if(groups)return {groups,discardIndex:i};
+ }
+ return null;
+}
+function finishSoloRound(winnerIndex,groups){
+ winningGroups=groups.map(g=>g.slice());
+ const penalties={};
+ players.forEach((p,i)=>{
+  const penalty=i===winnerIndex?0:bestUnmatchedScore(p.hand,p);
+  p.score+=penalty;penalties[i]=penalty;
+ });
+ gameOver=true;render();
+ openRoundResults(players.map((p,i)=>p.name+": +"+penalties[i]+" (total "+p.score+")"));
+}function showHand(){
  if(!players.length||turn!==0||gameOver){message("You cannot show right now.");return;}
  let hand=[...players[0].hand],showDiscard=null;
  if(drawn){
