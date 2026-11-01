@@ -700,6 +700,7 @@ function render(){
   if(oldJokerInfo)oldJokerInfo.textContent="";
   const slot=document.getElementById("jokerSlot");
   if(slot)slot.innerHTML=specialRank&&players[0]&&players[0].unlocked?'<span class="card joker-face">'+specialRank+'★</span><small>Special joker</small>':'<span class="card back joker-card">★</span><small>Special joker</small>';
+  const revealBtn=document.getElementById("revealJokerBtn");if(revealBtn)revealBtn.classList.toggle("hidden",!(players[0]&&players[0].jokerEligible&&!players[0].unlocked));
   const turnEl=document.getElementById("turnInfo");
   if(turnEl&&players[turn])turnEl.textContent=players[turn].name+"'s turn";
   if(players[0]){
@@ -864,28 +865,29 @@ function revealSpecialForCurrentPlayer(){
 
 function aiTurn(){
  if(gameOver||turn===0)return;
- let p=players[turn];
+ const p=players[turn];
  recycleDeck();
- if(discard.length&&Math.random()<0.35){
-  p.hand.push(discard.pop());
- }else if(deck.length){
-  p.hand.push(deck.pop());
- }else{
-  nextTurn();return;
+ if(discard.length){
+  const open=discard[discard.length-1];
+  const base=bestUnmatchedScore(p.hand,p),withOpen=bestUnmatchedScore([...p.hand,open],p);
+  if(open.joker||withOpen<=base)p.hand.push(discard.pop());
+  else if(deck.length)p.hand.push(deck.pop());
+  else p.hand.push(discard.pop());
+ }else if(deck.length)p.hand.push(deck.pop());
+ else{nextTurn();return;}
+ const winning=findWinningGroups(p.hand,p);
+ if(winning){
+  const discarded=p.hand.splice(winning.discardIndex,1)[0];
+  discard.push(discarded);
+  finishSoloRound(turn,winning.groups);
+  return;
  }
-
- // Basic random AI discard. Improved strategy will be added later.
- let index=Math.floor(Math.random()*p.hand.length);
+ const index=chooseBotDiscardIndex(p.hand,p);
  discard.push(p.hand.splice(index,1)[0]);
-
  checkUnlock(turn);
  render();
  nextTurn();
-}
-
-
-
-function cardMarkup(c,i){
+}function cardMarkup(c,i){
  const red=["♥","♦"].includes(c.suit);
  return `<div class="card ${red?"red":""} ${(drawn?selected===i:selectedIndices.includes(i))?"selected":""}" draggable="true" ondragstart="dragCard(event,${i})" onclick="selectCard(${i})">
  <span>${c.joker?"★":c.rank}</span><span style="text-align:center">${c.suit}</span><span style="text-align:right">${c.joker?"★":c.rank}</span></div>`;
