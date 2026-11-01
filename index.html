@@ -711,8 +711,8 @@ function cardText(c){
 }
 
 function selectCard(i){
- if(turn!==0||gameOver)return;
- if(drawn){selected=selected===i?-1:i;}
+ if(gameOver)return;
+ if(drawn){if(turn!==0)return;selected=selected===i?-1:i;}
  else{selectedIndices=selectedIndices.includes(i)?selectedIndices.filter(x=>x!==i):[...selectedIndices,i];}
  render();
 }
@@ -913,18 +913,25 @@ function renderHandLayout(){
  const loose=sortCardsLowToHigh(hand.filter(card=>!groupedIds.has(card.id)));
  const byRank={};
  loose.filter(c=>!isWild(c)).forEach(c=>{(byRank[c.rank]||(byRank[c.rank]=[])).push(c);});
- const paired=new Set();
- const pairItems=[];
+ const groupedLoose=new Set();
+ const looseRankItems=[];
  Object.keys(byRank).sort((a,b)=>ranks.indexOf(a)-ranks.indexOf(b)).forEach(rank=>{
   const same=byRank[rank];
+  while(same.length>=4){
+   const cards=same.splice(0,4);cards.forEach(c=>groupedLoose.add(c.id));
+   looseRankItems.push({kind:"looseSet",cards,priority:1,rank:ranks.indexOf(rank)});
+  }
+  while(same.length>=3){
+   const cards=same.splice(0,3);cards.forEach(c=>groupedLoose.add(c.id));
+   looseRankItems.push({kind:"looseSet",cards,priority:1,rank:ranks.indexOf(rank)});
+  }
   while(same.length>=2){
-   const first=same.shift(),second=same.shift();
-   paired.add(first.id);paired.add(second.id);
-   pairItems.push({kind:"pair",cards:[first,second],priority:2,rank:ranks.indexOf(rank)});
+   const cards=same.splice(0,2);cards.forEach(c=>groupedLoose.add(c.id));
+   looseRankItems.push({kind:"pair",cards,priority:2,rank:ranks.indexOf(rank)});
   }
  });
- items.push(...pairItems);
- loose.filter(c=>!paired.has(c.id)).forEach(c=>items.push({kind:"single",cards:[c],priority:3,rank:rankValue(c)}));
+ items.push(...looseRankItems);
+ loose.filter(c=>!groupedLoose.has(c.id)).forEach(c=>items.push({kind:"single",cards:[c],priority:3,rank:rankValue(c)}));
  items.sort((a,b)=>a.priority-b.priority||a.rank-b.rank);
  const rows=[[],[]],counts=[0,0];
  items.forEach(item=>{
@@ -939,6 +946,10 @@ function renderHandLayout(){
   rowItems.forEach(item=>{
    if(item.kind==="set"){
     html+='<div class="hand-unit set-unit" onclick="addSelectedCardToGroup('+item.groupIndex+')" ondragover="event.preventDefault()" ondrop="dropOnGroup(event,'+item.groupIndex+')"><span class="unit-label">'+(item.cards.length===4?'PURE 4':'3 SET')+'</span>';
+    item.cards.forEach(c=>{html+=cardMarkup(c,hand.findIndex(x=>x.id===c.id));});
+    html+='</div>';
+   }else if(item.kind==="looseSet"){
+    html+='<div class="hand-unit set-unit"><span class="unit-label">'+(item.cards.length===4?'PURE 4':'3 SET')+'</span>';
     item.cards.forEach(c=>{html+=cardMarkup(c,hand.findIndex(x=>x.id===c.id));});
     html+='</div>';
    }else if(item.kind==="pair"){
@@ -962,7 +973,7 @@ function renderGroups(){
  el.innerHTML=arrangedGroups.map((g,i)=>'<div class="group-row"><span class="group-label">'+(g.length===4?'PURE 4-SET':'3-SET')+'</span>'+g.map(id=>{const card=players[0].hand.find(x=>x.id===id);return card?'<span class="group-card '+(['♥','♦'].includes(card.suit)?'red':'')+'">'+(card.joker?'🃏':card.rank+card.suit)+'</span>':''}).join('')+'<button class="group-remove" onclick="removeGroup('+i+')">Undo</button></div>').join('');
 }
 function makeManualGroup(size){
- if(!players.length||turn!==0){message("Arrange sets during your turn.");return;}
+ if(!players.length){message("Your hand is not ready yet.");return;}
  if(selectedIndices.length!==size){message("Select exactly "+size+" cards, then press this group button.");return;}
  const chosen=selectedIndices.map(i=>players[0].hand[i]);
  if(arrangedGroups.flat().some(id=>chosen.some(c=>c.id===id))){message("A selected card is already in another group. Clear groups or undo one first.");return;}
@@ -987,7 +998,7 @@ function sortCardsLowToHigh(cards){
  return [...cards].sort((a,b)=>rankValue(a)-rankValue(b)||suits.indexOf(a.suit)-suits.indexOf(b.suit));
 }
 function autoArrange(showMessage=true){
- if(!players.length||turn!==0){if(showMessage)message("Auto arrange is available on your turn.");return;}
+ if(!players.length||!players[0].hand){if(showMessage)message("Your hand is not ready yet.");return;}
  const hand=players[0].hand;
  arrangedGroups=[];
  const available=[...hand];
@@ -1129,6 +1140,7 @@ function openRoundResults(results){
 function closeResults(){
  const screen=document.getElementById("roundResults");
  if(screen)screen.classList.add("hidden");
+ if(onlineMode){message("Round complete. Online next-round setup is the next step.");return;}
  startNextRound();
 }
 function startNextRound(){
@@ -1218,22 +1230,90 @@ function applyOnlinePublic(){
  players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,unlocked:!!p.unlocked,active:true,human:p.id===roomPlayerId,cardCount:p.cardCount||0,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
  if(!players.length)return;turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);specialRank=st.specialRank||null;round=st.round||1;drawn=st.drawnByUid===roomPlayerId;
  const el=document.getElementById("message");if(el)el.textContent=st.message||"Online game";render();
+ if(st.status==="roundComplete"&&st.roundResult)openOnlineRoundResults(st.roundResult);
+}
+function validateOnlineShow(hand,groupIds,player){
+ if(!Array.isArray(groupIds)||groupIds.length!==4)return "Arrange one pure four-set and three three-card sets first.";
+ const groups=groupIds.map(ids=>Array.isArray(ids)?ids.map(id=>hand.find(c=>c.id===id)).filter(Boolean):[]);
+ if(groups.some((g,i)=>g.length!==(i===0?4:3)))return "Each group must contain four cards or three cards.";
+ const used=groups.flat().map(c=>c.id);
+ if(used.length!==13||new Set(used).size!==13||hand.length!==13)return "All 13 cards must be used exactly once.";
+ const pure=groups[0];
+ if(pure.some(c=>c.joker)||!pure.every(c=>c.rank===pure[0].rank))return "The first group must be a natural four-set of the same rank.";
+ if(!groups.slice(1).every(g=>{const natural=g.filter(c=>!isWildForPlayer(c,player));return !natural.length||natural.every(c=>c.rank===natural[0].rank);}))return "Each three-card set must have the same rank, except for valid jokers.";
+ return null;
 }
 async function processOnlineAction(uid,a){
- if(!isRoomHost)return;const [ps,ds,ls]=await Promise.all([roomRef.child("public").get(),roomRef.child("private").get(),roomRef.child("lobby").get()]);
+ if(!isRoomHost)return;
+ const [ps,ds,ls]=await Promise.all([roomRef.child("public").get(),roomRef.child("private").get(),roomRef.child("lobby").get()]);
  const p=ps.val(),priv=ds.val()||{},l=ls.val();if(!p||p.status!=="playing"||p.turnUid!==uid)return;
  let d=priv.deck||[],h=priv.hands||{},hand=h[uid]||[],pile=p.discard||[];
- if(a.type==="drawClosed"||a.type==="drawOpen"){if(p.drawnByUid)return;if(a.type==="drawOpen"){if(!pile.length)return;hand.push(pile.pop());}else{if(!d.length&&pile.length>1){const top=pile.pop();d=shuffle(pile);pile=[top];}if(!d.length)return;hand.push(d.pop());}h[uid]=hand;p.drawnByUid=uid;p.message="Card drawn. Select one card and discard it.";
- }else if(a.type==="discard"){if(p.drawnByUid!==uid)return;const i=hand.findIndex(c=>c.id===a.cardId);if(i<0)return;pile.push(hand.splice(i,1)[0]);h[uid]=hand;p.drawnByUid=null;const m=onlineMembers(l),at=m.findIndex(x=>x.id===uid),next=m[(at+1)%m.length];p.turnUid=next.id;p.message=next.name+"'s turn. Draw a card.";}
+ if(a.type==="drawClosed"||a.type==="drawOpen"){
+  if(p.drawnByUid)return;
+  if(a.type==="drawOpen"){if(!pile.length)return;hand.push(pile.pop());}
+  else{if(!d.length&&pile.length>1){const top=pile.pop();d=shuffle(pile);pile=[top];}if(!d.length)return;hand.push(d.pop());}
+  h[uid]=hand;p.drawnByUid=uid;p.message="Card drawn. Select one card and discard it.";
+ }else if(a.type==="discard"){
+  if(p.drawnByUid!==uid)return;
+  const i=hand.findIndex(c=>c.id===a.cardId);if(i<0)return;
+  pile.push(hand.splice(i,1)[0]);h[uid]=hand;p.drawnByUid=null;
+  const m=onlineMembers(l),at=m.findIndex(x=>x.id===uid),next=m[(at+1)%m.length];p.turnUid=next.id;p.message=next.name+"'s turn. Draw a card.";
+ }else if(a.type==="show"){
+  if(a.discardCardId){
+   if(p.drawnByUid!==uid)return;
+   const i=hand.findIndex(c=>c.id===a.discardCardId);if(i<0||hand.length!==14)return;
+   pile.push(hand.splice(i,1)[0]);h[uid]=hand;p.drawnByUid=null;
+  }else if(p.drawnByUid||hand.length!==13)return;
+  const winner=(p.players||[]).find(x=>x.id===uid);
+  const invalid=validateOnlineShow(hand,a.groups,winner||{unlocked:false});
+  if(invalid){p.message=invalid;p.discard=pile;p.deckCount=d.length;await roomRef.child("public").set(p);return;}
+  const penalties={},totals={};
+  (p.players||[]).forEach(player=>{
+   const penalty=player.id===uid?0:bestUnmatchedScore(h[player.id]||[],player);
+   penalties[player.id]=penalty;totals[player.id]=(player.score||0)+penalty;
+  });
+  p.players=(p.players||[]).map(player=>({...player,score:totals[player.id],cardCount:(h[player.id]||[]).length}));
+  p.status="roundComplete";p.discard=pile;p.deckCount=d.length;p.message=winner.name+" showed successfully. All hands are revealed.";
+  p.roundResult={winnerUid:uid,winnerName:winner.name,groups:a.groups,penalties,totals,hands:h,completedAt:Date.now()};
+  await Promise.all([roomRef.child("private/deck").set(d),roomRef.child("private/hands").set(h),roomRef.child("public").set(p)]);
+  return;
+ }
  p.discard=pile;p.deckCount=d.length;p.players=(p.players||[]).map(x=>({...x,cardCount:(h[x.id]||[]).length}));
  await Promise.all([roomRef.child("private/deck").set(d),roomRef.child("private/hands").set(h),roomRef.child("public").set(p)]);
+}
+function openOnlineRoundResults(result){
+ const screen=document.getElementById("roundResults"),profiles=document.getElementById("resultsProfiles"),handsEl=document.getElementById("resultsHands");
+ if(!screen||!profiles||!handsEl)return;
+ const list=(onlinePublic.players||[]),winner=result.winnerUid;
+ profiles.innerHTML=list.map(p=>'<div class="results-profile '+(p.id===winner?'show-winner':'')+'"><strong>'+escapeLobbyText(p.name)+'</strong><span class="result-count">'+((result.hands[p.id]||[]).length)+' cards revealed</span><span class="result-points">+'+(result.penalties[p.id]||0)+' points · Total '+(result.totals[p.id]||0)+'</span>'+(p.id===winner?'<span class="winner-tag">🏆 SHOWED</span>':'')+'</div>').join('');
+ handsEl.innerHTML=list.map(p=>{
+  const hand=result.hands[p.id]||[];
+  const winning=p.id===winner?'<div class="results-winning-groups">'+result.groups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':'<div class="results-card-grid">'+hand.map(renderResultCard).join('')+'</div>';
+  return '<div class="results-hand '+(p.id===winner?'winner-hand':'')+'"><div class="results-hand-head"><strong>'+(p.id===winner?'🏆 ':'')+escapeLobbyText(p.name)+'</strong><span>'+hand.length+' cards · +'+(result.penalties[p.id]||0)+' points</span></div>'+winning+'</div>';
+ }).join('');
+ document.getElementById("resultsSummary").textContent=result.winnerName+" showed successfully. All hands are revealed and scores are updated.";
+ screen.classList.remove("hidden");
 }
 async function sendOnlineAction(a){if(!onlinePublic||onlinePublic.turnUid!==roomPlayerId){message("Please wait for your turn.");return;}try{if(isRoomHost)await processOnlineAction(roomPlayerId,a);else await onlineActionRef.child(roomPlayerId).set({...a,requestedAt:Date.now()});}catch(e){message("Action failed: "+e.message);}}
 const _soloDrawClosed=drawClosed,_soloDrawOpen=drawOpen,_soloDiscardSelected=discardSelected,_soloShowHand=showHand,_soloStartGame=startGame;
 function drawClosed(){if(!onlineMode)return _soloDrawClosed();if(turn!==0||drawn)return;sendOnlineAction({type:"drawClosed"});}
 function drawOpen(){if(!onlineMode)return _soloDrawOpen();if(turn!==0||drawn)return;sendOnlineAction({type:"drawOpen"});}
 function discardSelected(){if(!onlineMode)return _soloDiscardSelected();if(turn!==0||!drawn||selected<0)return;const c=players[0].hand[selected];if(c)sendOnlineAction({type:"discard",cardId:c.id});selected=-1;}
-function showHand(){if(!onlineMode)return _soloShowHand();message("Multiplayer SHOW and scoring are not enabled yet. Draw and discard are synchronised.");}
+function showHand(){
+ if(!onlineMode)return _soloShowHand();
+ if(!onlinePublic||onlinePublic.status!=="playing"||turn!==0||gameOver){message("You cannot show right now.");return;}
+ const hand=players[0].hand||[];let discardCardId=null;
+ if(drawn){
+  if(selected<0||selected>=hand.length){message("Select the extra card to discard before SHOW.");return;}
+  discardCardId=hand[selected].id;
+ }else if(hand.length!==13){message("You need 13 cards to show, or select the extra card to discard.");return;}
+ const original=players[0].hand;
+ if(discardCardId)players[0].hand=original.filter(c=>c.id!==discardCardId);
+ autoArrange(false);
+ const groups=arrangedGroups.map(g=>g.slice());
+ players[0].hand=original;
+ sendOnlineAction({type:"show",discardCardId,groups});
+}
 function startGame(){if(!onlineMode)return _soloStartGame();message("Leave the online table before starting a solo game.");}
 function leaveRoom(showLobby=true){
  if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
