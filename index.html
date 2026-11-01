@@ -183,6 +183,31 @@ footer{color:#9bb9a9;padding:20px 12px 28px;letter-spacing:.7px}
  #hand .hand-row>.card{flex-basis:33px!important;width:33px!important;min-width:33px!important;max-width:33px!important}
  #hand .hand-unit .card{flex-basis:30px!important;width:30px!important;min-width:30px!important;max-width:30px!important;height:49px!important}
 }
+
+/* Persistent player status and compact table */
+.player-strip{position:sticky!important;top:0!important;z-index:40!important;padding:8px 9px!important;margin:0 0 9px!important;background:linear-gradient(145deg,#174a39f7,#0d3529f7)!important;backdrop-filter:blur(10px)}
+.player-strip h3{font-size:13px!important;margin:2px 0 5px!important}
+.player-strip .table-status{font-size:11px!important}
+.player-strip #roundInfo{font-size:14px!important}
+.player-strip #turnInfo{font-size:11px!important}
+.player-strip .players{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:5px!important;overflow:visible!important;padding:2px 0!important}
+.player-strip .player{min-width:0!important;flex:initial!important;padding:5px 2px!important;border-radius:9px!important;font-size:9px!important;line-height:1.25!important}
+.player-strip .player b{font-size:10px!important;white-space:nowrap!important}
+.player-strip .profile-count,.player-strip .profile-score{font-size:8px!important;white-space:nowrap!important}
+.profile-status{display:block;margin-top:3px;font-size:8px;line-height:1.1;color:#ffe2a1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#game>.panel:nth-of-type(2){padding:10px 12px!important;margin-bottom:9px!important}
+#game>.panel:nth-of-type(2) h3{font-size:16px!important;margin:0 0 6px!important}
+#game>.panel:nth-of-type(2) .piles{margin:6px 0!important;gap:12px!important}
+#game>.panel:nth-of-type(2) .pile{width:86px!important;height:88px!important;border-radius:11px!important}
+#game>.panel:nth-of-type(2) .pile strong{font-size:27px!important}
+#game>.panel:nth-of-type(2) .pile small{font-size:9px!important}
+#game>.panel:nth-of-type(2) #message{min-height:30px!important;padding:7px 9px!important;margin-top:5px!important;font-size:12px!important}
+@media(max-width:450px){
+ .player-strip .players{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+ .player-strip .player b{font-size:9px!important}
+ .player-strip .profile-count,.player-strip .profile-score{font-size:7px!important}
+ #game>.panel:nth-of-type(2) .pile{width:78px!important;height:78px!important}
+}
 </style>
 </head>
 <body>
@@ -338,7 +363,7 @@ function render(){
   if(players[0]){
    document.getElementById("handCount").textContent=players[0].hand.length;
    if(playersEl){
-    playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active':'')+'"><b>'+p.name+'</b><span class="profile-count">'+p.hand.length+' cards</span><span class="profile-score">Score: '+p.score+'</span></div>').join('');
+    playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active':'')+'"><b>'+p.name+'</b><span class="profile-count">'+p.hand.length+' cards</span><span class="profile-score">Score: '+p.score+'</span><span class="profile-status">'+(p.status||"🎴 Ready")+'</span></div>').join('');
    }
    if(handEl){
     try{handEl.innerHTML=renderHandLayout();}
@@ -519,6 +544,19 @@ function cardMarkup(c,i){
 }
 let draggedCardIndex=null;
 function dragCard(event,index){draggedCardIndex=index;event.dataTransfer.setData("text/plain",String(index));}
+function addSelectedCardToGroup(g){
+ if(drawn||!selectedIndices.length)return;
+ if(selectedIndices.length!==1){message("Select one card, then tap the set.");return;}
+ const index=selectedIndices[0],card=players[0].hand[index],ids=arrangedGroups[g];
+ if(!card||!ids)return;
+ const existing=ids.map(id=>players[0].hand.find(c=>c.id===id)).filter(Boolean);
+ const candidate=[...existing,card];
+ if(candidate.length>4){message("That set already has four cards.");return;}
+ if(candidate.length===4){
+  if(candidate.some(c=>isWild(c))||!candidate.every(c=>c.rank===candidate[0].rank)){message("A pure four-set needs four natural cards of one rank.");return;}
+ }else if(!validThree(candidate)){message("That card does not fit this set.");return;}
+ ids.push(card.id);selectedIndices=[];render();message("Card added to the set.");
+}
 function dropOnGroup(event,g){
  event.preventDefault();
  const index=Number(event.dataTransfer.getData("text/plain")||draggedCardIndex);
@@ -571,7 +609,7 @@ function renderHandLayout(){
   html+='<div class="hand-row" data-row="'+(rowIndex+1)+'">';
   rowItems.forEach(item=>{
    if(item.kind==="set"){
-    html+='<div class="hand-unit set-unit" ondragover="event.preventDefault()" ondrop="dropOnGroup(event,'+item.groupIndex+')"><span class="unit-label">'+(item.cards.length===4?'PURE 4':'3 SET')+'</span>';
+    html+='<div class="hand-unit set-unit" onclick="addSelectedCardToGroup('+item.groupIndex+')" ondragover="event.preventDefault()" ondrop="dropOnGroup(event,'+item.groupIndex+')"><span class="unit-label">'+(item.cards.length===4?'PURE 4':'3 SET')+'</span>';
     item.cards.forEach(c=>{html+=cardMarkup(c,hand.findIndex(x=>x.id===c.id));});
     html+='</div>';
    }else if(item.kind==="pair"){
@@ -624,37 +662,39 @@ function autoArrange(showMessage=true){
  const hand=players[0].hand;
  arrangedGroups=[];
  const available=[...hand];
- const pureRank=ranks.find(r=>available.filter(c=>!c.joker&&c.rank===r).length>=4);
+ const pureRank=ranks.find(r=>available.filter(c=>!isWild(c)&&!c.joker&&c.rank===r).length>=4);
  if(pureRank){
-  const pure=available.filter(c=>!c.joker&&c.rank===pureRank).slice(0,4);
+  const pure=available.filter(c=>!isWild(c)&&!c.joker&&c.rank===pureRank).slice(0,4);
   arrangedGroups.push(pure.map(c=>c.id));
   pure.forEach(c=>available.splice(available.findIndex(x=>x.id===c.id),1));
  }
- function search(pool,groups){
-  if(groups.length===3||pool.length<3)return groups;
-  const sorted=sortCardsLowToHigh(pool);
-  for(let i=0;i<sorted.length-2;i++){
-   for(let j=i+1;j<sorted.length-1;j++){
-    for(let k=j+1;k<sorted.length;k++){
-     const set=[sorted[i],sorted[j],sorted[k]];
-     if(!validThree(set))continue;
-     const ids=new Set(set.map(c=>c.id));
-     const result=search(pool.filter(c=>!ids.has(c.id)),[...groups,set]);
-     if(result.length>groups.length)return result;
-    }
-   }
-  }
-  return groups;
+ const triples=[];
+ for(let i=0;i<available.length-2;i++)for(let j=i+1;j<available.length-1;j++)for(let k=j+1;k<available.length;k++){
+  const cards=[available[i],available[j],available[k]];
+  if(validThree(cards))triples.push({cards,mask:(1<<i)|(1<<j)|(1<<k),wilds:cards.filter(isWild).length,rank:Math.min(...cards.filter(c=>!isWild(c)).map(rankValue),99)});
  }
- const triples=search(available,[]);
- triples.forEach(g=>arrangedGroups.push(g.map(c=>c.id)));
+ triples.sort((x,y)=>x.wilds-y.wilds||x.rank-y.rank);
+ let best={groups:[],wilds:99};
+ const memo=new Map();
+ function search(mask,groups,wildCount){
+  if(groups.length>best.groups.length||(groups.length===best.groups.length&&wildCount<best.wilds))best={groups:groups.slice(),wilds:wildCount};
+  if(groups.length===3)return;
+  const key=mask+"|"+groups.length,seen=memo.get(key);
+  if(seen!==undefined&&seen<=wildCount)return;
+  memo.set(key,wildCount);
+  for(const t of triples)if((t.mask&mask)===0)search(mask|t.mask,[...groups,t.cards],wildCount+t.wilds);
+ }
+ search(0,[],0);
+ best.groups.sort((x,y)=>x.filter(isWild).length-y.filter(isWild).length||Math.min(...x.filter(c=>!isWild(c)).map(rankValue),99)-Math.min(...y.filter(c=>!isWild(c)).map(rankValue),99));
+ best.groups.forEach(g=>arrangedGroups.push(g.map(c=>c.id)));
  selectedIndices=[];
  render();
  if(showMessage){
   const loose=hand.length-arrangedGroups.flat().length;
-  message("Sorted low to high. "+arrangedGroups.length+" set(s) arranged; "+loose+" card(s) remain loose.");
+  message("Arranged "+(arrangedGroups.length?arrangedGroups.length+" set(s)":"your cards")+". Natural sets are preferred; jokers complete other sets when useful. "+loose+" card(s) remain loose.");
  }
 }
+
 function showHand(){
  if(!players.length||turn!==0||drawn){message("Finish your turn before showing.");return;}
  if(players[0].hand.length!==13){message("You must have exactly 13 cards to show.");return;}
