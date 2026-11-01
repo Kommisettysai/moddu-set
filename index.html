@@ -168,6 +168,21 @@ footer{color:#9bb9a9;padding:20px 12px 28px;letter-spacing:.7px}
  #hand .hand-row>.card{flex-basis:35px!important;width:35px!important;min-width:35px!important;max-width:35px!important}
  #hand .hand-pair .card{flex-basis:33px!important;width:33px!important;min-width:33px!important;max-width:33px!important}
 }
+
+/* Final hand layout: exactly two card rows */
+#hand.cards{display:block!important;width:100%!important;min-width:0!important;overflow:visible!important}
+#hand .hand-layout{display:block!important;width:100%!important;min-width:0!important}
+#hand .loose-area{display:block!important;width:100%!important;min-width:0!important;overflow:visible!important;padding:8px 2px!important}
+#hand .hand-row{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:flex-end!important;justify-content:center!important;gap:4px!important;width:100%!important;min-width:0!important;margin:9px 0 5px!important;overflow:visible!important}
+#hand .hand-row>.card{display:flex!important;flex:0 0 36px!important;width:36px!important;min-width:36px!important;max-width:36px!important;height:55px!important;padding:4px!important;font-size:11px!important}
+#hand .hand-unit{position:relative!important;display:flex!important;flex:0 0 auto!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:flex-end!important;gap:2px!important;padding:5px 2px 2px!important;border:1px solid #d9b66b99!important;border-radius:7px!important;background:#08291f99!important}
+#hand .hand-unit .card{display:flex!important;flex:0 0 33px!important;width:33px!important;min-width:33px!important;max-width:33px!important;height:52px!important;padding:4px!important;font-size:10px!important}
+#hand .unit-label{position:absolute!important;top:-7px!important;left:5px!important;padding:0 3px!important;background:#174a39!important;color:#f4d28a!important;font-size:7px!important;line-height:9px!important;letter-spacing:.4px!important;white-space:nowrap!important}
+@media(max-width:360px){
+ #hand .hand-row{gap:2px!important}
+ #hand .hand-row>.card{flex-basis:33px!important;width:33px!important;min-width:33px!important;max-width:33px!important}
+ #hand .hand-unit .card{flex-basis:30px!important;width:30px!important;min-width:30px!important;max-width:30px!important;height:49px!important}
+}
 </style>
 </head>
 <body>
@@ -522,41 +537,45 @@ function dropOnGroup(event,g){
 }
 function renderHandLayout(){
  const hand=players[0].hand;
- const grouped=new Set(arrangedGroups.flat());
- let html='<div class="hand-layout">';
+ const groupedIds=new Set(arrangedGroups.flat());
+ const items=[];
  arrangedGroups.forEach((ids,g)=>{
-  const cards=ids.map(id=>({card:hand.find(c=>c.id===id),index:hand.findIndex(c=>c.id===id)})).filter(x=>x.card);
-  if(!cards.length)return;
-  html+='<div class="hand-group" ondragover="event.preventDefault()" ondrop="dropOnGroup(event,'+g+')"><div class="hand-group-title">'+(cards.length===4?'✦ PURE FOUR-CARD SET':'✦ THREE-CARD SET')+'</div><div class="hand-group-cards">'+cards.map(x=>cardMarkup(x.card,x.index)).join('')+'</div></div>';
+  const cards=ids.map(id=>hand.find(c=>c.id===id)).filter(Boolean);
+  if(cards.length)items.push({kind:"set",cards,groupIndex:g,priority:cards.length===4?0:1,rank:Math.min(...cards.map(rankValue))});
  });
- const loose=sortCardsLowToHigh(hand.filter(card=>!grouped.has(card.id)));
+ const loose=sortCardsLowToHigh(hand.filter(card=>!groupedIds.has(card.id)));
  const byRank={};
  loose.filter(c=>!isWild(c)).forEach(c=>{(byRank[c.rank]||(byRank[c.rank]=[])).push(c);});
  const paired=new Set();
- const items=[];
+ const pairItems=[];
  Object.keys(byRank).sort((a,b)=>ranks.indexOf(a)-ranks.indexOf(b)).forEach(rank=>{
   const same=byRank[rank];
   while(same.length>=2){
    const first=same.shift(),second=same.shift();
    paired.add(first.id);paired.add(second.id);
-   items.push({cards:[first,second],pair:true,rank:ranks.indexOf(rank)});
+   pairItems.push({kind:"pair",cards:[first,second],priority:2,rank:ranks.indexOf(rank)});
   }
  });
- loose.filter(c=>!paired.has(c.id)).forEach(c=>items.push({cards:[c],pair:false,rank:rankValue(c)}));
- items.sort((a,b)=>a.rank-b.rank);
- const rows=[[],[]];
- let rowCounts=[0,0],row=0;
+ items.push(...pairItems);
+ loose.filter(c=>!paired.has(c.id)).forEach(c=>items.push({kind:"single",cards:[c],priority:3,rank:rankValue(c)}));
+ items.sort((a,b)=>a.priority-b.priority||a.rank-b.rank);
+ const rows=[[],[]],counts=[0,0];
  items.forEach(item=>{
   const size=item.cards.length;
-  if(rowCounts[row]+size>7&&row===0)row=1;
-  rows[row].push(item);rowCounts[row]+=size;
+  let target=counts[0]+size<=7?0:1;
+  if(counts[target]+size>7&&counts[1-target]+size<=7)target=1-target;
+  rows[target].push(item);counts[target]+=size;
  });
- html+='<div class="loose-area"><div class="loose-title">PAIRS & OTHER CARDS · LOW TO HIGH</div>';
- rows.forEach((units,rowIndex)=>{
-  html+='<div class="hand-row" style="display:flex;flex-direction:row;flex-wrap:nowrap;justify-content:center;align-items:flex-end;gap:4px;width:100%;min-width:0;margin:5px 0">';
-  units.forEach(item=>{
-   if(item.pair){
-    html+='<div class="hand-pair" style="display:flex;flex:0 0 auto;align-items:flex-end;gap:2px;padding:2px;border:1px solid #d9b66b88;border-radius:7px;background:#08291f88">';
+ let html='<div class="hand-layout"><div class="loose-area"><div class="loose-title">YOUR HAND · SETS, PAIRS & OTHER CARDS</div>';
+ rows.forEach((rowItems,rowIndex)=>{
+  html+='<div class="hand-row" data-row="'+(rowIndex+1)+'">';
+  rowItems.forEach(item=>{
+   if(item.kind==="set"){
+    html+='<div class="hand-unit set-unit" ondragover="event.preventDefault()" ondrop="dropOnGroup(event,'+item.groupIndex+')"><span class="unit-label">'+(item.cards.length===4?'PURE 4':'3 SET')+'</span>';
+    item.cards.forEach(c=>{html+=cardMarkup(c,hand.findIndex(x=>x.id===c.id));});
+    html+='</div>';
+   }else if(item.kind==="pair"){
+    html+='<div class="hand-unit pair-unit"><span class="unit-label">PAIR</span>';
     item.cards.forEach(c=>{html+=cardMarkup(c,hand.findIndex(x=>x.id===c.id));});
     html+='</div>';
    }else{
