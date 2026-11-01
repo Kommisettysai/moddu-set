@@ -805,27 +805,23 @@ function checkFourSet(){
 
 function checkUnlock(index,manual=false){
  const p=players[index];
- if(!p||p.hand.length!==13||p.unlocked||!hasNaturalFour(p.hand))return;
+ if(!p||p.hand.length!==13||!hasNaturalFour(p.hand))return;
+ p.jokerEligible=true;
  if(specialRank){
   p.unlocked=true;
-  if(p.human){
-   message("✨ Special joker opened: "+specialRank+". The joker is highlighted.");
-   render();
-   highlightSpecialJoker();
-  }
- }else{
-  if(p.human){
-   revealSpecial(p);
-   if(p.unlocked){
-    message("✨ Special joker opened: "+specialRank+". The joker is highlighted.");
-    render();
-    highlightSpecialJoker();
-   }
-  }else revealSpecial(p);
+  render();
+  if(p.human)highlightSpecialJoker();
+  return;
  }
+ if(!p.human){revealSpecial(p);return;}
  render();
-}
-function highlightSpecialJoker(){
+ if(!p.jokerPrompted||manual){
+  p.jokerPrompted=true;
+  if(confirm("You have a natural four-set. Reveal the special joker now?")){
+   revealSpecialForCurrentPlayer();
+  }else message("You can reveal the special joker later using the button beside your cards.");
+ }
+}function highlightSpecialJoker(){
  const slot=document.getElementById("jokerSlot");
  if(!slot)return;
  slot.classList.remove("joker-reveal-pulse");
