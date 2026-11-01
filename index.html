@@ -441,7 +441,7 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 </div>
 
 <div class="panel">
-<div class="hand-heading"><h3>Your cards (<span id="handCount">13</span>)</h3><div class="joker-slot" id="jokerSlot"><span class="card back joker-card">★</span><small>Special joker</small></div></div>
+<div class="hand-heading"><h3>Your cards (<span id="handCount">13</span>)</h3><div class="joker-slot" id="jokerSlot"><span class="card back joker-card">★</span><small>Special joker</small></div><button id="revealJokerBtn" class="hidden" onclick="revealSpecialForCurrentPlayer()">Reveal special joker</button></div>
 <div class="cards" id="hand"></div>
 <div class="actions hand-actions">
 <button id="discardBtn" onclick="discardSelected()" disabled>Discard selected</button>
@@ -831,27 +831,27 @@ function checkUnlock(index,manual=false){
 }
 
 function revealSpecial(p){
- let c;
- recycleDeck();
- if(deck.length===0){message("No card available to reveal special joker.");return;}
- do{
-  c=deck.pop();
-  if(c.joker){
-   // Printed joker is not used as the special rank.
-   if(deck.length===0)recycleDeck();
-  }
- }while(c.joker&&deck.length>0);
-
- if(c.joker){
-  message("Could not find a normal card for special joker.");
-  return;
+ if(!p||!p.jokerEligible)return;
+ if(specialRank){
+  players.forEach(x=>{if(x.jokerEligible)x.unlocked=true;});
+  render();return;
  }
+ recycleDeck();
+ if(deck.length===0){message("No card available to reveal the special joker.");return;}
+ let c;
+ do{c=deck.pop();if(c&&c.joker&&deck.length===0)recycleDeck();}while(c&&c.joker&&deck.length>0);
+ if(!c||c.joker){message("Could not find a normal card for the special joker.");return;}
  specialRank=c.rank;
- p.unlocked=true;
- message("Special joker revealed: "+specialRank+". The card is kept aside.");
+ players.forEach(x=>{if(x.jokerEligible)x.unlocked=true;});
+ render();highlightSpecialJoker();
+ message("Special joker revealed: "+specialRank+". It is kept aside, not added to the deck.");
 }
-
-function nextTurn(){
+function revealSpecialForCurrentPlayer(){
+ const p=players[0];
+ if(!p||!p.jokerEligible){message("A natural four-set is needed first.");return;}
+ if(p.unlocked){message("Your special joker is already available.");return;}
+ revealSpecial(p);
+}function nextTurn(){
  if(gameOver)return;
  turn=(turn+1)%players.length;
  render();
