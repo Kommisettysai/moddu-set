@@ -111,6 +111,7 @@ footer{color:#9bb9a9;padding:20px 12px 28px;letter-spacing:.7px}
 .joker-slot .card{width:31px;height:44px;min-width:31px;margin:0;padding:3px;font-size:12px}
 .joker-slot small{max-width:54px}
 .joker-face{background:linear-gradient(145deg,#fff1b9,#d8a94e)!important;color:#34230c!important;border:2px solid #ffe2a0!important;justify-content:center;text-align:center;font-weight:900}
+.card.special-rank-card{outline:3px solid #ffe06b!important;box-shadow:0 0 0 4px #ffe06b55,0 0 18px #ffe06b!important;transform:translateY(-4px)}
 .hand-layout{display:flex;flex-direction:column;gap:8px;margin:10px 0}
 .hand-group,.loose-area{padding:7px 8px;border-radius:11px;min-width:0}
 .hand-group-title,.loose-title{font-size:9px;margin-bottom:5px}
@@ -696,7 +697,7 @@ function render(){
   const oldJokerInfo=document.getElementById("jokerInfo");
   if(oldJokerInfo)oldJokerInfo.textContent="";
   const slot=document.getElementById("jokerSlot");
-  if(slot)slot.innerHTML=specialRank&&players[0]&&players[0].unlocked?'<span class="card joker-face">'+specialRank+'★</span><small>Special joker</small>':'<span class="card back joker-card">★</span><small>Special joker</small>';
+  if(slot)slot.innerHTML=specialRank?'<span class="card joker-face">'+specialRank+'★</span><small>Special joker</small>':'<span class="card back joker-card">★</span><small>Special joker</small>';
   const turnEl=document.getElementById("turnInfo");
   if(turnEl&&players[turn])turnEl.textContent=players[turn].name+"'s turn";
   if(players[0]){
@@ -879,7 +880,8 @@ function aiTurn(){
 
 function cardMarkup(c,i){
  const red=["♥","♦"].includes(c.suit);
- return `<div class="card ${red?"red":""} ${(drawn?selected===i:selectedIndices.includes(i))?"selected":""}" draggable="true" ondragstart="dragCard(event,${i})" onclick="selectCard(${i})">
+ const specialMatch=!!(players[0]?.unlocked&&specialRank&&!c.joker&&c.rank===specialRank);
+ return `<div class="card ${red?"red":""} ${specialMatch?"special-rank-card":""} ${(drawn?selected===i:selectedIndices.includes(i))?"selected":""}" draggable="true" ondragstart="dragCard(event,${i})" onclick="selectCard(${i})">
  <span>${c.joker?"★":c.rank}</span><span style="text-align:center">${c.suit}</span><span style="text-align:right">${c.joker?"★":c.rank}</span></div>`;
 }
 let draggedCardIndex=null;
@@ -1270,12 +1272,12 @@ function enterOnlineGame(state){
  if(!roomRef||!roomPlayerId)return;onlineMode=true;onlinePublic=state;document.getElementById("setup").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");document.getElementById("game").classList.remove("hidden");
  onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);
  if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();if(isRoomHost)runOnlineBotTurn();}};onlinePublicRef.on("value",onlinePublicListener);
- if(onlineSpecialRef){onlineSpecialRef.off("value");onlineSpecialRef.on("value",snap=>{specialRank=snap.val()||null;render();if(specialRank)highlightSpecialJoker();});}if(onlineHandListener)onlineHandRef.off("value",onlineHandListener);onlineHandListener=s=>{if(!s.exists())return;const h=s.val()||[];if(!players.length)players=[{id:roomPlayerId,name:"You",hand:h,score:0,human:true}];else players[0]={...players[0],hand:h};selected=-1;selectedIndices=[];arrangedGroups=[];applyOnlinePublic();};onlineHandRef.on("value",onlineHandListener);
+ if(onlineSpecialRef){onlineSpecialRef.off("value");onlineSpecialRef.on("value",snap=>{const privateRank=snap.val();if(privateRank)specialRank=privateRank;render();if(specialRank)highlightSpecialJoker();});}if(onlineHandListener)onlineHandRef.off("value",onlineHandListener);onlineHandListener=s=>{if(!s.exists())return;const h=s.val()||[];if(!players.length)players=[{id:roomPlayerId,name:"You",hand:h,score:0,human:true}];else players[0]={...players[0],hand:h};selected=-1;selectedIndices=[];arrangedGroups=[];applyOnlinePublic();};onlineHandRef.on("value",onlineHandListener);
  if(isRoomHost){if(onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);onlineActionListener=s=>{if(!s.exists())return;const uid=s.key;if(onlineBusy[uid])return;onlineBusy[uid]=true;processOnlineAction(uid,s.val()).catch(e=>setLobbyNotice("Game action failed: "+e.message)).finally(()=>{onlineActionRef.child(uid).remove().catch(()=>{});delete onlineBusy[uid];});};onlineActionRef.on("child_added",onlineActionListener);}
  applyOnlinePublic();
 }
 function applyOnlinePublic(){
- if(!onlineMode||!onlinePublic)return;const st=onlinePublic,prior=players[0]||{},m=st.players||[];
+ if(!onlineMode||!onlinePublic)return;const st=onlinePublic,prior=players[0]||{},m=st.players||[];specialRank=st.specialRank||null;
  if(st.status==="playing"){const resultScreen=document.getElementById("roundResults");if(resultScreen)resultScreen.classList.add("hidden");}
  const ordered=[...m].sort((a,b)=>a.id===roomPlayerId?-1:b.id===roomPlayerId?1:0);
  players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,unlocked:!!p.unlocked,active:true,human:p.id===roomPlayerId,cardCount:p.cardCount||0,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
@@ -1283,6 +1285,7 @@ function applyOnlinePublic(){
  const el=document.getElementById("message");if(el)el.textContent=st.message||"Online game";render();
  if(st.status==="roundComplete"&&st.roundResult)openOnlineRoundResults(st.roundResult);
  if(st.status==="gameComplete")openOnlineGameComplete(st.champion||"A player");
+ if(st.specialRank)highlightSpecialJoker();
 }
 function validateOnlineShow(hand,groupIds,player){
  if(!Array.isArray(groupIds)||groupIds.length!==4)return "Arrange one pure four-set and three three-card sets first.";
@@ -1313,11 +1316,11 @@ async function processOnlineAction(uid,a){
   pile.push(hand.splice(i,1)[0]);h[uid]=hand;p.drawnByUid=null;
   if(hand.length===13&&hasNaturalFour(hand)){
    p.players[playerIndex].eligible=true;
-   if(special&&!player.unlocked){syncUnlock();specialRanks[uid]=special;}
+   if(special&&!player.unlocked){syncUnlock();specialRanks[uid]=special;p.specialRank=special;}
    else if(!special&&player.isBot&&!player.unlocked){
     const skipped=[];let reveal=null;while(d.length&&!reveal){const card=d.pop();if(card.joker)skipped.push(card);else reveal=card;}
     if(skipped.length)d.push(...skipped);
-    if(reveal){special=reveal.rank;syncUnlock();specialRanks[uid]=special;p.message=player.name+" revealed the special joker.";}
+    if(reveal){special=reveal.rank;syncUnlock();specialRanks[uid]=special;p.specialRank=special;p.message=player.name+" revealed the special joker.";}
    }else if(!special&&!player.isBot)p.message=player.name+" has a natural four-set and can reveal the special joker on their turn.";
   }
   const active=(p.players||[]).filter(x=>x.active!==false),at=active.findIndex(x=>x.id===uid),next=active[(at+1)%active.length];if(!next)return;p.turnUid=next.id;p.message=p.message||next.name+"'s turn. Draw a card.";
@@ -1325,7 +1328,7 @@ async function processOnlineAction(uid,a){
   if(p.drawnByUid||hand.length!==13||player.unlocked||!hasNaturalFour(hand))return;
   p.players[playerIndex].eligible=true;
   if(!special){const skipped=[];let reveal=null;while(d.length&&!reveal){const card=d.pop();if(card.joker)skipped.push(card);else reveal=card;}if(skipped.length)d.push(...skipped);if(reveal)special=reveal.rank;}
-  if(!special)return;syncUnlock();specialRanks[uid]=special;p.message=player.name+" unlocked the special joker.";
+  if(!special)return;syncUnlock();specialRanks[uid]=special;p.specialRank=special;p.message=player.name+" unlocked the special joker.";
  }else if(a.type==="show"){
   if(a.discardCardId){if(p.drawnByUid!==uid)return;const i=hand.findIndex(c=>c.id===a.discardCardId);if(i<0||hand.length!==14)return;pile.push(hand.splice(i,1)[0]);h[uid]=hand;p.drawnByUid=null;}
   else if(p.drawnByUid||hand.length!==13)return;
