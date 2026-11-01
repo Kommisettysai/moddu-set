@@ -368,6 +368,23 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 .player.turn-owner.joker-seen{border:2px solid #69e6ff!important;background:linear-gradient(145deg,#124c60,#173d4b)!important;box-shadow:0 0 0 3px #42d9ff55,0 0 18px #42d9ff!important}
 .player.turn-owner.joker-seen .player-turn-badge{background:linear-gradient(180deg,#c8f7ff,#52d9f2)!important;color:#073747!important}
 .player.turn-owner.joker-seen .joker-seen-badge{background:linear-gradient(180deg,#fff0a6,#e5b94f)!important;color:#38270c!important}
+
+/* Realistic draw deck and discard pile */
+.pile.draw-pile,.pile.discard-pile{display:flex!important;flex-direction:column!important;justify-content:center!important;align-items:center!important;gap:9px!important;cursor:pointer}
+.pile.draw-pile small,.pile.discard-pile small{font-size:10px!important;letter-spacing:1px!important;font-weight:900!important}
+.card-stack{position:relative;width:55px;height:67px;margin-top:4px}
+.card-stack span{position:absolute;inset:0;border:2px solid #f0d38f;border-radius:7px;background:repeating-linear-gradient(45deg,#153f35,#153f35 5px,#28644d 5px,#28644d 10px);box-shadow:0 3px 7px #0008}
+.card-stack span:nth-child(1){transform:translate(-5px,-4px) rotate(-8deg)}
+.card-stack span:nth-child(2){transform:translate(3px,-2px) rotate(5deg)}
+.card-stack span:nth-child(3){transform:translate(0,2px)}
+.top-discard-card{width:48px;height:66px;border:2px solid #f0d38f;border-radius:7px;background:linear-gradient(145deg,#fff,#eee8d9);color:#17231d;display:flex;align-items:center;justify-content:center;font:bold 21px Georgia,serif;box-shadow:0 5px 9px #0007}
+.action-announcement{display:none;margin:8px auto 2px;padding:9px 12px;border:1px solid #6de4ff99;border-radius:11px;background:linear-gradient(90deg,#0d4555,#123d4b);color:#e1fbff;text-align:center;font-size:12px;font-weight:900;letter-spacing:.3px;box-shadow:0 0 14px #42d9ff35}
+.action-announcement.show{display:block;animation:actionSlideIn .35s ease-out}
+@keyframes actionSlideIn{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.pile.action-pulse{animation:pilePulse .75s ease-in-out}
+@keyframes pilePulse{0%,100%{filter:none;transform:scale(1)}35%{filter:brightness(1.7);transform:translateY(-7px) scale(1.06)}}
+.player.action-player{animation:playerActionPulse .9s ease-out}
+@keyframes playerActionPulse{0%,100%{filter:none}35%{filter:brightness(1.65);box-shadow:0 0 0 4px #65e6ff99,0 0 20px #65e6ff}}
 </style>
 </head>
 <body>
@@ -449,17 +466,10 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 <div class="panel">
 <h3 style="text-align:center">Game Table</h3>
 <div class="piles">
-<div>
-<div class="pile" onclick="drawClosed()">
-<div><strong>🂠</strong><br><small>Closed pile</small></div>
+<div><div class="pile draw-pile" id="drawPile" onclick="drawClosed()" aria-label="Draw deck, face down"><div class="card-stack" aria-hidden="true"><span></span><span></span><span></span></div><small>DRAW DECK</small></div></div>
+<div><div class="pile discard-pile" id="discardPile" onclick="drawOpen()" aria-label="Discard pile, take visible top card"><div class="top-discard-card" id="openCard">?</div><small>DISCARD PILE</small></div></div>
 </div>
-</div>
-<div>
-<div class="pile" onclick="drawOpen()">
-<div><strong id="openCard">?</strong><br><small>Open pile</small></div>
-</div>
-</div>
-</div>
+<div id="actionAnnouncement" class="action-announcement" aria-live="polite"></div>
 <div id="message">Your turn. Choose a pile.</div>
 <div id="discardTimer" aria-live="polite" style="display:none;text-align:center;margin-top:8px;font-weight:700;color:#ffe08a"></div>
 </div>
@@ -1311,8 +1321,24 @@ function enterOnlineGame(state){
  if(isRoomHost){if(onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);onlineActionListener=s=>{if(!s.exists())return;const uid=s.key;if(onlineBusy[uid])return;onlineBusy[uid]=true;processOnlineAction(uid,s.val()).catch(e=>setLobbyNotice("Game action failed: "+e.message)).finally(()=>{onlineActionRef.child(uid).remove().catch(()=>{});delete onlineBusy[uid];});};onlineActionRef.on("child_added",onlineActionListener);}
  applyOnlinePublic();
 }
+let lastSeenSharedActionAt=0;
+function showSharedAction(action){
+ if(!action||!action.at||action.at<=lastSeenSharedActionAt)return;
+ lastSeenSharedActionAt=action.at;
+ const announcement=document.getElementById("actionAnnouncement");
+ const source=action.type==="drawOpen"?"OPEN DISCARD PILE":action.type==="drawClosed"?"DRAW DECK":action.type==="discard"?"DISCARD PILE":null;
+ if(!source)return;
+ const player=(onlinePublic?.players||[]).find(p=>p.id===action.uid);
+ const name=action.name||(player&&player.name)||"A player";
+ const text=action.type==="drawOpen"?name+" picked "+(action.cardLabel||"the face-up card")+" from the OPEN DISCARD PILE":action.type==="drawClosed"?name+" drew a face-down card from the DRAW DECK":name+" discarded "+(action.cardLabel||"a card")+" to the DISCARD PILE";
+ if(announcement){announcement.textContent=text;announcement.classList.remove("show");void announcement.offsetWidth;announcement.classList.add("show");}
+ const pile=document.getElementById(action.type==="drawOpen"||action.type==="discard"?"discardPile":"drawPile");
+ if(pile){pile.classList.remove("action-pulse");void pile.offsetWidth;pile.classList.add("action-pulse");}
+ const profile=[...document.querySelectorAll("#players .player")].find(el=>el.querySelector("b")?.textContent===name);
+ if(profile){profile.classList.remove("action-player");void profile.offsetWidth;profile.classList.add("action-player");}
+}
 function applyOnlinePublic(){
- if(!onlineMode||!onlinePublic)return;onlineActionPending=false;const st=onlinePublic,prior=players[0]||{},m=st.players||[];specialRank=st.specialRank||null;
+ if(!onlineMode||!onlinePublic)return;onlineActionPending=false;const st=onlinePublic,prior=players[0]||{},m=st.players||[];specialRank=st.specialRank||null;showSharedAction(st.lastAction);
  if(st.status==="playing"){const resultScreen=document.getElementById("roundResults");if(resultScreen)resultScreen.classList.add("hidden");}
  const ordered=[...m].sort((a,b)=>a.id===roomPlayerId?-1:b.id===roomPlayerId?1:0);
  players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,unlocked:!!p.unlocked,active:p.active!==false,human:p.id===roomPlayerId,cardCount:p.cardCount||0,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
@@ -1411,10 +1437,10 @@ async function processOnlineAction(uid,a){
   if(hand.length!==13){p.message="Draw blocked: a player must have exactly 13 cards before drawing. Current count: "+hand.length+". The host should restart this round if the hand is out of sync.";p.players[playerIndex].cardCount=hand.length;await roomRef.child("public").set(p);return;}
   if(a.type==="drawOpen"){if(!pile.length)return;hand.push(pile.pop());}
   else{if(!d.length&&pile.length>1){const top=pile.pop();d=shuffle(pile);pile=[top];}if(!d.length)return;hand.push(d.pop());}
-  h[uid]=hand;p.drawnByUid=uid;p.drawnCardId=hand[hand.length-1].id;p.discardDeadline=Date.now()+30000;p.message="Card drawn. You have 30 seconds to discard.";
+  h[uid]=hand;p.drawnByUid=uid;p.drawnCardId=hand[hand.length-1].id;p.discardDeadline=Date.now()+30000;p.lastAction={type:a.type,uid,name:player.name,cardLabel:a.type==="drawOpen"?cardText(hand[hand.length-1]):null,at:Date.now()};p.message=a.type==="drawOpen"?player.name+" picked "+cardText(hand[hand.length-1])+" from the open discard pile.":player.name+" drew a face-down card from the draw deck.";
  }else if(a.type==="discard"){
   if(p.drawnByUid!==uid||hand.length!==14){p.message="Discard blocked: a drawn hand must contain exactly 14 cards. Current count: "+hand.length+".";p.players[playerIndex].cardCount=hand.length;await roomRef.child("public").set(p);return;}const i=hand.findIndex(c=>c.id===a.cardId);if(i<0)return;
-  const timedOut=!!(p.discardDeadline&&Date.now()>=p.discardDeadline);const discardId=(a.automatic||timedOut)?p.drawnCardId:a.cardId;const discardIndex=hand.findIndex(c=>c.id===discardId);if(discardIndex<0)return;const discarded=hand.splice(discardIndex,1)[0];pile.push(discarded);h[uid]=hand;p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;a.automatic=!!(a.automatic||timedOut);
+  const timedOut=!!(p.discardDeadline&&Date.now()>=p.discardDeadline);const discardId=(a.automatic||timedOut)?p.drawnCardId:a.cardId;const discardIndex=hand.findIndex(c=>c.id===discardId);if(discardIndex<0)return;const discarded=hand.splice(discardIndex,1)[0];pile.push(discarded);h[uid]=hand;p.lastAction={type:"discard",uid,name:player.name,cardLabel:cardText(discarded),at:Date.now()};p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;a.automatic=!!(a.automatic||timedOut);
   if(hand.length===13&&hasNaturalFour(hand)&&!player.unlocked){
    p.players[playerIndex].eligible=true;
    if(!special){
