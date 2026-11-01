@@ -586,6 +586,8 @@ footer .sai-brand-copy small{font-size:6px}
 .chat-compose input{flex:1;min-width:0;padding:10px 11px;border:1px solid #d9b66b70;border-radius:10px;background:#08291f;color:#fff;font:inherit;font-size:12px}
 .chat-compose input::placeholder{color:#9eb6a8}
 .chat-compose button{padding:9px 13px!important;font-size:11px!important}
+.chat-mute{display:block;margin-top:4px;padding:3px 6px!important;border:0!important;background:transparent!important;box-shadow:none!important;color:#d9bf83!important;font-size:8px!important}
+.chat-mute:disabled{opacity:.65!important}
 .chat-footnote{margin-top:6px;color:#91aa9c;font-size:9px;text-align:center}
 @media(max-width:450px){.chat-feed{max-height:155px}.chat-phrases{gap:5px}.chat-phrases button{padding:7px!important;font-size:9px!important}}
 
@@ -1901,6 +1903,7 @@ function toggleGameChat(){
  chatIsOpen=!chatIsOpen;drawer.classList.toggle("hidden",!chatIsOpen);button.setAttribute("aria-expanded",String(chatIsOpen));
  if(chatIsOpen){chatHasOpened=true;chatUnreadCount=0;updateChatUnread();const feed=document.getElementById("chatFeed");if(feed)feed.scrollTop=feed.scrollHeight;}
 }
+function muteGameChatSender(uid,button){if(!uid||uid===roomPlayerId)return;mutedChatSenders.add(uid);if(button){button.textContent="Muted";button.disabled=true;button.title="Messages from this player are hidden for this room";}}
 function updateChatUnread(){
  const badge=document.getElementById("chatUnread");if(!badge)return;badge.textContent=chatUnreadCount>9?"9+":String(chatUnreadCount);badge.classList.toggle("hidden",chatUnreadCount===0);
 }
@@ -1913,7 +1916,7 @@ function receiveGameChat(snapshot){
  const bubble=document.createElement("div");bubble.className="chat-bubble";
  const sender=document.createElement("span");sender.className="chat-sender";sender.textContent=item.senderId===roomPlayerId?"You":item.senderName;
  const body=document.createElement("span");body.textContent=item.text;if(item.type==="emoji")body.className="chat-emoji";
- bubble.append(sender,body);line.appendChild(bubble);feed.appendChild(line);
+ bubble.append(sender,body);line.dataset.senderId=item.senderId;if(item.senderId!==roomPlayerId){const mute=document.createElement("button");mute.type="button";mute.className="chat-mute";mute.textContent="Mute";mute.title="Hide future messages from "+item.senderName;mute.onclick=()=>muteGameChatSender(item.senderId,mute);bubble.appendChild(mute);}line.appendChild(bubble);feed.appendChild(line);
  while(feed.children.length>60)feed.removeChild(feed.firstChild);
  if(chatIsOpen)feed.scrollTop=feed.scrollHeight;else if(chatHasOpened&&item.senderId!==roomPlayerId){chatUnreadCount++;updateChatUnread();}
 }
