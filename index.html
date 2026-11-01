@@ -620,7 +620,7 @@ const suits=["♠","♥","♦","♣"];
 const ranks=["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
 
 let deck=[],discard=[],players=[],turn=0,selected=-1;
-let drawn=false,specialRank=null,round=1,gameOver=false;
+let drawn=false,specialRank=null,round=1,gameOver=false,roundWinnerIndex=0;
 let arrangedGroups=[],winningGroups=[];
 let selectedIndices=[];
 
@@ -863,30 +863,82 @@ function revealSpecialForCurrentPlayer(){
  }
 }
 
+function findWinningGroups(hand,player){
+ const solveThirteen=cards=>{
+  const n=cards.length,triples=[],fours=[],full=(1<<n)-1;
+  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)for(let k=j+1;k<n;k++){
+   const g=[cards[i],cards[j],cards[k]],natural=g.filter(c=>!isWildForPlayer(c,player));
+   if(!natural.length||natural.every(c=>c.rank===natural[0].rank))triples.push({ids:g.map(c=>c.id),mask:(1<<i)|(1<<j)|(1<<k)});
+  }
+  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)for(let k=j+1;k<n;k++)for(let l=k+1;l<n;l++){
+   const g=[cards[i],cards[j],cards[k],cards[l]];
+   if(g.every(c=>!c.joker&&!(player.unlocked&&specialRank&&c.rank===specialRank)&&c.rank===g[0].rank))fours.push({ids:g.map(c=>c.id),mask:(1<<i)|(1<<j)|(1<<k)|(1<<l)});
+  }
+  for(const pure of fours){
+   const chosen=[pure];
+   function walk(mask,depth){
+    if(depth===3)return mask===full?chosen.map(x=>x.ids):null;
+    for(const t of triples)if(!(t.mask&mask)){chosen.push(t);const out=walk(mask|t.mask,depth+1);if(out)return out;chosen.pop();}
+    return null;
+   }
+   const out=walk(pure.mask,0);if(out)return out;
+  }
+  return null;
+ };
+ if(hand.length===13){const groups=solveThirteen(hand);return groups?{groups}:null;}
+ if(hand.length===14)for(let i=0;i<hand.length;i++){
+  const cards=hand.filter((_,j)=>j!==i),groups=solveThirteen(cards);
+  if(groups)return {groups,discardIndex:i};
+ }
+ return null;
+}
+function chooseBotDiscardIndex(hand,player){
+ let best=0,bestValue=Infinity;
+ for(let i=0;i<hand.length;i++){
+  const rest=hand.filter((_,j)=>j!==i),c=hand[i];
+  const score=bestUnmatchedScore(rest,player);
+  const same=rest.filter(x=>!x.joker&&x.rank===c.rank).length;
+  const keepPenalty=c.joker?100:(player.unlocked&&specialRank&&c.rank===specialRank?90:same*12);
+  const value=score*100+keepPenalty;
+  if(value<bestValue){bestValue=value;best=i;}
+ }
+ return best;
+}
+function finishSoloRound(winnerIndex,groups){
+ roundWinnerIndex=winnerIndex;
+ winningGroups=groups.map(g=>g.slice());
+ const penalties={};
+ players.forEach((p,i)=>{const points=i===winnerIndex?0:bestUnmatchedScore(p.hand,p);p.score+=points;penalties[i]=points;});
+ gameOver=true;render();
+ openRoundResults(players.map((p,i)=>p.name+": +"+penalties[i]+" (total "+p.score+")"));
+}
 function aiTurn(){
  if(gameOver||turn===0)return;
- let p=players[turn];
+ const p=players[turn];
  recycleDeck();
- if(discard.length&&Math.random()<0.35){
-  p.hand.push(discard.pop());
- }else if(deck.length){
-  p.hand.push(deck.pop());
+ if(discard.length){
+  const top=discard[discard.length-1];
+  const takeOpen=top.joker||bestUnmatchedScore([...p.hand,top],p)<=bestUnmatchedScore(p.hand,p);
+  if(takeOpen)p.hand.push(discard.pop());
+  else if(deck.length)p.hand.push(deck.pop());
+  else p.hand.push(discard.pop());
+ }else if(deck.length)p.hand.push(deck.pop());
+ else{nextTurn();return;}
+ const possible=findWinningGroups(p.hand,p);
+ if(possible){
+  discard.push(p.hand.splice(possible.discardIndex,1)[0]);
+  checkUnlock(turn);
+  const final=findWinningGroups(p.hand,p);
+  if(final){finishSoloRound(turn,final.groups);return;}
  }else{
-  nextTurn();return;
+  const index=chooseBotDiscardIndex(p.hand,p);
+  discard.push(p.hand.splice(index,1)[0]);
+  checkUnlock(turn);
+  const final=findWinningGroups(p.hand,p);
+  if(final){finishSoloRound(turn,final.groups);return;}
  }
-
- // Basic random AI discard. Improved strategy will be added later.
- let index=Math.floor(Math.random()*p.hand.length);
- discard.push(p.hand.splice(index,1)[0]);
-
- checkUnlock(turn);
- render();
- nextTurn();
-}
-
-
-
-function cardMarkup(c,i){
+ render();nextTurn();
+}function cardMarkup(c,i){
  const red=["♥","♦"].includes(c.suit);
  return `<div class="card ${red?"red":""} ${(drawn?selected===i:selectedIndices.includes(i))?"selected":""}" draggable="true" ondragstart="dragCard(event,${i})" onclick="selectCard(${i})">
  <span>${c.joker?"★":c.rank}</span><span style="text-align:center">${c.suit}</span><span style="text-align:right">${c.joker?"★":c.rank}</span></div>`;
@@ -1110,52 +1162,24 @@ function bestUnmatchedScore(hand,player){
 }
 function showHand(){
  if(!players.length||turn!==0||gameOver){message("You cannot show right now.");return;}
- let hand=[...players[0].hand],showDiscard=null;
+ let hand=[...players[0].hand],discarded=null;
  if(drawn){
-  if(selected<0||selected>=hand.length){message("Select the extra card to discard before SHOW.");return;}
-  showDiscard=hand.splice(selected,1)[0];
- }else if(hand.length!==13){
-  message("You must have 13 cards to show, or select your 14th card as the discard.");return;
- }
- if(hand.length!==13){message("A valid SHOW needs exactly 13 cards after the discard.");return;}
- if(showDiscard){
-  players[0].hand=hand;
-  discard.push(showDiscard);
-  drawn=false;selected=-1;
-  autoArrange(false);
- }
+  if(selected<0||selected>=hand.length){message("Select the 14th card to discard before SHOW.");return;}
+  discarded=hand.splice(selected,1)[0];
+ }else if(hand.length!==13){message("A valid SHOW needs exactly 13 cards.");return;}
+ if(discarded){players[0].hand=hand;discard.push(discarded);drawn=false;selected=-1;}
+ checkUnlock(0);
+ autoArrange(false);
  const byId=new Map(players[0].hand.map(c=>[c.id,c]));
  const groups=arrangedGroups.map(ids=>ids.map(id=>byId.get(id)).filter(Boolean));
- if(groups.length!==4||groups.some((g,i)=>g.length!==(i===0?4:3))){
-  message("Your 13 cards must form one pure four-set and three three-card sets. Try Auto arrange.");return;
- }
+ if(groups.length!==4||groups.some((g,i)=>g.length!==(i===0?4:3))){message("Your 13 cards must form one pure four-set and three three-card sets. Try Auto arrange.");return;}
  const used=groups.flat().map(c=>c.id);
- if(used.length!==13||new Set(used).size!==13){message("Every card must be used exactly once. Arrange again.");return;}
+ if(used.length!==13||new Set(used).size!==13){message("Every card must be used exactly once.");return;}
  const pure=groups[0];
- if(pure.length!==4||pure.some(c=>c.joker)||!pure.every(c=>c.rank===pure[0].rank)){
-  message("Your first group must be a pure natural four-set.");return;
- }
- if(!groups.slice(1).every(g=>{
-  const natural=g.filter(c=>!isWildForPlayer(c,players[0]));
-  return !natural.length||natural.every(c=>c.rank===natural[0].rank);
- })){
-  message("One or more three-card sets are invalid. Check your joker use.");return;
- }
- arrangedGroups=groups.map(g=>g.map(c=>c.id));
- winningGroups=arrangedGroups.map(g=>g.slice());
- const results=[];
- players.forEach((p,i)=>{
-  const penalty=i===0?0:bestUnmatchedScore(p.hand,p);
-  p.score+=penalty;
-  results.push(p.name+": +"+penalty+" (total "+p.score+")");
- });
- gameOver=true;
- render();
- openRoundResults(results);
-}
-
-
-function renderResultCard(card){
+ if(pure.some(c=>c.joker)||!pure.every(c=>c.rank===pure[0].rank)){message("The first group must be a pure natural four-set.");return;}
+ if(!groups.slice(1).every(g=>{const natural=g.filter(c=>!isWildForPlayer(c,players[0]));return !natural.length||natural.every(c=>c.rank===natural[0].rank);})){message("One or more three-card sets are invalid.");return;}
+ finishSoloRound(0,groups.map(g=>g.map(c=>c.id)));
+}function renderResultCard(card){
  const red=["♥","♦"].includes(card.suit);
  if(card.joker)return '<div class="results-card joker">★<small>JOKER</small></div>';
  return '<div class="results-card '+(red?'red':'')+'"><span>'+card.rank+card.suit+'</span><span class="bottom">'+card.rank+'</span></div>';
