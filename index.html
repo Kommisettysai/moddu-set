@@ -505,6 +505,7 @@ body.show-player-scores .player-strip .profile-score{display:block!important;mar
 .account-welcome strong{font-size:16px;color:#ffe2a1}
 .account-welcome span{font-size:12px;color:#b8c9bd;margin-top:3px;overflow-wrap:anywhere}
 .google-signin{width:100%;min-height:52px;font-size:16px;font-weight:850}
+.guest-signin{margin-top:10px;background:linear-gradient(180deg,#e8eee8,#b9c8bd);border-color:#dce9df;color:#18372b;box-shadow:0 4px 0 #71877a,0 8px 16px #0003}
 .username-setup{margin-top:17px;padding:15px;border:1px solid #d9b66b88;border-radius:14px;background:#08291f99}
 .username-input-row{display:flex;align-items:center;gap:7px;margin:10px 0}
 .username-input-row>span{font-size:20px;color:#f4d28a;font-weight:900}
@@ -548,6 +549,7 @@ body.show-player-scores .player-strip .profile-score{display:block!important;mar
    <div><strong id="accountDisplayName">Welcome to Moddu Set</strong><span id="accountEmail">Sign in to create your player account.</span></div>
   </div>
   <button class="google-signin" id="googleSignInBtn" onclick="continueWithGoogle()">🌐 Continue with Google</button>
+  <button class="google-signin guest-signin" id="guestSignInBtn" onclick="continueAsGuest()">Continue as Guest</button>
   <p class="lobby-hint" id="authStatus">One tap creates your account the first time. Next time, Google signs you straight in.</p>
   <div class="username-setup hidden" id="usernameSetup">
    <div class="lobby-section-title">CHOOSE YOUR PLAYER USERNAME</div>
@@ -692,10 +694,11 @@ function showAccountState(user,profile){
  const btn=document.getElementById("googleSignInBtn"),setup=document.getElementById("usernameSetup"),actions=document.getElementById("roomActions");
  const name=document.getElementById("accountDisplayName"),email=document.getElementById("accountEmail"),avatar=document.getElementById("accountAvatar");
  const friendsPanel=document.getElementById("friendsPanel");
- if(!user){if(btn)btn.classList.remove("hidden");if(setup)setup.classList.add("hidden");if(actions)actions.classList.add("hidden");if(friendsPanel)friendsPanel.classList.add("hidden");if(name)name.textContent="Welcome to Moddu Set";if(email)email.textContent="Sign in to create your player account.";if(avatar)avatar.textContent="👤";return;}
- if(btn)btn.classList.add("hidden");
- if(name)name.textContent=user.displayName||"Welcome, player";
- if(email)email.textContent=user.email||"Google account connected";
+ const guestBtn=document.getElementById("guestSignInBtn");
+ if(!user){if(btn)btn.classList.remove("hidden");if(guestBtn)guestBtn.classList.remove("hidden");if(setup)setup.classList.add("hidden");if(actions)actions.classList.add("hidden");if(friendsPanel)friendsPanel.classList.add("hidden");if(name)name.textContent="Welcome to Moddu Set";if(email)email.textContent="Sign in with Google or continue as a guest.";if(avatar)avatar.textContent="👤";return;}
+ if(btn)btn.classList.add("hidden");if(guestBtn)guestBtn.classList.add("hidden");
+ if(name)name.textContent=user.isAnonymous?"Guest player":(user.displayName||"Welcome, player");
+ if(email)email.textContent=user.isAnonymous?"Temporary guest account · This device":(user.email||"Google account connected");
  if(avatar){avatar.textContent="";avatar.style.backgroundImage=user.photoURL?"url('"+user.photoURL.replace(/['()]/g,"")+"')":"";avatar.style.backgroundSize="cover";avatar.style.backgroundPosition="center";}
  if(profile){playerProfile=profile;profileReady=true;const input=document.getElementById("playerName");if(input)input.value=profile.displayName||user.displayName||"Player";if(setup)setup.classList.add("hidden");if(actions)actions.classList.remove("hidden");if(friendsPanel)friendsPanel.classList.remove("hidden");setAuthStatus("Signed in as @"+profile.username);loadFriends();}
  else{playerProfile=null;profileReady=false;if(setup)setup.classList.remove("hidden");if(actions)actions.classList.add("hidden");if(friendsPanel)friendsPanel.classList.add("hidden");const input=document.getElementById("usernameInput");if(input&&!input.value){const suggested=(user.displayName||"player").toLowerCase().replace(/[^a-z0-9_]/g,"").slice(0,12);input.value=suggested.length>=3?suggested:"player"+String(user.uid).slice(0,4);}setAuthStatus("Google connected. Choose a username once to finish setting up your player account.");}
@@ -717,6 +720,23 @@ function initFirebase(){
    else{playerProfile=null;profileReady=false;showAccountState(null,null);setAuthStatus("Sign in with Google to create your player account.");}
   });
  }catch(e){setLobbyNotice("Firebase setup error: "+e.message);}
+}
+async function continueAsGuest(){
+ if(!firebaseReady){setLobbyNotice("Firebase is still connecting. Please try again in a moment.");return;}
+ const btn=document.getElementById("guestSignInBtn");
+ if(btn){btn.disabled=true;btn.textContent="Creating guest account…";}
+ setAuthStatus("Creating a temporary guest account…");
+ try{
+  const result=await firebase.auth().signInAnonymously();
+  authUser=result.user;
+  await loadPlayerProfile(result.user);
+  if(!playerProfile)setLobbyNotice("Guest account created. Choose a username to continue.");
+ }catch(e){
+  const msg=e.code==="auth/operation-not-allowed"
+   ?"Guest sign-in is not enabled yet. In Firebase Authentication, enable the Anonymous provider."
+   :("Guest sign-in failed ("+(e.code||"unknown")+"): "+e.message);
+  setAuthStatus(msg);setLobbyNotice(msg);
+ }finally{if(btn){btn.disabled=false;btn.textContent="Continue as Guest";}}
 }
 async function continueWithGoogle(){
  const btn=document.getElementById("googleSignInBtn");
