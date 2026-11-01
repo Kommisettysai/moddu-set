@@ -49,6 +49,23 @@
       "$username": {
         ".write": "auth != null && ((!data.exists() && newData.val() === auth.uid) || data.val() === auth.uid)"
       }
+    },
+    "friendRequests": {
+      "$recipientUid": {
+        ".read": "auth != null && auth.uid === $recipientUid",
+        "$senderUid": {
+          ".read": "auth != null && (auth.uid === $recipientUid || auth.uid === $senderUid)",
+          ".write": "auth != null && ((!data.exists() && auth.uid === $senderUid && newData.exists()) || (data.exists() && (auth.uid === $recipientUid || auth.uid === $senderUid)))"
+        }
+      }
+    },
+    "friends": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$friendUid": {
+          ".write": "auth != null && ((auth.uid === $uid && root.child('friendRequests').child($uid).child($friendUid).exists()) || (auth.uid === $friendUid && root.child('friendRequests').child($friendUid).child($uid).exists()))"
+        }
+      }
     }
   }
 }
