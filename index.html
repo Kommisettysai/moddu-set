@@ -173,6 +173,7 @@ const ranks=["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
 let deck=[],discard=[],players=[],turn=0,selected=-1;
 let drawn=false,specialRank=null,round=1,gameOver=false;
 let arrangedGroups=[];
+let selectedIndices=[];
 
 function makeDeck(count){
  let cards=[];
@@ -209,7 +210,7 @@ function startGame(){
  discard=[];
  players=[];
  turn=0;selected=-1;drawn=false;
- specialRank=null;gameOver=false;arrangedGroups=[];
+ specialRank=null;gameOver=false;arrangedGroups=[];selectedIndices=[];
 
  for(let i=0;i<count;i++){
   players.push({
@@ -258,7 +259,7 @@ function render(){
  if(players[0]){
   document.getElementById("hand").innerHTML=players[0].hand.map((c,i)=>{
    let red=["♥","♦"].includes(c.suit);
-   return `<div class="card ${red?"red":""} ${selected===i?"selected":""}"
+   return `<div class="card ${red?"red":""} ${(drawn?selected===i:selectedIndices.includes(i))?"selected":""}"
    onclick="selectCard(${i})">
    <span>${c.rank==="JOKER"?"★":c.rank}</span>
    <span style="text-align:center">${c.suit}</span>
@@ -277,7 +278,8 @@ function cardText(c){
 
 function selectCard(i){
  if(turn!==0||gameOver)return;
- selected=selected===i?-1:i;
+ if(drawn){selected=selected===i?-1:i;}
+ else{selectedIndices=selectedIndices.includes(i)?selectedIndices.filter(x=>x!==i):[...selectedIndices,i];}
  render();
 }
 
@@ -424,12 +426,15 @@ function renderGroups(){
 }
 function makeManualGroup(size){
  if(!players.length||turn!==0||drawn){message("Arrange sets after completing your discard.");return;}
- const chosen=players[0].hand.filter((c,i)=>selected===i);
- if(chosen.length!==1){message("Select one card at a time for now. Use Auto arrange to arrange all cards.");return;}
- message("To create a group, select cards using the card row. Auto arrange can arrange the complete hand automatically.");
+ if(selectedIndices.length!==size){message("Select exactly "+size+" cards, then press this group button.");return;}
+ const chosen=selectedIndices.map(i=>players[0].hand[i]);
+ if(arrangedGroups.flat().some(id=>chosen.some(c=>c.id===id))){message("A selected card is already in another group. Clear groups or undo one first.");return;}
+ if(size===4&&(chosen.some(c=>c.joker)||!chosen.every(c=>c.rank===chosen[0].rank))){message("A pure four-set needs four natural cards of the same rank.");return;}
+ if(size===3&&!validThree(chosen)){message("These three cards do not form a valid set with your current joker eligibility.");return;}
+ arrangedGroups.push(chosen.map(c=>c.id));selectedIndices=[];selected=-1;render();message("Group added. Arrange the remaining cards.");
 }
 function removeGroup(i){arrangedGroups.splice(i,1);render();}
-function clearGroups(){arrangedGroups=[];selected=-1;render();message("Your arranged groups have been cleared.");}
+function clearGroups(){arrangedGroups=[];selected=-1;selectedIndices=[];render();message("Your arranged groups have been cleared.");}
 function isWild(c){return c.joker||(players[0].unlocked&&specialRank&&c.rank===specialRank);}
 function validThree(cards){
  if(cards.length!==3)return false;
@@ -465,7 +470,7 @@ function autoArrange(){
  }
  const found=search(remaining,[]);
  if(!found){arrangedGroups=[];render();message("Couldn't find three valid sets with the current joker eligibility.");return;}
- arrangedGroups=[pure.map(c=>c.id),...found.map(g=>g.map(c=>c.id))];
+ arrangedGroups=[pure.map(c=>c.id),...found.map(g=>g.map(c=>c.id))];selectedIndices=[];
  render();message("Cards arranged! Check the four groups, then press SHOW.");
 }
 function showHand(){
