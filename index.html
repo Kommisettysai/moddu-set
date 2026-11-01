@@ -373,6 +373,8 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
  <div class="lobby-card">
   <label class="lobby-label" for="playerName">YOUR NAME</label>
   <input id="playerName" class="lobby-input" maxlength="18" placeholder="Enter the name friends know you by" autocomplete="nickname">
+  <button class="lobby-secondary google-signin" onclick="continueWithGoogle()">Continue with Google</button>
+  <p class="lobby-hint" id="authStatus">You can also join instantly as a guest.</p>
   <div class="lobby-section-title">PLAY WITH FRIENDS</div>
   <button class="lobby-primary" onclick="createRoom()">＋ Create a private table</button>
   <div class="lobby-or"><span></span> OR JOIN YOUR FRIENDS <span></span></div>
@@ -481,20 +483,48 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 <script>
 /* Add your Firebase web app config here after creating the Firebase project. */
 const FIREBASE_CONFIG = {
- apiKey: "PASTE_API_KEY",
- authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
- databaseURL: "https://PASTE_DATABASE_NAME-default-rtdb.firebaseio.com",
- projectId: "PASTE_PROJECT_ID",
- appId: "PASTE_APP_ID"
+ apiKey: "AIzaSyDEQ7adxy9nVuj5URDLg9Yf19P_UZ50iN4",
+ authDomain: "moddu-set.firebaseapp.com",
+ databaseURL: "https://moddu-set-default-rtdb.asia-southeast1.firebasedatabase.app",
+ projectId: "moddu-set",
+ storageBucket: "moddu-set.firebasestorage.app",
+ messagingSenderId: "802935295929",
+ appId: "1:802935295929:web:458f8ad392b18ac9cd7068"
 };
 let firebaseReady=false,roomRef=null,roomCode=null,roomListener=null,roomPlayerId=null,isRoomHost=false;
+let authUser=null;
+function setAuthStatus(t){const el=document.getElementById("authStatus");if(el)el.textContent=t;}
 function initFirebase(){
- if(FIREBASE_CONFIG.apiKey==="PASTE_API_KEY"||!window.firebase){setLobbyNotice("Firebase setup needed: create a Firebase project and add its web configuration to enable live rooms.");return;}
+ if(!window.firebase){setLobbyNotice("Firebase SDK could not load. Check your internet connection and refresh.");return;}
  try{
   if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
   firebaseReady=true;
-  firebase.auth().signInAnonymously().catch(e=>setLobbyNotice("Firebase sign-in error: "+e.message));
+  firebase.auth().getRedirectResult().catch(e=>setLobbyNotice("Google sign-in error: "+e.message));
+  firebase.auth().onAuthStateChanged(user=>{
+   authUser=user||null;
+   if(user){
+    setAuthStatus(user.isAnonymous?"Playing as guest. You can link Google later to keep this identity.":"Signed in with Google. Your identity can be used again on this device.");
+    const nameInput=document.getElementById("playerName");
+    if(nameInput&&!nameInput.value.trim()&&user.displayName)nameInput.value=user.displayName.slice(0,18);
+   }else{
+    setAuthStatus("Connecting as a guest…");
+    firebase.auth().signInAnonymously().catch(e=>setLobbyNotice("Guest sign-in failed: "+e.message));
+   }
+  });
  }catch(e){setLobbyNotice("Firebase setup error: "+e.message);}
+}
+async function continueWithGoogle(){
+ if(!firebaseReady){setLobbyNotice("Firebase is still connecting. Please try again in a moment.");return;}
+ const provider=new firebase.auth.GoogleAuthProvider();
+ try{
+  const user=firebase.auth().currentUser;
+  if(user&&user.isAnonymous)await user.linkWithRedirect(provider);
+  else await firebase.auth().signInWithRedirect(provider);
+ }catch(e){
+  if(e.code==="auth/credential-already-in-use"){
+   setLobbyNotice("This Google account is already linked to another player identity. Sign in with Google instead.");
+  }else setLobbyNotice("Google sign-in could not start: "+e.message);
+ }
 }
 function setLobbyNotice(t){const el=document.getElementById("lobbyNotice");if(el)el.textContent=t;}
 function lobbyName(){const v=document.getElementById("playerName").value.trim();if(!v){setLobbyNotice("Please enter your name first.");document.getElementById("playerName").focus();return "";}return v.slice(0,18);}
@@ -543,7 +573,7 @@ function showWaitingRoom(){
   const room=snap.val(),members=Object.values(room.players||{});
   document.getElementById("roomPlayerCount").textContent=members.length+"/"+room.maxPlayers;
   document.getElementById("roomPlayers").innerHTML=members.map((p,i)=>'<div class="room-player"><span class="avatar">'+(["🃏","🌟","🍀","🔥","🎯","👑"][i]||"🃏")+'</span><strong>'+escapeLobbyText(p.name)+'</strong><small>'+(p.id===room.hostId?"HOST":"READY")+'</small></div>').join("");
-  if(room.status==="started")setLobbyNotice("The host started the table. Live card synchronisation is the next integration step.");
+  if(room.status==="started")setLobbyNotice("Table started. The room lobby is connected; shared live cards and turn syncing are the next build step.");
  };
  roomRef.on("value",roomListener);
 }
