@@ -545,7 +545,15 @@ async function continueWithGoogle(){
  }
 }
 function setLobbyNotice(t){const el=document.getElementById("lobbyNotice");if(el)el.textContent=t;}
-function lobbyName(){const v=document.getElementById("playerName").value.trim();if(!v){setLobbyNotice("Please enter your name first.");document.getElementById("playerName").focus();return "";}return v.slice(0,18);}
+function lobbyName(){
+ const input=document.getElementById("playerName");
+ const typed=input?input.value.trim():"";
+ const profile=authUser&&(authUser.displayName||(authUser.email?authUser.email.split("@")[0]:""));
+ const value=(typed||profile||"").slice(0,18);
+ if(!value){setLobbyNotice("Please enter your name first, or connect Google so we can use your profile name.");if(input)input.focus();return "";}
+ if(input&&!typed)input.value=value;
+ return value;
+}
 function makeRoomCode(){return Math.random().toString(36).slice(2,8).toUpperCase();}
 function createRoom(){
  const name=lobbyName();if(!name)return;
