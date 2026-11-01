@@ -709,6 +709,8 @@ function message(t){
 function render(){
  const roundLabel=document.getElementById("roundInfo");
  if(roundLabel)roundLabel.textContent="Round "+round;
+ const newRoundBtn=document.getElementById("newRoundBtn");
+ if(newRoundBtn)newRoundBtn.style.display=(!onlineMode||isRoomHost)?"":"none";
  const handEl=document.getElementById("hand");
  const playersEl=document.getElementById("players");
  try{
