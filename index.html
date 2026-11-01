@@ -1234,6 +1234,7 @@ function startNextRound(){
  checkUnlock(0);
  message("Round "+round+". Scores carried forward. "+players[turn].name+"'s turn.");
  render();
+ if(turn!==0)setTimeout(aiTurn,700);
 }
 function showRules(){
  alert(
