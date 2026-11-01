@@ -316,6 +316,44 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
  #hand .hand-row>.card{flex-basis:39px!important;height:59px!important}
  #hand .hand-unit .card{flex-basis:35px!important;height:55px!important}
 }
+
+/* Friends lobby */
+.lobby-shell{max-width:560px;margin:18px auto 20px;padding:0 0 18px}
+.lobby-intro{text-align:center;padding:24px 14px 20px}
+.lobby-mark{font-size:42px;filter:drop-shadow(0 5px 10px #0007)}
+.lobby-eyebrow{font-size:10px;letter-spacing:2.2px;color:#e1c47e;font-weight:900;margin-top:7px}
+.lobby-intro h2,.lobby-wait-head h2{font-family:Georgia,serif;font-size:clamp(27px,7vw,36px);color:#ffe1a0;margin:10px 0 5px}
+.lobby-intro p,.lobby-wait-head p{font-size:13px;color:#c3d5c9;margin:0}
+.lobby-card{background:linear-gradient(145deg,#194b39,#0c3025);border:1px solid #d7b66c66;border-radius:20px;padding:19px 16px;box-shadow:0 12px 28px #0004}
+.lobby-label,.lobby-section-title{display:block;font-size:10px;letter-spacing:1.5px;color:#f0d28e;font-weight:900;margin:0 0 10px}
+.lobby-input{width:100%;min-width:0;background:#08271e;border:1px solid #b89a5d88;border-radius:12px;color:#fff5dd;padding:15px 13px;font-size:15px;outline:none}
+.lobby-input:focus{border-color:#ffdc8d;box-shadow:0 0 0 3px #f4d28a22}
+.lobby-input::placeholder{color:#8da99a}
+.lobby-section-title{margin-top:22px}
+.lobby-primary{display:block;width:100%;padding:15px 12px;font-size:16px;border-radius:13px;background:linear-gradient(180deg,#ffe5a3,#d6a64d);color:#35240d}
+.lobby-or{display:flex;align-items:center;gap:9px;color:#9db8a8;font-size:9px;letter-spacing:1.5px;margin:20px 0 13px}
+.lobby-or span{height:1px;flex:1;background:#b8c9b344}
+.lobby-join-row{display:flex;gap:9px}
+.lobby-code-input{text-transform:uppercase;letter-spacing:3px;font-weight:900}
+.lobby-join{min-width:84px;background:#e6bd69}
+.lobby-hint{font-size:11px;line-height:1.5;color:#adc4b5;margin:11px 1px 0}
+.lobby-quick{padding:0 4px;margin-top:18px}
+.lobby-quick .lobby-section-title{margin:0 0 10px}
+.lobby-solo-row{display:flex;gap:9px}
+.lobby-solo-row select{flex:1;min-width:0}
+.lobby-secondary{flex:1.3;padding:12px 8px}
+.lobby-notice{font-size:11px;line-height:1.5;text-align:center;color:#9db8a8;padding:14px 12px}
+.lobby-wait-head{text-align:center;padding:25px 12px 18px}
+.room-code-display{display:flex;align-items:center;justify-content:center;gap:12px;margin:16px auto 0;padding:10px;border:1px dashed #f1d28c88;border-radius:13px;max-width:300px;background:#08271e}
+.room-code-display span{font-size:26px;letter-spacing:6px;font-weight:900;color:#ffe2a0}
+.room-code-display button{padding:8px 12px;font-size:11px}
+.room-players{display:grid;gap:8px}
+.room-player{display:flex;align-items:center;gap:10px;padding:11px;border-radius:11px;background:#0b3025;border:1px solid #d7b66c44}
+.room-player .avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#315d45;font-size:17px}
+.room-player strong{flex:1;font-size:14px;color:#ffdfa0}
+.room-player small{font-size:10px;color:#b9cdbf}
+.lobby-text-button{display:block;margin:15px auto 0;background:transparent!important;color:#d9c69b!important;box-shadow:none!important;border:0!important}
+@media(max-width:390px){.lobby-shell{margin-top:7px}.lobby-card{padding:15px 12px}.lobby-intro{padding-top:15px}}
 </style>
 </head>
 <body>
@@ -325,16 +363,51 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 </header>
 
 <main>
-<section class="panel" id="setup">
-<h3>Start a new game</h3>
-<label>Number of players: </label>
-<select id="playerCount">
-<option value="4">4 Players</option>
-<option value="5">5 Players</option>
-<option value="6">6 Players</option>
-</select>
-<p class="sub">You play against computer opponents.</p>
-<button onclick="startGame()">Start Game</button>
+<section class="lobby-shell" id="setup">
+ <div class="lobby-intro">
+  <div class="lobby-mark">🃏</div>
+  <div class="lobby-eyebrow">TRADITIONAL TELUGU CARD GAME</div>
+  <h2>Gather your people.</h2>
+  <p>One table. A few friends. Let the cards decide.</p>
+ </div>
+ <div class="lobby-card">
+  <label class="lobby-label" for="playerName">YOUR NAME</label>
+  <input id="playerName" class="lobby-input" maxlength="18" placeholder="Enter the name friends know you by" autocomplete="nickname">
+  <div class="lobby-section-title">PLAY WITH FRIENDS</div>
+  <button class="lobby-primary" onclick="createRoom()">＋ Create a private table</button>
+  <div class="lobby-or"><span></span> OR JOIN YOUR FRIENDS <span></span></div>
+  <div class="lobby-join-row">
+   <input id="roomCodeInput" class="lobby-input lobby-code-input" maxlength="6" placeholder="ROOM CODE" autocapitalize="characters">
+   <button class="lobby-join" onclick="joinRoom()">Join</button>
+  </div>
+  <p class="lobby-hint">Create a room and share its code on WhatsApp. Friends can join from their own phones.</p>
+ </div>
+ <div class="lobby-quick">
+  <div class="lobby-section-title">OR PLAY SOLO</div>
+  <div class="lobby-solo-row">
+   <select id="playerCount" aria-label="Number of players">
+    <option value="4">4 players</option><option value="5">5 players</option><option value="6">6 players</option>
+   </select>
+   <button class="lobby-secondary" onclick="startBots()">🤖 Play vs bots</button>
+  </div>
+ </div>
+ <div id="lobbyNotice" class="lobby-notice">Private rooms are being connected. Add your Firebase project settings to enable friends joining live.</div>
+</section>
+
+<section class="lobby-shell hidden" id="waitingRoom">
+ <div class="lobby-wait-head">
+  <div class="lobby-eyebrow">PRIVATE TABLE</div>
+  <h2>Waiting for friends</h2>
+  <p>Share this code so your friends can take a seat.</p>
+  <div class="room-code-display"><span id="roomCodeLabel">------</span><button onclick="copyRoomCode()">Copy</button></div>
+ </div>
+ <div class="lobby-card">
+  <div class="lobby-section-title">PLAYERS AT THE TABLE <span id="roomPlayerCount"></span></div>
+  <div id="roomPlayers" class="room-players"></div>
+  <p class="lobby-hint">You can start when at least 2 players have joined. Maximum 6 players.</p>
+  <button id="startRoomBtn" class="lobby-primary" onclick="startOnlineRoom()">Start game</button>
+  <button class="lobby-text-button" onclick="leaveRoom()">Leave table</button>
+ </div>
 </section>
 
 <section id="game" class="hidden">
@@ -402,7 +475,97 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 
 <footer>Moddu Set • Early development version</footer>
 
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script>
+/* Add your Firebase web app config here after creating the Firebase project. */
+const FIREBASE_CONFIG = {
+ apiKey: "PASTE_API_KEY",
+ authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
+ databaseURL: "https://PASTE_DATABASE_NAME-default-rtdb.firebaseio.com",
+ projectId: "PASTE_PROJECT_ID",
+ appId: "PASTE_APP_ID"
+};
+let firebaseReady=false,roomRef=null,roomCode=null,roomListener=null,roomPlayerId=null,isRoomHost=false;
+function initFirebase(){
+ if(FIREBASE_CONFIG.apiKey==="PASTE_API_KEY"||!window.firebase){setLobbyNotice("Firebase setup needed: create a Firebase project and add its web configuration to enable live rooms.");return;}
+ try{
+  if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
+  firebaseReady=true;
+  firebase.auth().signInAnonymously().catch(e=>setLobbyNotice("Firebase sign-in error: "+e.message));
+ }catch(e){setLobbyNotice("Firebase setup error: "+e.message);}
+}
+function setLobbyNotice(t){const el=document.getElementById("lobbyNotice");if(el)el.textContent=t;}
+function lobbyName(){const v=document.getElementById("playerName").value.trim();if(!v){setLobbyNotice("Please enter your name first.");document.getElementById("playerName").focus();return "";}return v.slice(0,18);}
+function makeRoomCode(){return Math.random().toString(36).slice(2,8).toUpperCase();}
+function createRoom(){
+ const name=lobbyName();if(!name)return;
+ if(!firebaseReady){setLobbyNotice("Firebase is not connected yet. Add the Firebase web config first, then create your room.");return;}
+ firebase.auth().onAuthStateChanged(async user=>{
+  if(!user)return;
+  try{
+   let code=makeRoomCode(),ref=firebase.database().ref("rooms/"+code),snap=await ref.get();
+   while(snap.exists()){code=makeRoomCode();ref=firebase.database().ref("rooms/"+code);snap=await ref.get();}
+   roomCode=code;roomRef=ref;roomPlayerId=user.uid;isRoomHost=true;
+   await ref.set({code,hostId:user.uid,status:"waiting",maxPlayers:6,createdAt:firebase.database.ServerValue.TIMESTAMP,players:{[user.uid]:{id:user.uid,name,ready:true,joinedAt:firebase.database.ServerValue.TIMESTAMP}}});
+   showWaitingRoom();
+  }catch(e){setLobbyNotice("Could not create room: "+e.message);}
+ },{onlyOnce:true});
+}
+async function joinRoom(){
+ const name=lobbyName();if(!name)return;
+ if(!firebaseReady){setLobbyNotice("Firebase is not connected yet. Add the Firebase web config first, then join a room.");return;}
+ const code=document.getElementById("roomCodeInput").value.trim().toUpperCase();
+ if(!/^[A-Z0-9]{6}$/.test(code)){setLobbyNotice("Enter the six-character room code.");return;}
+ firebase.auth().onAuthStateChanged(async user=>{
+  if(!user)return;
+  try{
+   const ref=firebase.database().ref("rooms/"+code),snap=await ref.get();
+   if(!snap.exists()){setLobbyNotice("Room not found. Check the code with your friend.");return;}
+   const room=snap.val(),members=Object.values(room.players||{});
+   if(room.status!=="waiting"){setLobbyNotice("This game has already started.");return;}
+   if(members.length>=room.maxPlayers){setLobbyNotice("This table is full.");return;}
+   if(members.some(p=>p.id===user.uid)){setLobbyNotice("You are already in this room.");return;}
+   await ref.child("players/"+user.uid).set({id:user.uid,name,ready:true,joinedAt:firebase.database.ServerValue.TIMESTAMP});
+   roomCode=code;roomRef=ref;roomPlayerId=user.uid;isRoomHost=false;showWaitingRoom();
+  }catch(e){setLobbyNotice("Could not join room: "+e.message);}
+ },{onlyOnce:true});
+}
+function showWaitingRoom(){
+ document.getElementById("setup").classList.add("hidden");
+ document.getElementById("waitingRoom").classList.remove("hidden");
+ document.getElementById("roomCodeLabel").textContent=roomCode;
+ document.getElementById("startRoomBtn").classList.toggle("hidden",!isRoomHost);
+ if(roomListener&&roomRef)roomRef.off("value",roomListener);
+ roomListener=snap=>{
+  if(!snap.exists()){leaveRoom(false);return;}
+  const room=snap.val(),members=Object.values(room.players||{});
+  document.getElementById("roomPlayerCount").textContent=members.length+"/"+room.maxPlayers;
+  document.getElementById("roomPlayers").innerHTML=members.map((p,i)=>'<div class="room-player"><span class="avatar">'+(["🃏","🌟","🍀","🔥","🎯","👑"][i]||"🃏")+'</span><strong>'+escapeLobbyText(p.name)+'</strong><small>'+(p.id===room.hostId?"HOST":"READY")+'</small></div>').join("");
+  if(room.status==="started")setLobbyNotice("The host started the table. Live card synchronisation is the next integration step.");
+ };
+ roomRef.on("value",roomListener);
+}
+function escapeLobbyText(t){return String(t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function copyRoomCode(){if(roomCode)navigator.clipboard?.writeText(roomCode).then(()=>setLobbyNotice("Room code copied. Share it with your friends!")).catch(()=>setLobbyNotice("Your room code is "+roomCode));}
+async function startOnlineRoom(){
+ if(!isRoomHost||!roomRef)return;
+ const snap=await roomRef.get(),room=snap.val(),members=Object.values(room.players||{});
+ if(members.length<2){setLobbyNotice("Invite at least one friend before starting.");return;}
+ await roomRef.update({status:"started",startedAt:firebase.database.ServerValue.TIMESTAMP});
+ setLobbyNotice("Room started. Next we connect the shared cards and turns.");
+}
+async function leaveRoom(showLobby=true){
+ if(roomRef&&roomPlayerId){try{await roomRef.child("players/"+roomPlayerId).remove();}catch(e){}}
+ if(roomRef&&roomListener)roomRef.off("value",roomListener);
+ roomRef=null;roomCode=null;roomListener=null;roomPlayerId=null;isRoomHost=false;
+ document.getElementById("waitingRoom").classList.add("hidden");
+ if(showLobby)document.getElementById("setup").classList.remove("hidden");
+}
+function startBots(){document.getElementById("playerCount").value=document.getElementById("playerCount").value||"4";startGame();}
+initFirebase();
+</script><script>
 const suits=["♠","♥","♦","♣"];
 const ranks=["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
 
@@ -450,7 +613,7 @@ function startGame(){
 
  for(let i=0;i<count;i++){
   players.push({
-   name:i===0?"You":"Computer "+i,
+   name:i===0?(document.getElementById("playerName")?.value.trim()||"You"):"Computer "+i,
    hand:deck.splice(0,13),
    score:0,
    unlocked:false,
