@@ -1184,22 +1184,47 @@ function showHand(){
  if(card.joker)return '<div class="results-card joker">★<small>JOKER</small></div>';
  return '<div class="results-card '+(red?'red':'')+'"><span>'+card.rank+card.suit+'</span><span class="bottom">'+card.rank+'</span></div>';
 }
-function openRoundResults(results){
- const screen=document.getElementById("roundResults");
- const profiles=document.getElementById("resultsProfiles");
- const hands=document.getElementById("resultsHands");
- if(!screen||!profiles||!hands)return;
- const penalties=players.map((p,i)=>i===0?0:bestUnmatchedScore(p.hand,p));
- profiles.innerHTML=players.map((p,i)=>'<div class="results-profile '+(i===0?'show-winner':'')+'"><strong>'+p.name+'</strong><span class="result-count">'+p.hand.length+' cards revealed</span><span class="result-points">+'+penalties[i]+' points · Total '+p.score+'</span>'+(i===0?'<span class="winner-tag">🏆 SHOWED</span>':'')+'</div>').join('');
- hands.innerHTML=players.map((p,i)=>{
-  const cards=i===0&&winningGroups.length?winningGroups.flat().map(id=>p.hand.find(c=>c.id===id)).filter(Boolean):p.hand;
-  const groupsHtml=i===0&&winningGroups.length?'<div class="results-winning-groups">'+winningGroups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>p.hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':'<div class="results-card-grid">'+cards.map(renderResultCard).join('')+'</div>';
-  return '<div class="results-hand '+(i===0?'winner-hand':'')+'"><div class="results-hand-head"><strong>'+(i===0?'🏆 ':'')+p.name+'</strong><span>'+p.hand.length+' cards · +'+penalties[i]+' points</span></div>'+groupsHtml+'</div>';
- }).join('');
- document.getElementById("resultsSummary").textContent=players[0].name+" showed successfully. Their score is 0. All hands are now revealed.";
- screen.classList.remove("hidden");
+function bestMeldsForDisplay(hand,player){
+ const n=hand.length,groups=[],full=(1<<n)-1,melds=[];
+ for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)for(let k=j+1;k<n;k++){
+  const cards=[hand[i],hand[j],hand[k]],natural=cards.filter(c=>!isWildForPlayer(c,player));
+  if(!natural.length||natural.every(c=>c.rank===natural[0].rank))melds.push({mask:(1<<i)|(1<<j)|(1<<k),cards});
+ }
+ for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)for(let k=j+1;k<n;k++)for(let l=k+1;l<n;l++){
+  const cards=[hand[i],hand[j],hand[k],hand[l]];
+  if(cards.every(c=>!c.joker&&!(player.unlocked&&specialRank&&c.rank===specialRank)&&c.rank===cards[0].rank))melds.push({mask:(1<<i)|(1<<j)|(1<<k)|(1<<l),cards});
+ }
+ const memo=new Map();
+ function solve(mask){
+  if(mask===full)return {score:0,groups:[],covered:0};
+  if(memo.has(mask))return memo.get(mask);
+  let first=0;while(mask&(1<<first))first++;
+  let best={score:unmatchedCardPoints(hand[first],player)+solve(mask|(1<<first)).score,groups:solve(mask|(1<<first)).groups,covered:solve(mask|(1<<first)).covered};
+  for(const m of melds)if((m.mask&(1<<first))&&!(m.mask&mask)){
+   const rest=solve(mask|m.mask),candidate={score:rest.score,groups:[m.cards,...rest.groups],covered:m.cards.length+rest.covered};
+   if(candidate.score<best.score||(candidate.score===best.score&&candidate.covered>best.covered))best=candidate;
+  }
+  memo.set(mask,best);return best;
+ }
+ const best=solve(0),used=new Set(best.groups.flat().map(c=>c.id));
+ return {groups:best.groups,loose:hand.filter(c=>!used.has(c.id))};
 }
-function closeResults(){
+function openRoundResults(results){
+ const screen=document.getElementById("roundResults"),profiles=document.getElementById("resultsProfiles"),hands=document.getElementById("resultsHands");
+ if(!screen||!profiles||!hands)return;
+ const winner=roundWinnerIndex,penalties=players.map((p,i)=>i===winner?0:bestUnmatchedScore(p.hand,p));
+ profiles.innerHTML=players.map((p,i)=>'<div class="results-profile '+(i===winner?'show-winner':'')+'"><strong>'+p.name+'</strong><span class="result-count">'+p.hand.length+' cards revealed</span><span class="result-points">+'+penalties[i]+' points · Total '+p.score+'</span>'+(i===winner?'<span class="winner-tag">🏆 SHOWED</span>':'')+'</div>').join('');
+ hands.innerHTML=players.map((p,i)=>{
+  let groups,loose=[];
+  if(i===winner&&winningGroups.length)groups=winningGroups.map(ids=>ids.map(id=>p.hand.find(c=>c.id===id)).filter(Boolean));
+  else {const best=bestMeldsForDisplay(p.hand,p);groups=best.groups;loose=best.loose;}
+  const groupsHtml=groups.length?'<div class="results-winning-groups">'+groups.map((g,n)=>'<div class="results-winning-group"><span>'+(g.length===4?'FOUR-CARD SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+g.map(renderResultCard).join('')+'</div></div>').join('')+'</div>':'';
+  const looseHtml=loose.length?'<div class="results-card-grid">'+loose.map(renderResultCard).join('')+'</div>':'';
+  return '<div class="results-hand '+(i===winner?'winner-hand':'')+'"><div class="results-hand-head"><strong>'+(i===winner?'🏆 ':'')+p.name+'</strong><span>'+p.hand.length+' cards · +'+penalties[i]+' points</span></div>'+groupsHtml+looseHtml+'</div>';
+ }).join('');
+ document.getElementById("resultsSummary").textContent=players[winner].name+" showed successfully. All hands are revealed and scores are updated.";
+ screen.classList.remove("hidden");
+}function closeResults(){
  const screen=document.getElementById("roundResults");
  if(screen)screen.classList.add("hidden");
  if(onlineMode){message(onlinePublic&&onlinePublic.status==="gameComplete"?"Game complete.": "Waiting for the host to start the next round.");return;}
