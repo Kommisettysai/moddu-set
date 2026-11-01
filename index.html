@@ -1319,7 +1319,7 @@ function applyOnlinePublic(){
  if(st.status==="playing"){const resultScreen=document.getElementById("roundResults");if(resultScreen)resultScreen.classList.add("hidden");}
  const ordered=[...m].sort((a,b)=>a.id===roomPlayerId?-1:b.id===roomPlayerId?1:0);
  players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,unlocked:!!p.unlocked,active:true,human:p.id===roomPlayerId,cardCount:p.cardCount||0,jokerEligible:!!p.jokerEligible,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
- if(!players.length)return;turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);specialRank=st.specialRank||null;round=st.round||1;drawn=st.drawnByUid===roomPlayerId;gameOver=st.status==="roundComplete"||st.status==="gameComplete";
+ if(!players.length)return;turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);round=st.round||1;drawn=st.drawnByUid===roomPlayerId;gameOver=st.status==="roundComplete"||st.status==="gameComplete";
  const el=document.getElementById("message");if(el)el.textContent=st.message||"Online game";render();
  if(st.status==="roundComplete"&&st.roundResult)openOnlineRoundResults(st.roundResult);
  if(st.status==="gameComplete")openOnlineGameComplete(st.champion||"A player");
@@ -1447,8 +1447,8 @@ async function startOnlineNextRound(){
   const d=shuffle(makeDeck(active.length)),hands={};
   active.forEach(x=>hands[x.id]=d.splice(0,13));
   const first=d.pop(),nextRound=(p.round||1)+1;
-  const next={status:"playing",round:nextRound,turnUid:active[0].id,deckCount:d.length,discard:[first],drawnByUid:null,specialRank:null,players:roundPlayers.map(x=>({...x,cardCount:(hands[x.id]||[]).length})),message:"Round "+nextRound+". "+active[0].name+"'s turn. Draw a card."};
-  await roomRef.child("private").set({deck:d,hands});
+  const next={status:"playing",round:nextRound,turnUid:active[0].id,deckCount:d.length,discard:[first],drawnByUid:null,players:roundPlayers.map(x=>({...x,jokerEligible:hasNaturalFour(hands[x.id]||[]),unlocked:false,cardCount:(hands[x.id]||[]).length})),message:"Round "+nextRound+". "+active[0].name+"'s turn. Draw a card."};
+  await roomRef.child("private").set({deck:d,hands,specialRanks:{}});
   await roomRef.child("public").set(next);
   const screen=document.getElementById("roundResults");if(screen)screen.classList.add("hidden");
   onlinePublic=next;applyOnlinePublic();
