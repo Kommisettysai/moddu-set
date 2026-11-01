@@ -516,9 +516,12 @@ function initFirebase(){
    if(!firebase.auth().currentUser)return firebase.auth().signInAnonymously();
   }).catch(e=>{
    if(e.code==="auth/credential-already-in-use"||e.code==="auth/account-exists-with-different-credential"){
-    setLobbyNotice("That Google account already has a player login. Please tap Continue with Google again to sign in.");
-   }else setLobbyNotice("Google sign-in error: "+e.message);
-   if(!firebase.auth().currentUser)firebase.auth().signInAnonymously().catch(x=>setLobbyNotice("Guest sign-in failed: "+x.message));
+    setLobbyNotice("This Google account already has a player login. Signing in to that account…");
+    firebase.auth().signInWithRedirect(new firebase.auth.GoogleAuthProvider()).catch(x=>setLobbyNotice("Google sign-in failed: "+x.message));
+   }else{
+    setLobbyNotice("Google sign-in error: "+e.message);
+    if(!firebase.auth().currentUser)firebase.auth().signInAnonymously().catch(x=>setLobbyNotice("Guest sign-in failed: "+x.message));
+   }
   });
  }catch(e){setLobbyNotice("Firebase setup error: "+e.message);}
 }
@@ -1262,6 +1265,7 @@ function applyOnlinePublic(){
  if(!players.length)return;turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);specialRank=st.specialRank||null;round=st.round||1;drawn=st.drawnByUid===roomPlayerId;gameOver=st.status==="roundComplete"||st.status==="gameComplete";
  const el=document.getElementById("message");if(el)el.textContent=st.message||"Online game";render();
  if(st.status==="roundComplete"&&st.roundResult)openOnlineRoundResults(st.roundResult);
+ if(st.status==="gameComplete")openOnlineGameComplete(st.champion||"A player");
 }
 function validateOnlineShow(hand,groupIds,player){
  if(!Array.isArray(groupIds)||groupIds.length!==4)return "Arrange one pure four-set and three three-card sets first.";
@@ -1328,12 +1332,22 @@ function openOnlineRoundResults(result){
  screen.classList.remove("hidden");
 }
 
+function openOnlineGameComplete(champion){
+ const screen=document.getElementById("roundResults"),profiles=document.getElementById("resultsProfiles"),handsEl=document.getElementById("resultsHands");
+ if(!screen||!profiles||!handsEl)return;
+ document.getElementById("resultsSummary").textContent=champion+" wins Moddu Set!";
+ profiles.innerHTML=(onlinePublic.players||[]).map(p=>'<div class="results-profile '+(p.name===champion?'show-winner':'')+'"><strong>'+escapeLobbyText(p.name)+'</strong><span class="result-points">Final score: '+(p.score||0)+'</span>'+(p.name===champion?'<span class="winner-tag">🏆 WINNER</span>':'')+'</div>').join('');
+ handsEl.innerHTML="";
+ const footer=screen.querySelector(".results-footer");
+ if(footer)footer.innerHTML='<button onclick="closeResults()">Back to table</button>';
+ screen.classList.remove("hidden");
+}
 async function startOnlineNextRound(){
  if(!onlineMode||!isRoomHost||!roomRef||!onlinePublic)return;
  try{
   const ps=await roomRef.child("public").get(),p=ps.val();
   if(!p||p.status!=="roundComplete")return;
-  const active=(p.players||[]).filter(x=>(p.roundResult.totals[x.id]||0)<200);
+  const active=(p.players||[]).filter(x=>x.active!==false&&(p.roundResult.totals[x.id]||0)<200);
   if(active.length<=1){
    const champ=active[0]||(p.players||[]).reduce((best,x)=>(p.roundResult.totals[x.id]||0)<(p.roundResult.totals[best.id]||0)?x:best,p.players[0]);
    const finished={...p,status:"gameComplete",champion:champ.name,message:champ.name+" wins Moddu Set!"};
