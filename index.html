@@ -432,7 +432,7 @@ function renderHandLayout(){
  let html='<div class="hand-layout">';
  arrangedGroups.forEach((ids,g)=>{
   const cards=ids.map(id=>({card:hand.find(c=>c.id===id),index:hand.findIndex(c=>c.id===id)})).filter(x=>x.card);
-  html+='<div class="hand-group"><div class="hand-group-title">'+(g===0?'✦ PURE FOUR-CARD SET':'✦ THREE-CARD SET')+' <button class="group-remove" onclick="removeGroup('+g+')">Undo</button></div><div class="hand-group-cards">'+cards.map(x=>cardMarkup(x.card,x.index)).join('')+'</div></div>';
+  html+='<div class="hand-group"><div class="hand-group-title">'+(ids.length===4?'✦ PURE FOUR-CARD SET':'✦ THREE-CARD SET')+' <button class="group-remove" onclick="removeGroup('+g+')">Undo</button></div><div class="hand-group-cards">'+cards.map(x=>cardMarkup(x.card,x.index)).join('')+'</div></div>';
  });
  const loose=sortCardsLowToHigh(hand.map((card,index)=>({card,index})).filter(x=>!grouped.has(x.card.id)).map(x=>x.card)).map(card=>({card,index:hand.findIndex(x=>x.id===card.id)}));
  html+='<div class="loose-area"><div class="loose-title">YOUR UNGROUPED CARDS</div><div class="loose-cards">'+loose.map(x=>cardMarkup(x.card,x.index)).join('')+'</div></div></div>';
