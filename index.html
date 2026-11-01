@@ -736,8 +736,7 @@ function bestUnmatchedScore(hand,player){
 }
 function showHand(){
  if(!players.length||turn!==0||gameOver){message("You cannot show right now.");return;}
- let hand=[...players[0].hand];
- let showDiscard=null;
+ let hand=[...players[0].hand],showDiscard=null;
  if(drawn){
   if(selected<0||selected>=hand.length){message("Select the extra card to discard before SHOW.");return;}
   showDiscard=hand.splice(selected,1)[0];
@@ -745,7 +744,13 @@ function showHand(){
   message("You must have 13 cards to show, or select your 14th card as the discard.");return;
  }
  if(hand.length!==13){message("A valid SHOW needs exactly 13 cards after the discard.");return;}
- const byId=new Map(hand.map(c=>[c.id,c]));
+ if(showDiscard){
+  players[0].hand=hand;
+  discard.push(showDiscard);
+  drawn=false;selected=-1;
+  autoArrange(false);
+ }
+ const byId=new Map(players[0].hand.map(c=>[c.id,c]));
  const groups=arrangedGroups.map(ids=>ids.map(id=>byId.get(id)).filter(Boolean));
  if(groups.length!==4||groups.some((g,i)=>g.length!==(i===0?4:3))){
   message("Your 13 cards must form one pure four-set and three three-card sets. Try Auto arrange.");return;
@@ -762,26 +767,16 @@ function showHand(){
  })){
   message("One or more three-card sets are invalid. Check your joker use.");return;
  }
- if(showDiscard){
-  players[0].hand=hand;
-  discard.push(showDiscard);
-  drawn=false;selected=-1;
-  // Rebuild the sets from the final 13 cards, excluding the discarded 14th card.
-  autoArrange(false);
- }
  arrangedGroups=groups.map(g=>g.map(c=>c.id));
- players[0].score=players[0].score||0;
  const results=[];
  players.forEach((p,i)=>{
   const penalty=i===0?0:bestUnmatchedScore(p.hand,p);
   p.score+=penalty;
   results.push(p.name+": +"+penalty+" (total "+p.score+")");
  });
- gameOver=true;
- render();
+ gameOver=true;render();
  const summary="SHOW accepted! Your score: 0. Other players' penalty points have been calculated. "+results.join(" | ");
- message(summary);
- alert(summary);
+ message(summary);alert(summary);
 }
 
 function showRules(){
