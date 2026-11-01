@@ -651,6 +651,9 @@ body.app-locked{overflow:hidden}
  const SALT="d4abe013ca0cd3d106d5414e6d76eb3e";
  const EXPECTED="8d65b881c8e3abba9fe0ebf04bdfcc82066454c2fdca25973c69f73cc5f6cebe";
  const form=document.getElementById("appLockForm"),input=document.getElementById("appLockPassword"),error=document.getElementById("appLockError"),screen=document.getElementById("appLockScreen");
+ const LOCK_KEY="modduSet.passwordUnlocked";
+ try{if(localStorage.getItem(LOCK_KEY)==="yes"){screen.hidden=true;document.body.classList.remove("app-locked");}}catch(e){}
+ window.lockAppAfterSignOut=()=>{try{localStorage.removeItem(LOCK_KEY);}catch(e){}screen.hidden=false;document.body.classList.add("app-locked");input.value="";error.textContent="";input.focus();};
  const hex=s=>Uint8Array.from(s.match(/.{2}/g),x=>parseInt(x,16));
  const equal=(a,b)=>{if(a.length!==b.length)return false;let diff=0;for(let i=0;i<a.length;i++)diff|=a[i]^b[i];return diff===0;};
  form.addEventListener("submit",async event=>{
@@ -663,7 +666,7 @@ body.app-locked{overflow:hidden}
    const bits=await crypto.subtle.deriveBits({name:"PBKDF2",salt:hex(SALT),iterations:600000,hash:"SHA-256"},material,256);
    const actual=new Uint8Array(bits);
    if(equal(actual,hex(EXPECTED))){
-    screen.hidden=true;document.body.classList.remove("app-locked");input.value="";
+    try{localStorage.setItem(LOCK_KEY,"yes");}catch(e){}screen.hidden=true;document.body.classList.remove("app-locked");input.value="";
    }else{error.textContent="Incorrect password. Try again.";input.value="";input.focus();}
   }catch(e){error.textContent="Secure unlock is not available in this browser. Open the app using HTTPS."; }
   finally{button.disabled=false;button.textContent="Unlock app";}
@@ -1038,6 +1041,7 @@ async function signOutPlayer(){
    try{
     if(savedProfile&&savedProfile.uid===user.uid)await profileRef.remove();
     await user.delete();
+    window.lockAppAfterSignOut?.();
     setLobbyNotice("Guest account deleted. @"+(releasedUsername||username||"guest")+" is now available again.");
    }catch(deleteError){
     if(savedProfile&&savedProfile.uid===user.uid)await profileRef.set(savedProfile).catch(()=>{});
@@ -1052,7 +1056,7 @@ async function signOutPlayer(){
   }
   return;
  }
- try{await firebase.auth().signOut();setLobbyNotice("You have signed out.");}
+ try{await firebase.auth().signOut();window.lockAppAfterSignOut?.();setLobbyNotice("You have signed out.");}
  catch(e){setLobbyNotice("Could not sign out: "+e.message);}
 }
 
