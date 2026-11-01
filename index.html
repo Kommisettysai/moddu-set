@@ -1247,7 +1247,7 @@ function playerRoleLabel(player,index,context){
 }
 function playerIdentityMarkup(player,index,context){
  const role=playerRoleLabel(player,index,context);
- return '<div class="'+(context==="results"?'results-identity':'player-identity')+'"><span class="player-avatar" aria-hidden="true">'+playerInitials(player.name)+'</span><span class="'+(context==="results"?'results-name':'player-name-wrap')+'"><strong class="'+(context==="results"?'':'')+'">'+escapeLobbyText(player.name)+'</strong><span class="player-role">'+role+'</span></span></div>';
+ return '<div class="'+(context==="results"?'results-identity':'player-identity')+'"><span class="player-avatar" aria-hidden="true">'+playerInitials(player.name)+'</span><span class="'+(context==="results"?'results-name':'player-name-wrap')+'">'+(context==="results"?'<strong>':'<b>')+escapeLobbyText(player.name)+(context==="results"?' </strong>':'</b>')+'<span class="player-role">'+role+'</span></span></div>';
 }
 function renderResultCard(card){
  const red=["♥","♦"].includes(card.suit);
