@@ -407,6 +407,10 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
   <div class="lobby-section-title">PLAYERS AT THE TABLE <span id="roomPlayerCount"></span></div>
   <div id="roomPlayers" class="room-players"></div>
   <p class="lobby-hint">You can start when at least 2 players have joined. Maximum 6 players.</p>
+  <div class="actions">
+   <button class="lobby-secondary" onclick="shareRoomInvite()">Invite friends</button>
+   <button class="lobby-secondary" id="addBotBtn" onclick="addBotToRoom()">＋ Add bot</button>
+  </div>
   <button id="startRoomBtn" class="lobby-primary" onclick="startOnlineRoom()">Start game</button>
   <button class="lobby-text-button" onclick="leaveRoom()">Leave table</button>
  </div>
@@ -499,16 +503,24 @@ function initFirebase(){
  try{
   if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
   firebaseReady=true;
-  firebase.auth().getRedirectResult().catch(e=>setLobbyNotice("Google sign-in error: "+e.message));
   firebase.auth().onAuthStateChanged(user=>{
    authUser=user||null;
    if(user){
-    setAuthStatus(user.isAnonymous?"Playing as guest. You can link Google later to keep this identity.":"Signed in with Google. Your identity can be used again on this device.");
+    setAuthStatus(user.isAnonymous?"Playing as guest. Sign in with Google to link this account.":"Google account connected.");
     const nameInput=document.getElementById("playerName");
     if(nameInput&&!nameInput.value.trim()&&user.displayName)nameInput.value=user.displayName.slice(0,18);
+   }else setAuthStatus("Connecting as a guest…");
+  });
+  firebase.auth().getRedirectResult().then(result=>{
+   if(result&&result.user)setLobbyNotice("Google sign-in successful.");
+   if(!firebase.auth().currentUser)return firebase.auth().signInAnonymously();
+  }).catch(e=>{
+   if(e.code==="auth/credential-already-in-use"||e.code==="auth/account-exists-with-different-credential"){
+    setLobbyNotice("This Google account already has a player login. Signing in to that account…");
+    firebase.auth().signInWithRedirect(new firebase.auth.GoogleAuthProvider()).catch(x=>setLobbyNotice("Google sign-in failed: "+x.message));
    }else{
-    setAuthStatus("Connecting as a guest…");
-    firebase.auth().signInAnonymously().catch(e=>setLobbyNotice("Guest sign-in failed: "+e.message));
+    setLobbyNotice("Google sign-in error: "+e.message);
+    if(!firebase.auth().currentUser)firebase.auth().signInAnonymously().catch(x=>setLobbyNotice("Guest sign-in failed: "+x.message));
    }
   });
  }catch(e){setLobbyNotice("Firebase setup error: "+e.message);}
@@ -516,14 +528,13 @@ function initFirebase(){
 async function continueWithGoogle(){
  if(!firebaseReady){setLobbyNotice("Firebase is still connecting. Please try again in a moment.");return;}
  const provider=new firebase.auth.GoogleAuthProvider();
+ provider.setCustomParameters({prompt:"select_account"});
  try{
   const user=firebase.auth().currentUser;
   if(user&&user.isAnonymous)await user.linkWithRedirect(provider);
   else await firebase.auth().signInWithRedirect(provider);
  }catch(e){
-  if(e.code==="auth/credential-already-in-use"){
-   setLobbyNotice("This Google account is already linked to another player identity. Sign in with Google instead.");
-  }else setLobbyNotice("Google sign-in could not start: "+e.message);
+  setLobbyNotice("Google sign-in could not start: "+e.message);
  }
 }
 function setLobbyNotice(t){const el=document.getElementById("lobbyNotice");if(el)el.textContent=t;}
@@ -595,6 +606,8 @@ async function leaveRoom(showLobby=true){
 }
 function startBots(){document.getElementById("playerCount").value=document.getElementById("playerCount").value||"4";startGame();}
 initFirebase();
+const invitedRoom=new URLSearchParams(location.search).get("room");
+if(invitedRoom&&/^[A-Z0-9]{6}$/i.test(invitedRoom)){const roomInput=document.getElementById("roomCodeInput");if(roomInput)roomInput.value=invitedRoom.toUpperCase();}
 </script><script>
 const suits=["♠","♥","♦","♣"];
 const ranks=["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
@@ -1140,7 +1153,7 @@ function openRoundResults(results){
 function closeResults(){
  const screen=document.getElementById("roundResults");
  if(screen)screen.classList.add("hidden");
- if(onlineMode){message("Round complete. Online next-round setup is the next step.");return;}
+ if(onlineMode){message(onlinePublic&&onlinePublic.status==="gameComplete"?"Game complete.": "Waiting for the host to start the next round.");return;}
  startNextRound();
 }
 function startNextRound(){
@@ -1184,7 +1197,7 @@ function showRules(){
 <script>
 /* Multiplayer v1: host-authoritative draw/discard with private hands. */
 let onlineMode=false,onlinePublic=null,onlinePublicRef=null,onlineHandRef=null,onlineActionRef=null;
-let onlinePublicListener=null,onlineHandListener=null,onlineActionListener=null,onlineLobbyListener=null,onlineBusy={};
+let onlinePublicListener=null,onlineHandListener=null,onlineActionListener=null,onlineLobbyListener=null,onlineBusy={},onlineBotBusy=false;
 function onlineMembers(l){return Object.values(l.players||{}).sort((a,b)=>(a.joinedAt||0)-(b.joinedAt||0));}
 function createRoom(){
  const name=lobbyName();if(!name)return;if(!firebaseReady||!authUser){setLobbyNotice("Firebase sign-in is still loading.");return;}
@@ -1202,35 +1215,60 @@ async function joinRoom(){
  roomCode=code;roomRef=ref;roomPlayerId=authUser.uid;isRoomHost=false;showWaitingRoom();}catch(e){setLobbyNotice("Could not join room: "+e.message);}
 }
 function showWaitingRoom(){
- document.getElementById("setup").classList.add("hidden");document.getElementById("waitingRoom").classList.remove("hidden");document.getElementById("roomCodeLabel").textContent=roomCode;document.getElementById("startRoomBtn").classList.toggle("hidden",!isRoomHost);
+ document.getElementById("setup").classList.remove("hidden");document.getElementById("waitingRoom").classList.remove("hidden");document.getElementById("roomCodeLabel").textContent=roomCode;document.getElementById("startRoomBtn").classList.toggle("hidden",!isRoomHost);document.getElementById("addBotBtn").classList.toggle("hidden",!isRoomHost);
  if(onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
  onlineLobbyListener=snap=>{if(!snap.exists())return;const l=snap.val(),m=onlineMembers(l);document.getElementById("roomPlayerCount").textContent=m.length+"/"+l.maxPlayers;
- document.getElementById("roomPlayers").innerHTML=m.map((p,i)=>'<div class="room-player"><span class="avatar">'+(["🃏","🌟","🍀","🔥","🎯","👑"][i]||"🃏")+'</span><strong>'+escapeLobbyText(p.name)+'</strong><small>'+(p.id===l.hostId?"HOST":"READY")+'</small></div>').join("");
+ document.getElementById("roomPlayers").innerHTML=m.map((p,i)=>'<div class="room-player"><span class="avatar">'+(p.isBot?"🤖":(["🃏","🌟","🍀","🔥","🎯","👑"][i]||"🃏"))+'</span><strong>'+escapeLobbyText(p.name)+'</strong><small>'+(p.id===l.hostId?"HOST":p.isBot?"BOT":"READY")+'</small></div>').join("");
+ document.getElementById("addBotBtn").disabled=m.length>=l.maxPlayers;
  if(l.status==="started")roomRef.child("public").get().then(x=>{if(x.exists())enterOnlineGame(x.val());});};
  roomRef.child("lobby").on("value",onlineLobbyListener);
+}
+
+async function addBotToRoom(){
+ if(!isRoomHost||!roomRef)return;
+ try{
+  const snap=await roomRef.child("lobby").get(),l=snap.val(),m=onlineMembers(l);
+  if(l.status!=="waiting"){setLobbyNotice("Bots can only be added before the game starts.");return;}
+  if(m.length>=l.maxPlayers){setLobbyNotice("The table is full.");return;}
+  const n=m.filter(p=>p.isBot).length+1,id="bot-"+Date.now().toString(36);
+  await roomRef.child("lobby/players/"+id).set({id,name:"Computer "+n,isBot:true,ready:true,joinedAt:Date.now()});
+  setLobbyNotice("Computer "+n+" joined the table.");
+ }catch(e){setLobbyNotice("Could not add bot: "+e.message);}
+}
+async function shareRoomInvite(){
+ if(!roomCode)return;
+ const url=location.href.split("?")[0]+"?room="+roomCode;
+ const text="Join my Moddu Set table! Room code: "+roomCode+"\n"+url;
+ try{
+  if(navigator.share)await navigator.share({title:"Moddu Set invitation",text,url});
+  else if(navigator.clipboard){await navigator.clipboard.writeText(text);setLobbyNotice("Invite copied. Share it with your friends!");}
+  else setLobbyNotice("Share this room code: "+roomCode);
+ }catch(e){if(e.name!=="AbortError")setLobbyNotice("Room code: "+roomCode);}
 }
 async function startOnlineRoom(){
  if(!isRoomHost||!roomRef)return;try{const snap=await roomRef.child("lobby").get(),l=snap.val(),m=onlineMembers(l);if(m.length<2){setLobbyNotice("Invite at least one friend before starting.");return;}
  const d=shuffle(makeDeck(m.length)),hands={};m.forEach(p=>hands[p.id]=d.splice(0,13));const first=d.pop();
- const pub={status:"playing",round:1,turnUid:l.hostId,deckCount:d.length,discard:[first],drawnByUid:null,specialRank:null,players:m.map(p=>({id:p.id,name:p.name,score:0,cardCount:13,unlocked:false,status:"Ready"})),message:"Cards dealt. "+m[0].name+"'s turn. Draw a card."};
+ const pub={status:"playing",round:1,turnUid:l.hostId,deckCount:d.length,discard:[first],drawnByUid:null,specialRank:null,players:m.map(p=>({id:p.id,name:p.name,isBot:!!p.isBot,active:true,score:0,cardCount:13,unlocked:false,status:"Ready"})),message:"Cards dealt. "+m[0].name+"'s turn. Draw a card."};
  await roomRef.child("private").set({deck:d,hands});await roomRef.child("public").set(pub);await roomRef.child("lobby/status").set("started");enterOnlineGame(pub);
  }catch(e){setLobbyNotice("Could not start game: "+e.message);}
 }
 function enterOnlineGame(state){
  if(!roomRef||!roomPlayerId)return;onlineMode=true;onlinePublic=state;document.getElementById("setup").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");document.getElementById("game").classList.remove("hidden");
  onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");
- if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();}};onlinePublicRef.on("value",onlinePublicListener);
+ if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();if(isRoomHost)runOnlineBotTurn();}};onlinePublicRef.on("value",onlinePublicListener);
  if(onlineHandListener)onlineHandRef.off("value",onlineHandListener);onlineHandListener=s=>{if(!s.exists())return;const h=s.val()||[];if(!players.length)players=[{id:roomPlayerId,name:"You",hand:h,score:0,human:true}];else players[0]={...players[0],hand:h};selected=-1;selectedIndices=[];arrangedGroups=[];applyOnlinePublic();};onlineHandRef.on("value",onlineHandListener);
  if(isRoomHost){if(onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);onlineActionListener=s=>{if(!s.exists())return;const uid=s.key;if(onlineBusy[uid])return;onlineBusy[uid]=true;processOnlineAction(uid,s.val()).catch(e=>setLobbyNotice("Game action failed: "+e.message)).finally(()=>{onlineActionRef.child(uid).remove().catch(()=>{});delete onlineBusy[uid];});};onlineActionRef.on("child_added",onlineActionListener);}
  applyOnlinePublic();
 }
 function applyOnlinePublic(){
  if(!onlineMode||!onlinePublic)return;const st=onlinePublic,prior=players[0]||{},m=st.players||[];
+ if(st.status==="playing"){const resultScreen=document.getElementById("roundResults");if(resultScreen)resultScreen.classList.add("hidden");}
  const ordered=[...m].sort((a,b)=>a.id===roomPlayerId?-1:b.id===roomPlayerId?1:0);
  players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,unlocked:!!p.unlocked,active:true,human:p.id===roomPlayerId,cardCount:p.cardCount||0,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
- if(!players.length)return;turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);specialRank=st.specialRank||null;round=st.round||1;drawn=st.drawnByUid===roomPlayerId;
+ if(!players.length)return;turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);specialRank=st.specialRank||null;round=st.round||1;drawn=st.drawnByUid===roomPlayerId;gameOver=st.status==="roundComplete"||st.status==="gameComplete";
  const el=document.getElementById("message");if(el)el.textContent=st.message||"Online game";render();
  if(st.status==="roundComplete"&&st.roundResult)openOnlineRoundResults(st.roundResult);
+ if(st.status==="gameComplete")openOnlineGameComplete(st.champion||"A player");
 }
 function validateOnlineShow(hand,groupIds,player){
  if(!Array.isArray(groupIds)||groupIds.length!==4)return "Arrange one pure four-set and three three-card sets first.";
@@ -1257,7 +1295,7 @@ async function processOnlineAction(uid,a){
   if(p.drawnByUid!==uid)return;
   const i=hand.findIndex(c=>c.id===a.cardId);if(i<0)return;
   pile.push(hand.splice(i,1)[0]);h[uid]=hand;p.drawnByUid=null;
-  const m=onlineMembers(l),at=m.findIndex(x=>x.id===uid),next=m[(at+1)%m.length];p.turnUid=next.id;p.message=next.name+"'s turn. Draw a card.";
+  const active=(p.players||[]).filter(x=>x.active!==false),at=active.findIndex(x=>x.id===uid),next=active[(at+1)%active.length];if(!next)return;p.turnUid=next.id;p.message=next.name+"'s turn. Draw a card.";
  }else if(a.type==="show"){
   if(a.discardCardId){
    if(p.drawnByUid!==uid)return;
@@ -1292,7 +1330,66 @@ function openOnlineRoundResults(result){
   return '<div class="results-hand '+(p.id===winner?'winner-hand':'')+'"><div class="results-hand-head"><strong>'+(p.id===winner?'🏆 ':'')+escapeLobbyText(p.name)+'</strong><span>'+hand.length+' cards · +'+(result.penalties[p.id]||0)+' points</span></div>'+winning+'</div>';
  }).join('');
  document.getElementById("resultsSummary").textContent=result.winnerName+" showed successfully. All hands are revealed and scores are updated.";
+ const footer=screen.querySelector(".results-footer");
+ if(footer)footer.innerHTML=isRoomHost?'<button onclick="startOnlineNextRound()">Start next round</button>':'<p>Waiting for the host to start the next round…</p><button onclick="closeResults()">Back to table</button>';
  screen.classList.remove("hidden");
+}
+
+function openOnlineGameComplete(champion){
+ const screen=document.getElementById("roundResults"),profiles=document.getElementById("resultsProfiles"),handsEl=document.getElementById("resultsHands");
+ if(!screen||!profiles||!handsEl)return;
+ document.getElementById("resultsSummary").textContent=champion+" wins Moddu Set!";
+ profiles.innerHTML=(onlinePublic.players||[]).map(p=>'<div class="results-profile '+(p.name===champion?'show-winner':'')+'"><strong>'+escapeLobbyText(p.name)+'</strong><span class="result-points">Final score: '+(p.score||0)+'</span>'+(p.name===champion?'<span class="winner-tag">🏆 WINNER</span>':'')+'</div>').join('');
+ handsEl.innerHTML="";
+ const footer=screen.querySelector(".results-footer");
+ if(footer)footer.innerHTML='<button onclick="closeResults()">Back to table</button>';
+ screen.classList.remove("hidden");
+}
+async function startOnlineNextRound(){
+ if(!onlineMode||!isRoomHost||!roomRef||!onlinePublic)return;
+ try{
+  const ps=await roomRef.child("public").get(),p=ps.val();
+  if(!p||p.status!=="roundComplete")return;
+  const active=(p.players||[]).filter(x=>x.active!==false&&(p.roundResult.totals[x.id]||0)<200);
+  if(active.length<=1){
+   const champ=active[0]||(p.players||[]).reduce((best,x)=>(p.roundResult.totals[x.id]||0)<(p.roundResult.totals[best.id]||0)?x:best,p.players[0]);
+   const finished={...p,status:"gameComplete",champion:champ.name,message:champ.name+" wins Moddu Set!"};
+   await roomRef.child("public").set(finished);
+   onlinePublic=finished;applyOnlinePublic();setLobbyNotice(champ.name+" wins the game!");
+   return;
+  }
+  const roundPlayers=(p.players||[]).map(x=>({...x,score:p.roundResult.totals[x.id]||0,active:active.some(a=>a.id===x.id),status:active.some(a=>a.id===x.id)?"Ready":"Eliminated",unlocked:false}));
+  const d=shuffle(makeDeck(active.length)),hands={};
+  active.forEach(x=>hands[x.id]=d.splice(0,13));
+  const first=d.pop(),nextRound=(p.round||1)+1;
+  const next={status:"playing",round:nextRound,turnUid:active[0].id,deckCount:d.length,discard:[first],drawnByUid:null,specialRank:null,players:roundPlayers.map(x=>({...x,cardCount:(hands[x.id]||[]).length})),message:"Round "+nextRound+". "+active[0].name+"'s turn. Draw a card."};
+  await roomRef.child("private").set({deck:d,hands});
+  await roomRef.child("public").set(next);
+  const screen=document.getElementById("roundResults");if(screen)screen.classList.add("hidden");
+  onlinePublic=next;applyOnlinePublic();
+ }catch(e){message("Could not start next round: "+e.message);}
+}
+async function runOnlineBotTurn(){
+ if(!isRoomHost||!onlineMode||onlineBotBusy||!onlinePublic||onlinePublic.status!=="playing")return;
+ const uid=onlinePublic.turnUid,bot=(onlinePublic.players||[]).find(x=>x.id===uid&&x.isBot&&x.active!==false);
+ if(!bot)return;
+ onlineBotBusy=true;
+ try{
+  const snap=await roomRef.child("public").get(),p=snap.val();
+  if(!p||p.status!=="playing"||p.turnUid!==uid)return;
+  if(!p.drawnByUid)await processOnlineAction(uid,{type:Math.random()<0.5?"drawClosed":"drawOpen"});
+  const hs=await roomRef.child("private/hands/"+uid).get(),hand=hs.val()||[];
+  const latest=await roomRef.child("public").get(),state=latest.val();
+  if(state&&state.status==="playing"&&state.turnUid===uid&&state.drawnByUid===uid&&hand.length){
+   const card=hand[Math.floor(Math.random()*hand.length)];
+   await processOnlineAction(uid,{type:"discard",cardId:card.id});
+  }
+ }catch(e){setLobbyNotice("Bot turn error: "+e.message);}
+ finally{
+  onlineBotBusy=false;
+  const latest=await roomRef.child("public").get().catch(()=>null),state=latest&&latest.val();
+  if(state&&state.status==="playing"&&state.turnUid!==uid)runOnlineBotTurn();
+ }
 }
 async function sendOnlineAction(a){if(!onlinePublic||onlinePublic.turnUid!==roomPlayerId){message("Please wait for your turn.");return;}try{if(isRoomHost)await processOnlineAction(roomPlayerId,a);else await onlineActionRef.child(roomPlayerId).set({...a,requestedAt:Date.now()});}catch(e){message("Action failed: "+e.message);}}
 const _soloDrawClosed=drawClosed,_soloDrawOpen=drawOpen,_soloDiscardSelected=discardSelected,_soloShowHand=showHand,_soloStartGame=startGame;
