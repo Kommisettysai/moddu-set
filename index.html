@@ -1336,7 +1336,7 @@ function enterOnlineGame(state){
  if(onlineHandListener)onlineHandRef.off("value",onlineHandListener);onlineHandListener=s=>{if(!s.exists())return;const h=s.val()||[];if(!players.length)players=[{id:roomPlayerId,name:"You",hand:h,score:0,human:true}];else players[0]={...players[0],hand:h};selected=-1;selectedIndices=[];arrangedGroups=[];applyOnlinePublic();};onlineHandRef.on("value",onlineHandListener);
  onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);
  if(onlineSpecialListener)onlineSpecialRef.off("value",onlineSpecialListener);
- onlineSpecialListener=s=>{specialRank=s.exists()?s.val():null;if(players[0]&&specialRank)players[0].unlocked=true;render();};
+ onlineSpecialListener=s=>{const previous=specialRank;specialRank=s.exists()?s.val():null;if(players[0]&&specialRank)players[0].unlocked=true;render();if(specialRank&&specialRank!==previous)highlightSpecialJoker();};
  onlineSpecialRef.on("value",onlineSpecialListener);
  if(isRoomHost){if(onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);onlineActionListener=s=>{if(!s.exists())return;const uid=s.key;if(onlineBusy[uid])return;onlineBusy[uid]=true;processOnlineAction(uid,s.val()).catch(e=>setLobbyNotice("Game action failed: "+e.message)).finally(()=>{onlineActionRef.child(uid).remove().catch(()=>{});delete onlineBusy[uid];});};onlineActionRef.on("child_added",onlineActionListener);}
  applyOnlinePublic();
