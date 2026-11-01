@@ -649,7 +649,7 @@ async function processOnlineAction(uid,a){
  if(!isRoomHost)return;
  const [ps,ds]=await Promise.all([roomRef.child("public").get(),roomRef.child("private").get()]);
  const p=ps.val(),priv=ds.val()||{};
- if(!p||p.status!=="playing"||p.turnUid!==uid)return;
+ if(!p||p.status!=="playing"||(p.turnUid!==uid&&a.type!=="revealSpecial"))return;
  let d=priv.deck||[],h=priv.hands||{},hand=h[uid]||[],pile=p.discard||[];
  let special=priv.specialRank||null,specialRanks=priv.specialRanks||{};
  specialRank=special;
@@ -774,14 +774,30 @@ async function runOnlineBotTurn(){
  if(!bot)return;
  onlineBotBusy=true;
  try{
-  const snap=await roomRef.child("public").get(),p=snap.val();
+  let [ps,ds]=await Promise.all([roomRef.child("public").get(),roomRef.child("private").get()]);
+  let p=ps.val(),priv=ds.val()||{},hand=(priv.hands||{})[uid]||[];
+  specialRank=priv.specialRank||null;
   if(!p||p.status!=="playing"||p.turnUid!==uid)return;
-  if(!p.drawnByUid)await processOnlineAction(uid,{type:Math.random()<0.5?"drawClosed":"drawOpen"});
-  const hs=await roomRef.child("private/hands/"+uid).get(),hand=hs.val()||[];
-  const latest=await roomRef.child("public").get(),state=latest.val();
-  if(state&&state.status==="playing"&&state.turnUid===uid&&state.drawnByUid===uid&&hand.length){
-   const card=hand[Math.floor(Math.random()*hand.length)];
-   await processOnlineAction(uid,{type:"discard",cardId:card.id});
+  if(bot.jokerEligible&&!bot.unlocked){
+   await processOnlineAction(uid,{type:"revealSpecial"});
+   [ps,ds]=await Promise.all([roomRef.child("public").get(),roomRef.child("private").get()]);
+   p=ps.val();priv=ds.val()||{};hand=(priv.hands||{})[uid]||[];specialRank=priv.specialRank||null;
+  }
+  if(!p.drawnByUid){
+   const top=(p.discard||[]).slice(-1)[0];
+   const takeOpen=top&&(top.joker||bestUnmatchedScore([...hand,top],bot)<=bestUnmatchedScore(hand,bot));
+   await processOnlineAction(uid,{type:takeOpen?"drawOpen":"drawClosed"});
+  }
+  [ps,ds]=await Promise.all([roomRef.child("public").get(),roomRef.child("private").get()]);
+  p=ps.val();priv=ds.val()||{};hand=(priv.hands||{})[uid]||[];specialRank=priv.specialRank||null;
+  if(p&&p.status==="playing"&&p.turnUid===uid&&p.drawnByUid===uid&&hand.length===14){
+   const winning=findWinningGroups(hand,bot);
+   if(winning){
+    await processOnlineAction(uid,{type:"show",discardCardId:hand[winning.discardIndex].id,groups:winning.groups});
+   }else{
+    const index=chooseBotDiscardIndex(hand,bot);
+    await processOnlineAction(uid,{type:"discard",cardId:hand[index].id});
+   }
   }
  }catch(e){setLobbyNotice("Bot turn error: "+e.message);}
  finally{
@@ -789,9 +805,8 @@ async function runOnlineBotTurn(){
   const latest=await roomRef.child("public").get().catch(()=>null),state=latest&&latest.val();
   if(state&&state.status==="playing"&&state.turnUid!==uid)runOnlineBotTurn();
  }
-}
-async function sendOnlineAction(a){if(!onlinePublic||onlinePublic.turnUid!==roomPlayerId){message("Please wait for your turn.");return;}try{if(isRoomHost)await processOnlineAction(roomPlayerId,a);else await onlineActionRef.child(roomPlayerId).set({...a,requestedAt:Date.now()});}catch(e){message("Action failed: "+e.message);}}
-const _soloDrawClosed=drawClosed,_soloDrawOpen=drawOpen,_soloDiscardSelected=discardSelected,_soloShowHand=showHand,_soloStartGame=startGame;
+}async function sendOnlineAction(a){if(!onlinePublic||(a.type!=="revealSpecial"&&onlinePublic.turnUid!==roomPlayerId)){message("Please wait for your turn.");return;}try{if(isRoomHost)await processOnlineAction(roomPlayerId,a);else await onlineActionRef.child(roomPlayerId).set({...a,requestedAt:Date.now()});}catch(e){message("Action failed: "+e.message);}}
+const _soloDrawClosed=drawClosed,_soloDrawOpen=drawOpen,_soloDiscardSelected=discardSelected,_soloShowHand=showHand,_soloStartGame=startGame,_soloRevealSpecial=revealSpecialForCurrentPlayer;
 function drawClosed(){if(!onlineMode)return _soloDrawClosed();if(turn!==0||drawn)return;sendOnlineAction({type:"drawClosed"});}
 function drawOpen(){if(!onlineMode)return _soloDrawOpen();if(turn!==0||drawn)return;sendOnlineAction({type:"drawOpen"});}
 function discardSelected(){if(!onlineMode)return _soloDiscardSelected();if(turn!==0||!drawn||selected<0)return;const c=players[0].hand[selected];if(c)sendOnlineAction({type:"discard",cardId:c.id});selected=-1;}
@@ -810,6 +825,7 @@ function showHand(){
  players[0].hand=original;
  sendOnlineAction({type:"show",discardCardId,groups});
 }
+function revealSpecialForCurrentPlayer(){if(!onlineMode)return _soloRevealSpecial();sendOnlineAction({type:"revealSpecial"});}
 function startGame(){if(!onlineMode)return _soloStartGame();message("Leave the online table before starting a solo game.");}
 function leaveRoom(showLobby=true){
  if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
