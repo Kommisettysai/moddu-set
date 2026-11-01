@@ -217,6 +217,9 @@ footer{color:#9bb9a9;padding:20px 12px 28px;letter-spacing:.7px}
 .player-unmatched.low{background:#245b42;color:#c8f5d8}
 .player-unmatched.medium{background:#73551f;color:#ffedb0}
 .player-unmatched.high{background:#783629;color:#ffe0d5}
+.drop-round-btn{width:100%;margin-top:9px;background:linear-gradient(180deg,#f5d18b,#c28d3c)!important;color:#38270d!important;font-weight:1000!important;border:1px solid #ffe4a8!important;box-shadow:0 3px 9px #0005!important}
+.drop-round-btn:disabled{opacity:.45;filter:grayscale(.5)}
+.player-dropped{display:block;margin-top:5px;padding:3px 6px;border-radius:7px;background:#5c3030;color:#ffd5d5;font-size:10px;font-weight:900}
 @media(max-width:450px){.player-strip .player b{font-size:11px!important;font-weight:900!important}}
 
 /* Full-screen round reveal */
@@ -497,6 +500,7 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 <button onclick="autoArrange()">Auto arrange</button>
 <button id="showBtn" onclick="showHand()">SHOW</button>
 </div>
+<button id="dropRoundBtn" class="drop-round-btn" onclick="dropCurrentRound()">DROP 20</button>
 <div class="arrange-tools"><p class="arrange-hint">Your cards arrange automatically. Drag a card onto a set to add it, or use Auto Arrange.</p>
 
 </div>
@@ -757,7 +761,7 @@ function render(){
   if(players[0]){
    document.getElementById("handCount").textContent=players[0].hand.length;
    if(playersEl){
-    playersEl.innerHTML=players.map((p,i)=>{const unmatched=onlineMode?Math.max(0,Number(p.unmatchedCount)||0):bestUnmatchedScore(p.hand||[],p);const level=unmatched<=10?'low':unmatched<=25?'medium':'high';return '<div class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+'"><b>'+escapeLobbyText(p.name)+'</b><span class="profile-count">'+p.hand.length+' cards</span><span class="profile-score">Score: '+p.score+'</span><span class="player-unmatched '+level+'">Unmatched: '+unmatched+' pts</span>'+(i===turn?'<span class="player-turn-badge">🎯 TURN</span>':'')+(p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+'<span class="profile-status">'+(p.status||"🎴 Ready")+'</span>'+(onlineMode&&isRoomHost&&p.id!==roomPlayerId&&p.active!==false&&onlinePublic?.status==="playing"?'<button class="host-remove-player" onclick="removeOnlinePlayer(\''+p.id+'\')">Remove player</button>':'')+'</div>';}).join('');
+    playersEl.innerHTML=players.map((p,i)=>{const unmatched=onlineMode?Math.max(0,Number(p.unmatchedCount)||0):bestUnmatchedScore(p.hand||[],p);const level=unmatched<=10?'low':unmatched<=25?'medium':'high';return '<div class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+'"><b>'+escapeLobbyText(p.name)+'</b><span class="profile-count">'+p.hand.length+' cards</span><span class="profile-score">Score: '+p.score+'</span><span class="player-unmatched '+level+'">Unmatched: '+unmatched+' pts</span>'+(i===turn?'<span class="player-turn-badge">🎯 TURN</span>':'')+(p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+(p.roundDropped?'<span class="player-dropped">⛔ DROPPED · +'+(p.dropPenalty||0)+'</span>':'')+'<span class="profile-status">'+(p.status||"🎴 Ready")+'</span>'+(onlineMode&&isRoomHost&&p.id!==roomPlayerId&&p.active!==false&&onlinePublic?.status==="playing"?'<button class="host-remove-player" onclick="removeOnlinePlayer(\''+p.id+'\')">Remove player</button>':'')+'</div>';}).join('');
    }
    if(handEl){
     try{handEl.innerHTML=renderHandLayout();}
@@ -769,6 +773,8 @@ function render(){
   }
   const discardBtn=document.getElementById("discardBtn");
   if(discardBtn)discardBtn.disabled=!(turn===0&&drawn&&selected>=0);
+  const dropBtn=document.getElementById("dropRoundBtn");
+  if(dropBtn){const me=onlineMode?(onlinePublic?.players||[]).find(p=>p.id===roomPlayerId):players[0];const dropCount=Number(me?.roundDrawCount)||0;dropBtn.textContent="DROP "+(dropCount<=1?20:40);dropBtn.disabled=gameOver||!me||me.active===false||!!me.roundDropped;}
  }catch(error){
   console.error("Game render error:",error);
   if(playersEl&&players.length){
@@ -810,6 +816,7 @@ function drawClosed(){
  recycleDeck();
  if(deck.length===0){message("No cards available.");return;}
  players[0].hand.push(deck.pop());
+ players[0].roundDrawCount=(players[0].roundDrawCount||0)+1;
  drawn=true;
  selected=-1;
  autoArrange(false);
@@ -821,6 +828,7 @@ function drawOpen(){
  if(turn!==0||drawn)return;
  if(discard.length===0)return;
  players[0].hand.push(discard.pop());
+ players[0].roundDrawCount=(players[0].roundDrawCount||0)+1;
  drawn=true;
  selected=-1;
  autoArrange(false);
@@ -889,7 +897,9 @@ function revealSpecial(p){
 
 function nextTurn(){
  if(gameOver)return;
- turn=(turn+1)%players.length;
+ let attempts=0;
+ do{turn=(turn+1)%players.length;attempts++;}while(players[turn]?.roundDropped&&attempts<players.length);
+ if(players.every(p=>p.roundDropped)){gameOver=true;message("Everyone dropped this round.");render();return;}
  render();
  if(turn!==0)setTimeout(aiTurn,700);
  else{
@@ -900,7 +910,7 @@ function nextTurn(){
 
 function aiTurn(){
  if(gameOver||turn===0)return;
- const p=players[turn];if(!p||p.active===false){nextTurn();return;}
+ const p=players[turn];if(!p||p.active===false||p.roundDropped){nextTurn();return;}
  recycleDeck();
  if(!deck.length&&discard.length<=1){message("No cards available. Turn skipped.");nextTurn();return;}
  const open=discard.length?discard[discard.length-1]:null;
@@ -909,6 +919,7 @@ function aiTurn(){
  const takeOpen=!!open&&!!openScore&&(openScore.covered>(closedScore?.covered||0)||(openScore.covered===(closedScore?.covered||0)&&openScore.pure&&!closedScore?.pure));
  if(takeOpen)p.hand.push(discard.pop());
  else {recycleDeck();if(!deck.length){nextTurn();return;}p.hand.push(deck.pop());}
+ p.roundDrawCount=(p.roundDrawCount||0)+1;
  if(p.hand.length===14){
   let bestIndex=0,bestMetric=null;
   for(let i=0;i<p.hand.length;i++){
@@ -923,8 +934,8 @@ function aiTurn(){
  if(final.complete&&p.hand.length===13){
   const ids=final.groups.sort((a,b)=>Number(b.pure)-Number(a.pure)).map(g=>g.cards.map(c=>c.id));
   const invalid=validateOnlineShow(p.hand,ids,p);
-  if(!invalid){const penalties={};players.forEach((x,i)=>{const score=i===turn?0:bestUnmatchedScore(x.hand,x);x.score+=score;penalties[x.name]=score;});
-   winningGroups=ids;gameOver=true;render();openRoundResults(players.map(x=>x.name+": +"+(penalties[x.name]||0)+" (total "+x.score+")"));return;}
+  if(!invalid){const penalties={};players.forEach((x,i)=>{const score=x.roundDropped?(x.dropPenalty||0):(i===turn?0:bestUnmatchedScore(x.hand,x));if(!x.roundDropped)x.score+=score;penalties[x.name]=score;});
+   winningGroups=ids;gameOver=true;render();openRoundResults(players.map(x=>x.name+": +"+(penalties[x.name]||0)+" (total "+x.score+")"),turn);return;}
  }
  render();nextTurn();
 }
@@ -1178,8 +1189,8 @@ function showHand(){
  winningGroups=arrangedGroups.map(g=>g.slice());
  const results=[];
  players.forEach((p,i)=>{
-  const penalty=i===0?0:bestUnmatchedScore(p.hand,p);
-  p.score+=penalty;
+  const penalty=p.roundDropped?(p.dropPenalty||0):(i===0?0:bestUnmatchedScore(p.hand,p));
+  if(!p.roundDropped)p.score+=penalty;
   results.push(p.name+": +"+penalty+" (total "+p.score+")");
  });
  gameOver=true;
@@ -1206,19 +1217,19 @@ function resultOrderedHand(hand,player){
  remaining.filter(c=>!paired.has(c.id)).forEach(c=>extras.push(c));
  return ordered.concat(extras);
 }
-function openRoundResults(results){
+function openRoundResults(results,winnerIndex=0){
  const screen=document.getElementById("roundResults");
  const profiles=document.getElementById("resultsProfiles");
  const hands=document.getElementById("resultsHands");
  if(!screen||!profiles||!hands)return;
- const penalties=players.map((p,i)=>i===0?0:bestUnmatchedScore(p.hand,p));
- const resultOrder=players.map((p,i)=>({p,i,penalty:penalties[i]})).sort((a,b)=>(a.i===0?-1:b.i===0?1:a.penalty-b.penalty)||a.i-b.i);
- profiles.innerHTML=resultOrder.map(({p,i,penalty})=>'<div class="results-profile '+(i===0?'show-winner':'')+'"><strong>'+escapeLobbyText(p.name)+'</strong><span class="result-count">'+p.hand.length+' cards revealed</span><span class="result-points">+'+penalty+' points · Total '+p.score+'</span>'+(i===0?'<span class="winner-tag">🏆 SHOWED 🎉</span>':'')+'</div>').join('');
+ const penalties=players.map((p,i)=>p.roundDropped?(p.dropPenalty||0):(i===0?0:bestUnmatchedScore(p.hand,p)));
+ const resultOrder=players.map((p,i)=>({p,i,penalty:penalties[i]})).sort((a,b)=>(a.i===winnerIndex?-1:b.i===winnerIndex?1:a.penalty-b.penalty)||a.i-b.i);
+ profiles.innerHTML=resultOrder.map(({p,i,penalty})=>'<div class="results-profile '+(i===winnerIndex?'show-winner':'')+'"><strong>'+escapeLobbyText(p.name)+'</strong><span class="result-count">'+p.hand.length+' cards revealed</span><span class="result-points">+'+penalty+' points · Total '+p.score+'</span>'+(i===winnerIndex?'<span class="winner-tag">🏆 SHOWED 🎉</span>':p.roundDropped?'<span class="winner-tag">⛔ DROPPED</span>':'')+'</div>').join('');
  hands.innerHTML=resultOrder.map(({p,i,penalty})=>{
-  const groupsHtml=i===0&&winningGroups.length?'<div class="results-winning-groups">'+winningGroups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>p.hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':renderScoringBreakdown(p.hand,p,penalty);
-  return '<div class="results-hand '+(i===0?'winner-hand':'')+'"><div class="results-hand-head"><strong>'+(i===0?'🏆🎉 ':'')+escapeLobbyText(p.name)+'</strong><span>'+p.hand.length+' cards · +'+penalty+' points</span></div>'+groupsHtml+'</div>';
+  const groupsHtml=p.roundDropped?'<div class="results-breakdown-section counted"><span class="results-breakdown-title">⛔ DROPPED THIS ROUND · FIXED +'+penalty+' POINTS</span></div>':i===winnerIndex&&winningGroups.length?'<div class="results-winning-groups">'+winningGroups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>p.hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':renderScoringBreakdown(p.hand,p,penalty);
+  return '<div class="results-hand '+(i===winnerIndex?'winner-hand':'')+'"><div class="results-hand-head"><strong>'+(i===winnerIndex?'🏆🎉 ':'')+escapeLobbyText(p.name)+'</strong><span>'+p.hand.length+' cards · +'+penalty+' points</span></div>'+groupsHtml+'</div>';
  }).join('');
- document.getElementById("resultsSummary").textContent=players[0].name+" showed successfully. Their score is 0. All hands are now revealed.";
+ document.getElementById("resultsSummary").textContent=players[winnerIndex].name+" showed successfully. All hands are now revealed.";
  screen.classList.remove("hidden");
 }
 function closeResults(){
@@ -1236,6 +1247,7 @@ function startNextRound(){
  specialRank=null;gameOver=false;arrangedGroups=[];selectedIndices=[];
  players.forEach(p=>{
   p.hand=deck.splice(0,13);
+  p.roundDrawCount=0;p.roundDropped=false;p.dropPenalty=0;
   p.unlocked=false;
   p.eligible=false;
   p.specialRank=null;
@@ -1334,7 +1346,7 @@ async function shareRoomInvite(){
 async function startOnlineRoom(){
  if(!isRoomHost||!roomRef)return;try{const snap=await roomRef.child("lobby").get(),l=snap.val(),m=onlineMembers(l);if(m.length<2){setLobbyNotice("Invite at least one friend before starting.");return;}
  const d=shuffle(makeDeck(m.length)),hands={};m.forEach(p=>hands[p.id]=d.splice(0,13));const first=d.pop();
- const limit=Math.max(1,Number(l.scoreLimit)||200);const pub={status:"playing",round:1,scoreLimit:limit,turnUid:l.hostId,roundStarterUid:l.hostId,deckCount:d.length,discard:[first],drawnByUid:null,specialRank:null,players:m.map(p=>({id:p.id,name:p.name,isBot:!!p.isBot,active:true,score:0,cardCount:13,unlocked:false,unmatchedCount:bestUnmatchedScore(hands[p.id]||[],p),status:"Ready"})),message:"Cards dealt. Elimination limit: "+limit+" points. "+m[0].name+"'s turn. Draw a card."};
+ const limit=Math.max(1,Number(l.scoreLimit)||200);const pub={status:"playing",round:1,scoreLimit:limit,turnUid:l.hostId,roundStarterUid:l.hostId,deckCount:d.length,discard:[first],drawnByUid:null,specialRank:null,players:m.map(p=>({id:p.id,name:p.name,isBot:!!p.isBot,active:true,score:0,cardCount:13,roundDrawCount:0,roundDropped:false,dropPenalty:0,unlocked:false,unmatchedCount:bestUnmatchedScore(hands[p.id]||[],p),status:"Ready"})),message:"Cards dealt. Elimination limit: "+limit+" points. "+m[0].name+"'s turn. Draw a card."};
  await roomRef.child("private").set({deck:d,hands,specialRank:null,specialRanks:{}});await roomRef.child("public").set(pub);await roomRef.child("lobby/status").set("started");enterOnlineGame(pub);
  }catch(e){setLobbyNotice("Could not start game: "+e.message);}
 }
@@ -1366,7 +1378,7 @@ function applyOnlinePublic(){
  if(!onlineMode||!onlinePublic)return;onlineActionPending=false;const st=onlinePublic,prior=players[0]||{},m=st.players||[];specialRank=st.specialRank||null;showSharedAction(st.lastAction);
  if(st.status==="playing"){const resultScreen=document.getElementById("roundResults");if(resultScreen)resultScreen.classList.add("hidden");}
  const ordered=[...m].sort((a,b)=>a.id===roomPlayerId?-1:b.id===roomPlayerId?1:0);
- players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,unmatchedCount:p.unmatchedCount||0,unlocked:!!p.unlocked,active:p.active!==false,human:p.id===roomPlayerId,cardCount:p.cardCount||0,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
+ players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,unmatchedCount:p.unmatchedCount||0,roundDrawCount:p.roundDrawCount||0,roundDropped:!!p.roundDropped,dropPenalty:p.dropPenalty||0,unlocked:!!p.unlocked,active:p.active!==false,human:p.id===roomPlayerId,cardCount:p.cardCount||0,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
  if(!players.length)return;
  const myPublicPlayer=m.find(p=>p.id===roomPlayerId);
  if(myPublicPlayer&&myPublicPlayer.active===false){setLobbyNotice("The host removed you from this game.");leaveRoom(true);return;}turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);round=st.round||1;drawn=st.drawnByUid===roomPlayerId;gameOver=st.status==="roundComplete"||st.status==="gameComplete";
@@ -1449,6 +1461,22 @@ function validateOnlineShow(hand,groupIds,player){
  if(!groups.slice(1).every(g=>validThree(g,player)))return "Each three-card set must have the same rank, except for valid jokers.";
  return null;
 }
+function dropCurrentRound(){
+ if(gameOver){message("This round is already complete.");return;}
+ if(onlineMode){
+  const me=(onlinePublic?.players||[]).find(p=>p.id===roomPlayerId);
+  if(!me||me.active===false||me.roundDropped){message("You cannot drop this round.");return;}
+  const penalty=(Number(me.roundDrawCount)||0)<=1?20:40;
+  if(!confirm("Drop this round for "+penalty+" points? You can play again next round."))return;
+  sendOnlineAction({type:"dropRound"});return;
+ }
+ const me=players[0];if(!me||me.roundDropped){message("You have already dropped this round.");return;}
+ const penalty=(Number(me.roundDrawCount)||0)<=1?20:40;
+ if(!confirm("Drop this round for "+penalty+" points? You can play again next round."))return;
+ me.roundDropped=true;me.dropPenalty=penalty;me.score+=penalty;me.status="Dropped this round";
+ message(me.name+" dropped this round for "+penalty+" points. They can return next round.");
+ if(turn===0)nextTurn();else render();
+}
 function refreshPublicUnmatchedCounts(publicState,hands,specialRanks){
  const ranksByPlayer=specialRanks||{};
  publicState.players=(publicState.players||[]).map(player=>{
@@ -1459,17 +1487,34 @@ function refreshPublicUnmatchedCounts(publicState,hands,specialRanks){
 async function processOnlineAction(uid,a){
  if(!isRoomHost)return;
  const [ps,ds]=await Promise.all([roomRef.child("public").get(),roomRef.child("private").get()]);
- const p=ps.val(),priv=ds.val()||{};if(!p||p.status!=="playing"||p.turnUid!==uid)return;
+ const p=ps.val(),priv=ds.val()||{};if(!p||p.status!=="playing")return;
+ if(a.type!=="dropRound"&&p.turnUid!==uid)return;
  let d=priv.deck||[],h=priv.hands||{},hand=h[uid]||[],pile=p.discard||[],special=priv.specialRank||null,specialRanks=priv.specialRanks||{};
  const playerIndex=(p.players||[]).findIndex(x=>x.id===uid);if(playerIndex<0)return;
  const player={...p.players[playerIndex],specialRank:specialRanks[uid]||null};
+ if(a.type==="dropRound"){
+  if(player.active===false||player.roundDropped)return;
+  const dropPenalty=(Number(player.roundDrawCount)||0)<=1?20:40;
+  p.players[playerIndex]={...p.players[playerIndex],roundDropped:true,dropPenalty,score:(p.players[playerIndex].score||0)+dropPenalty,status:"Dropped this round"};
+  if(p.drawnByUid===uid){p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;}
+  p.message=player.name+" dropped this round for "+dropPenalty+" points.";
+  const remaining=(p.players||[]).filter(x=>x.active!==false&&!x.roundDropped);
+  if(p.turnUid===uid&&remaining.length){const next=remaining.find(x=>(p.players.indexOf(x))>playerIndex)||remaining[0];p.turnUid=next.id;}
+  if(!remaining.length){
+   const penalties={},totals={};
+   (p.players||[]).forEach(x=>{penalties[x.id]=x.dropPenalty||0;totals[x.id]=x.score||0;});
+   p.status="roundComplete";p.roundResult={winnerUid:null,winnerName:null,groups:[],penalties,totals,hands:h,specialRanks,completedAt:Date.now()};
+   await roomRef.child("public").set(p);return;
+  }
+  await roomRef.child("public").set(p);return;
+ }
  const syncUnlock=()=>{p.players[playerIndex].eligible=true;p.players[playerIndex].unlocked=true;player.eligible=true;player.unlocked=true;player.specialRank=special;};
  if(a.type==="drawClosed"||a.type==="drawOpen"){
   if(p.drawnByUid)return;
   if(hand.length!==13){p.message="Draw blocked: a player must have exactly 13 cards before drawing. Current count: "+hand.length+". The host should restart this round if the hand is out of sync.";p.players[playerIndex].cardCount=hand.length;await roomRef.child("public").set(p);return;}
   if(a.type==="drawOpen"){if(!pile.length)return;hand.push(pile.pop());}
   else{if(!d.length&&pile.length>1){const top=pile.pop();d=shuffle(pile);pile=[top];}if(!d.length)return;hand.push(d.pop());}
-  h[uid]=hand;p.drawnByUid=uid;p.drawnCardId=hand[hand.length-1].id;p.discardDeadline=Date.now()+30000;p.lastAction={type:a.type,uid,name:player.name,cardLabel:a.type==="drawOpen"?cardText(hand[hand.length-1]):null,at:Date.now()};p.message=a.type==="drawOpen"?player.name+" picked "+cardText(hand[hand.length-1])+" from the open discard pile.":player.name+" drew a face-down card from the draw deck.";
+  h[uid]=hand;p.players[playerIndex].roundDrawCount=(p.players[playerIndex].roundDrawCount||0)+1;p.drawnByUid=uid;p.drawnCardId=hand[hand.length-1].id;p.discardDeadline=Date.now()+30000;p.lastAction={type:a.type,uid,name:player.name,cardLabel:a.type==="drawOpen"?cardText(hand[hand.length-1]):null,at:Date.now()};p.message=a.type==="drawOpen"?player.name+" picked "+cardText(hand[hand.length-1])+" from the open discard pile.":player.name+" drew a face-down card from the draw deck.";
  }else if(a.type==="discard"){
   if(p.drawnByUid!==uid||hand.length!==14){p.message="Discard blocked: a drawn hand must contain exactly 14 cards. Current count: "+hand.length+".";p.players[playerIndex].cardCount=hand.length;await roomRef.child("public").set(p);return;}const i=hand.findIndex(c=>c.id===a.cardId);if(i<0)return;
   const timedOut=!!(p.discardDeadline&&Date.now()>=p.discardDeadline);const discardId=(a.automatic||timedOut)?p.drawnCardId:a.cardId;const discardIndex=hand.findIndex(c=>c.id===discardId);if(discardIndex<0)return;const discarded=hand.splice(discardIndex,1)[0];pile.push(discarded);h[uid]=hand;p.lastAction={type:"discard",uid,name:player.name,cardLabel:cardText(discarded),at:Date.now()};p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;a.automatic=!!(a.automatic||timedOut);
@@ -1482,7 +1527,7 @@ async function processOnlineAction(uid,a){
    }
    if(special){syncUnlock();specialRanks[uid]=special;p.specialRank=special;p.message=player.name+" automatically unlocked the special joker.";}
   }
-  const active=(p.players||[]).filter(x=>x.active!==false),at=active.findIndex(x=>x.id===uid),next=active[(at+1)%active.length];if(!next)return;p.turnUid=next.id;p.message=a.automatic?"Time expired. "+player.name+"'s drawn card was discarded automatically.":(p.message||next.name+"'s turn. Draw a card.");
+  const active=(p.players||[]).filter(x=>x.active!==false&&!x.roundDropped),at=active.findIndex(x=>x.id===uid),next=active[(at+1)%active.length];if(!next)return;p.turnUid=next.id;p.message=a.automatic?"Time expired. "+player.name+"'s drawn card was discarded automatically.":(p.message||next.name+"'s turn. Draw a card.");
  }else if(a.type==="revealSpecial"){
   if(p.drawnByUid||hand.length!==13||player.unlocked||!hasNaturalFour(hand)){p.message="Reveal blocked: you need 13 cards and four natural cards of the same rank, with no draw pending.";await roomRef.child("public").set(p);return;}
   p.players[playerIndex].eligible=true;
@@ -1499,7 +1544,7 @@ async function processOnlineAction(uid,a){
   const invalid=validateOnlineShow(hand,a.groups,player);
   if(invalid){p.message=invalid;p.discard=pile;p.deckCount=d.length;await roomRef.child("public").set(p);return;}
   refreshPublicUnmatchedCounts(p,h,specialRanks);
-  const penalties={},totals={},limit=Math.max(1,Number(p.scoreLimit)||200);(p.players||[]).forEach(x=>{const scorePlayer={...x,specialRank:specialRanks[x.id]||null};const penalty=x.id===uid?0:bestUnmatchedScore(h[x.id]||[],scorePlayer);penalties[x.id]=penalty;totals[x.id]=(x.score||0)+penalty;});
+  const penalties={},totals={},limit=Math.max(1,Number(p.scoreLimit)||200);(p.players||[]).forEach(x=>{const scorePlayer={...x,specialRank:specialRanks[x.id]||null};const penalty=x.roundDropped?(x.dropPenalty||0):(x.id===uid?0:bestUnmatchedScore(h[x.id]||[],scorePlayer));penalties[x.id]=penalty;totals[x.id]=(x.score||0)+(x.roundDropped?0:penalty);});
   p.players=(p.players||[]).map(x=>{const active=x.active!==false&&totals[x.id]<limit;return {...x,score:totals[x.id],active,status:active?"Ready":"Eliminated",cardCount:(h[x.id]||[]).length};});
   p.status="roundComplete";p.discard=pile;p.deckCount=d.length;p.message=player.name+" showed successfully. All hands are revealed.";
   p.roundResult={winnerUid:uid,winnerName:player.name,groups:a.groups,penalties,totals,hands:h,specialRanks,completedAt:Date.now()};
@@ -1516,10 +1561,10 @@ function openOnlineRoundResults(result){
  profiles.innerHTML=resultOrder.map(({p,penalty})=>'<div class="results-profile '+(p.id===winner?'show-winner':'')+'"><strong>'+escapeLobbyText(p.name)+'</strong><span class="result-count">'+((result.hands[p.id]||[]).length)+' cards revealed</span><span class="result-points">+'+penalty+' points · Total '+(result.totals[p.id]||0)+'</span>'+(p.id===winner?'<span class="winner-tag">🏆 SHOWED 🎉</span>':'')+'</div>').join('');
  handsEl.innerHTML=resultOrder.map(({p})=>{
   const hand=result.hands[p.id]||[],penalty=result.penalties[p.id]||0;
-  const resultPlayer={...p,unlocked:!!p.unlocked,specialRank:(result.specialRanks||{})[p.id]||null};const winning=p.id===winner?'<div class="results-winning-groups">'+result.groups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':renderScoringBreakdown(hand,resultPlayer,penalty);
+  const resultPlayer={...p,unlocked:!!p.unlocked,specialRank:(result.specialRanks||{})[p.id]||null};const winning=p.roundDropped?'<div class="results-breakdown-section counted"><span class="results-breakdown-title">⛔ DROPPED THIS ROUND · FIXED +'+penalty+' POINTS</span></div>':p.id===winner?'<div class="results-winning-groups">'+result.groups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':renderScoringBreakdown(hand,resultPlayer,penalty);
   return '<div class="results-hand '+(p.id===winner?'winner-hand':'')+'"><div class="results-hand-head"><strong>'+(p.id===winner?'🏆🎉 ':'')+escapeLobbyText(p.name)+'</strong><span>'+hand.length+' cards · +'+penalty+' points</span></div>'+winning+'</div>';
  }).join('');
- document.getElementById("resultsSummary").textContent=result.winnerName+" showed successfully. All hands are revealed and scores are updated.";
+ document.getElementById("resultsSummary").textContent=result.winnerUid?result.winnerName+" showed successfully. All hands are revealed and scores are updated.":"All players dropped this round. Drop penalties have been added to their scores.";
  const footer=screen.querySelector(".results-footer");
  if(footer)footer.innerHTML=isRoomHost?'<button onclick="startOnlineNextRound()">Start next round</button>':'<p>Waiting for the host to start the next round…</p><button onclick="closeResults()">Back to table</button>';
  screen.classList.remove("hidden");
@@ -1564,7 +1609,7 @@ async function startOnlineNextRound(){
   active.forEach(x=>hands[x.id]=d.splice(0,13));
   const first=d.pop(),nextRound=(p.round||1)+1;
   const starter=chooseNextRoundStarter(p.players||[],active,p.roundStarterUid||p.turnUid)||active[0];
-  const next={status:"playing",round:nextRound,scoreLimit:limit,turnUid:starter.id,roundStarterUid:starter.id,deckCount:d.length,discard:[first],drawnByUid:null,specialRank:null,players:roundPlayers.map(x=>({...x,cardCount:(hands[x.id]||[]).length,unmatchedCount:bestUnmatchedScore(hands[x.id]||[],x)})),message:"Round "+nextRound+". Elimination limit: "+limit+" points. "+starter.name+"'s turn. Draw a card."};
+  const next={status:"playing",round:nextRound,scoreLimit:limit,turnUid:starter.id,roundStarterUid:starter.id,deckCount:d.length,discard:[first],drawnByUid:null,specialRank:null,players:roundPlayers.map(x=>({...x,cardCount:(hands[x.id]||[]).length,roundDrawCount:0,roundDropped:false,dropPenalty:0,unmatchedCount:bestUnmatchedScore(hands[x.id]||[],x)})),message:"Round "+nextRound+". Elimination limit: "+limit+" points. "+starter.name+"'s turn. Draw a card."};
   await roomRef.child("private").set({deck:d,hands,specialRank:null,specialRanks:{}});
   await roomRef.child("public").set(next);
   const screen=document.getElementById("roundResults");if(screen)screen.classList.add("hidden");
@@ -1626,7 +1671,7 @@ async function runOnlineBotTurn(){
  finally{onlineBotBusy=false;const latest=await roomRef.child("public").get().catch(()=>null),state=latest&&latest.val();if(state&&state.status==="playing"&&state.turnUid!==uid)runOnlineBotTurn();}
 }
 let onlineActionPending=false;
-async function sendOnlineAction(a){if(onlineActionPending){message("Your previous action is still syncing. Please wait.");return;}if(!onlinePublic||onlinePublic.turnUid!==roomPlayerId){message("Please wait for your turn.");return;}onlineActionPending=true;try{if(isRoomHost){await processOnlineAction(roomPlayerId,a);onlineActionPending=false;}else{await onlineActionRef.child(roomPlayerId).set({...a,requestedAt:Date.now()});setTimeout(()=>{onlineActionPending=false;},1800);}}catch(e){onlineActionPending=false;message("Action failed: "+e.message);}}
+async function sendOnlineAction(a){if(onlineActionPending){message("Your previous action is still syncing. Please wait.");return;}if(!onlinePublic||onlinePublic.status!=="playing"||(a.type!=="dropRound"&&onlinePublic.turnUid!==roomPlayerId)){message("Please wait for your turn.");return;}onlineActionPending=true;try{if(isRoomHost){await processOnlineAction(roomPlayerId,a);onlineActionPending=false;}else{await onlineActionRef.child(roomPlayerId).set({...a,requestedAt:Date.now()});setTimeout(()=>{onlineActionPending=false;},1800);}}catch(e){onlineActionPending=false;message("Action failed: "+e.message);}}
 const _soloDrawClosed=drawClosed,_soloDrawOpen=drawOpen,_soloDiscardSelected=discardSelected,_soloShowHand=showHand,_soloStartGame=startGame;
 function drawClosed(){if(!onlineMode)return _soloDrawClosed();if(turn!==0||drawn)return;sendOnlineAction({type:"drawClosed"});}
 function drawOpen(){if(!onlineMode)return _soloDrawOpen();if(turn!==0||drawn)return;sendOnlineAction({type:"drawOpen"});}
