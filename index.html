@@ -153,6 +153,21 @@ footer{color:#9bb9a9;padding:20px 12px 28px;letter-spacing:.7px}
  .hand-group .card,.loose-cards .card{max-width:39px;height:57px}
  .hand-pair .card{width:34px;height:51px;flex-basis:34px}
 }
+
+/* Hard two-row card rack: rows are real separate elements, not wrapping */
+#hand.cards{display:block!important;width:100%;min-width:0;overflow:visible}
+#hand .hand-layout{display:flex!important;flex-direction:column!important;flex-wrap:nowrap!important;align-items:stretch!important;width:100%;min-width:0;gap:9px}
+#hand .loose-area{display:block!important;width:100%;min-width:0;overflow:hidden;padding:7px 4px}
+#hand .hand-row{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;justify-content:center!important;align-items:flex-end!important;gap:4px!important;width:100%!important;min-width:0!important;overflow:visible!important}
+#hand .hand-row>.card{display:flex;flex:0 0 38px!important;width:38px!important;min-width:38px!important;max-width:38px!important;height:57px!important;padding:4px!important;font-size:12px!important}
+#hand .hand-pair{display:flex!important;flex:0 0 auto!important;gap:2px!important;padding:2px!important}
+#hand .hand-pair .card{flex:0 0 36px!important;width:36px!important;min-width:36px!important;max-width:36px!important;height:54px!important;padding:4px!important;font-size:11px!important}
+#hand .hand-group-cards{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;justify-content:center!important;gap:5px!important;overflow:visible!important}
+@media(max-width:360px){
+ #hand .hand-row{gap:2px!important}
+ #hand .hand-row>.card{flex-basis:35px!important;width:35px!important;min-width:35px!important;max-width:35px!important}
+ #hand .hand-pair .card{flex-basis:33px!important;width:33px!important;min-width:33px!important;max-width:33px!important}
+}
 </style>
 </head>
 <body>
@@ -511,25 +526,49 @@ function renderHandLayout(){
  let html='<div class="hand-layout">';
  arrangedGroups.forEach((ids,g)=>{
   const cards=ids.map(id=>({card:hand.find(c=>c.id===id),index:hand.findIndex(c=>c.id===id)})).filter(x=>x.card);
-  html+='<div class="hand-group" ondragover="event.preventDefault()" ondrop="dropOnGroup(event,'+g+')"><div class="hand-group-title">'+(ids.length===4?'✦ PURE FOUR-CARD SET':'✦ THREE-CARD SET')+'</div><div class="hand-group-cards">'+cards.map(x=>cardMarkup(x.card,x.index)).join('')+'</div></div>';
+  if(!cards.length)return;
+  html+='<div class="hand-group" ondragover="event.preventDefault()" ondrop="dropOnGroup(event,'+g+')"><div class="hand-group-title">'+(cards.length===4?'✦ PURE FOUR-CARD SET':'✦ THREE-CARD SET')+'</div><div class="hand-group-cards">'+cards.map(x=>cardMarkup(x.card,x.index)).join('')+'</div></div>';
  });
  const loose=sortCardsLowToHigh(hand.filter(card=>!grouped.has(card.id)));
  const byRank={};
  loose.filter(c=>!isWild(c)).forEach(c=>{(byRank[c.rank]||(byRank[c.rank]=[])).push(c);});
- const pairIds=new Set();
- let pairHtml='';
+ const paired=new Set();
+ const items=[];
  Object.keys(byRank).sort((a,b)=>ranks.indexOf(a)-ranks.indexOf(b)).forEach(rank=>{
-  const pair=byRank[rank];
-  while(pair.length>=2){
-   const a=pair.shift(),b=pair.shift();pairIds.add(a.id);pairIds.add(b.id);
-   pairHtml+='<div class="hand-pair"><span class="pair-label">PAIR</span>'+cardMarkup(a,hand.findIndex(x=>x.id===a.id))+cardMarkup(b,hand.findIndex(x=>x.id===b.id))+'</div>';
+  const same=byRank[rank];
+  while(same.length>=2){
+   const first=same.shift(),second=same.shift();
+   paired.add(first.id);paired.add(second.id);
+   items.push({cards:[first,second],pair:true,rank:ranks.indexOf(rank)});
   }
  });
- const singles=loose.filter(c=>!pairIds.has(c.id));
- html+='<div class="loose-area"><div class="loose-title">MATCHING PAIRS</div><div class="pair-row">'+(pairHtml||'<span class="empty-groups">No pairs yet</span>')+'</div><div class="loose-title singles-title">OTHER CARDS · LOW TO HIGH</div><div class="loose-cards">'+singles.map(c=>cardMarkup(c,hand.findIndex(x=>x.id===c.id))).join('')+'</div></div></div>';
+ loose.filter(c=>!paired.has(c.id)).forEach(c=>items.push({cards:[c],pair:false,rank:rankValue(c)}));
+ items.sort((a,b)=>a.rank-b.rank);
+ const rows=[[],[]];
+ let rowCounts=[0,0],row=0;
+ items.forEach(item=>{
+  const size=item.cards.length;
+  if(rowCounts[row]+size>7&&row===0)row=1;
+  rows[row].push(item);rowCounts[row]+=size;
+ });
+ html+='<div class="loose-area"><div class="loose-title">PAIRS & OTHER CARDS · LOW TO HIGH</div>';
+ rows.forEach((units,rowIndex)=>{
+  html+='<div class="hand-row" style="display:flex;flex-direction:row;flex-wrap:nowrap;justify-content:center;align-items:flex-end;gap:4px;width:100%;min-width:0;margin:5px 0">';
+  units.forEach(item=>{
+   if(item.pair){
+    html+='<div class="hand-pair" style="display:flex;flex:0 0 auto;align-items:flex-end;gap:2px;padding:2px;border:1px solid #d9b66b88;border-radius:7px;background:#08291f88">';
+    item.cards.forEach(c=>{html+=cardMarkup(c,hand.findIndex(x=>x.id===c.id));});
+    html+='</div>';
+   }else{
+    const c=item.cards[0];
+    html+=cardMarkup(c,hand.findIndex(x=>x.id===c.id));
+   }
+  });
+  html+='</div>';
+ });
+ html+='</div></div>';
  return html;
 }
-
 function renderGroups(){
  const el=document.getElementById("groups");
  if(!el)return;
