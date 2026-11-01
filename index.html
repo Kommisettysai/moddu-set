@@ -1333,7 +1333,7 @@ function showRules(){
 /* Multiplayer v1: host-authoritative draw/discard with private hands. */
 let onlineMode=false,onlinePublic=null,onlinePublicRef=null,onlineHandRef=null,onlineActionRef=null,onlineSpecialRef=null;
 let discardClockInterval=null,hostDiscardTimeout=null,scheduledDiscardKey=null;
-let onlinePublicListener=null,onlineHandListener=null,onlineActionListener=null,onlineLobbyListener=null,onlineBusy={},onlineBotBusy=false;
+let onlinePublicListener=null,onlineHandListener=null,onlineActionListener=null,onlineLobbyListener=null,rejoinPublicListener=null,onlineBusy={},onlineBotBusy=false;
 function onlineMembers(l){return Object.values(l.players||{}).sort((a,b)=>(a.joinedAt||0)-(b.joinedAt||0));}
 function createRoom(){
  const name=lobbyName();if(!name)return;if(!firebaseReady||!authUser){setLobbyNotice("Firebase sign-in is still loading.");return;}
@@ -1345,10 +1345,34 @@ function createRoom(){
 async function joinRoom(){
  const name=lobbyName();if(!name)return;if(!firebaseReady||!authUser){setLobbyNotice("Firebase sign-in is still loading.");return;}
  const code=document.getElementById("roomCodeInput").value.trim().toUpperCase();if(!/^[A-Z0-9]{6}$/.test(code)){setLobbyNotice("Enter the six-character room code.");return;}
- try{const ref=firebase.database().ref("rooms/"+code),snap=await ref.child("lobby").get();if(!snap.exists()){setLobbyNotice("Room not found.");return;}
- const l=snap.val(),members=onlineMembers(l);if(l.status!=="waiting"){setLobbyNotice("This game has already started.");return;}if(members.length>=l.maxPlayers){setLobbyNotice("This table is full.");return;}if(members.some(p=>p.id===authUser.uid)){setLobbyNotice("You are already in this room.");return;}
- await ref.child("lobby/players/"+authUser.uid).set({id:authUser.uid,name,ready:true,joinedAt:firebase.database.ServerValue.TIMESTAMP});
- roomCode=code;roomRef=ref;roomPlayerId=authUser.uid;isRoomHost=false;showWaitingRoom();}catch(e){setLobbyNotice("Could not join room: "+e.message);}
+ try{
+  const ref=firebase.database().ref("rooms/"+code),snap=await ref.get();if(!snap.exists()){setLobbyNotice("Room not found.");return;}
+  const room=snap.val(),l=room.lobby||{},members=onlineMembers(l),uid=authUser.uid,existing=members.find(p=>p.id===uid),pub=room.public||{},gamePlayer=(pub.players||[]).find(p=>p.id===uid);
+  const isRemoved=!!(existing&&existing.removed)||!!(gamePlayer&&gamePlayer.status==="Removed by host"&&gamePlayer.active===false);
+  if(l.status!=="waiting"&&!isRemoved){setLobbyNotice("This game has already started. Only a player removed by the host can rejoin.");return;}
+  if(existing&&!isRemoved){setLobbyNotice("You are already in this room.");return;}
+  if(!existing&&members.length>=l.maxPlayers){setLobbyNotice("This table is full.");return;}
+  roomCode=code;roomRef=ref;roomPlayerId=uid;isRoomHost=uid===l.hostId;
+  if(isRemoved&&pub.status==="playing"&&gamePlayer){
+   const hs=await ref.child("private/hands/"+uid).get(),savedHand=hs.val()||[];
+   if(savedHand.length===13){
+    const updated={...pub,players:pub.players.map(p=>p.id===uid?{...p,active:true,status:"Rejoined this round",cardCount:13}:p),message:gamePlayer.name+" rejoined the current round. Their saved hand is restored."};
+    await Promise.all([ref.child("public").set(updated),ref.child("lobby/players/"+uid).set({id:uid,name:gamePlayer.name||name,ready:true,removed:false,joinedAt:existing?.joinedAt||firebase.database.ServerValue.TIMESTAMP})]);
+    enterOnlineGame(updated);setLobbyNotice("You are back in the current round with your saved 13 cards.");return;
+   }
+   const deferred={...pub,players:pub.players.map(p=>p.id===uid?{...p,rejoinNextRound:true,rejoinPenalty:20,status:"Rejoin next round"}:p),message:gamePlayer.name+" can rejoin next round with a 20-point penalty."};
+   await Promise.all([ref.child("public").set(deferred),ref.child("lobby/players/"+uid).set({id:uid,name:gamePlayer.name||name,ready:true,removed:false,pendingRejoin:true,joinedAt:existing?.joinedAt||firebase.database.ServerValue.TIMESTAMP})]);
+   showWaitingRoom();setLobbyNotice("Your old hand cannot safely resume. You are queued for next round with +20 points.");return;
+  }
+  if(isRemoved&&pub.status==="roundComplete"&&gamePlayer){
+   const updated={...pub,players:pub.players.map(p=>p.id===uid?{...p,rejoinNextRound:true,rejoinPenalty:20,status:"Rejoin next round"}:p)};
+   await ref.child("public").set(updated);
+   await ref.child("lobby/players/"+uid).set({id:uid,name:gamePlayer.name||name,ready:true,removed:false,pendingRejoin:true,joinedAt:existing?.joinedAt||firebase.database.ServerValue.TIMESTAMP});
+   showWaitingRoom();setLobbyNotice("You are queued for next round with +20 points.");return;
+  }
+  if(l.status!=="waiting"){setLobbyNotice("This room is not accepting new players.");return;}
+  await ref.child("lobby/players/"+uid).set({id:uid,name,ready:true,joinedAt:firebase.database.ServerValue.TIMESTAMP});showWaitingRoom();
+ }catch(e){setLobbyNotice("Could not join room: "+e.message);}
 }
 function showWaitingRoom(){
  // Replace the login/setup view with the waiting room so its controls are immediately visible.
@@ -1358,11 +1382,13 @@ function showWaitingRoom(){
  document.getElementById("startRoomBtn").classList.toggle("hidden",!isRoomHost);
  document.getElementById("addBotBtn").classList.toggle("hidden",!isRoomHost);
  document.getElementById("waitingRoom").scrollIntoView({behavior:"smooth",block:"start"});
- if(onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
+ if(onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);if(rejoinPublicListener)roomRef.child("public").off("value",rejoinPublicListener);
  onlineLobbyListener=snap=>{if(!snap.exists())return;const l=snap.val(),m=onlineMembers(l),limitEl=document.getElementById("roomScoreLimit");if(limitEl){limitEl.value=String(l.scoreLimit||200);limitEl.disabled=!isRoomHost||l.status!=="waiting";}document.getElementById("roomPlayerCount").textContent=m.length+"/"+l.maxPlayers;
  document.getElementById("roomPlayers").innerHTML=m.map((p,i)=>'<div class="room-player"><span class="avatar">'+(p.isBot?"🤖":(["🃏","🌟","🍀","🔥","🎯","👑"][i]||"🃏"))+'</span><strong>'+escapeLobbyText(p.name)+'</strong><small>'+(p.id===l.hostId?"HOST":p.isBot?"BOT":"READY")+'</small></div>').join("");
  document.getElementById("addBotBtn").disabled=m.length>=l.maxPlayers;
- if(l.status==="started")roomRef.child("public").get().then(x=>{if(x.exists())enterOnlineGame(x.val());});};
+ if(l.status==="started")roomRef.child("public").get().then(x=>{if(!x.exists())return;const state=x.val(),me=(state.players||[]).find(p=>p.id===roomPlayerId);if(me&&me.active!==false&&state.status==="playing")enterOnlineGame(state);else if(me?.rejoinNextRound)setLobbyNotice("You are queued. You will enter automatically when the host starts the next round.");});};
+ rejoinPublicListener=snap=>{if(!snap.exists())return;const state=snap.val(),me=(state.players||[]).find(p=>p.id===roomPlayerId);if(me&&me.active!==false&&state.status==="playing"&&!onlineMode)enterOnlineGame(state);};
+ roomRef.child("public").on("value",rejoinPublicListener);
  roomRef.child("lobby").on("value",onlineLobbyListener);
 }
 
@@ -1440,35 +1466,22 @@ function applyOnlinePublic(){
 }
 async function removeOnlinePlayer(uid){
  if(!onlineMode||!isRoomHost||!roomRef||!uid||uid===roomPlayerId)return;
- if(!confirm("Remove this player from the ongoing game? They will be eliminated and cannot rejoin this round."))return;
+ if(!confirm("Remove this player? They can rejoin with the same room code. Their saved 13-card hand can be restored this round; otherwise they return next round with +20 points."))return;
  try{
-  const ps=await roomRef.child("public").get(),ds=await roomRef.child("private").get();
-  const p=ps.val(),priv=ds.val()||{};
-  if(!p||p.status!=="playing")return;
-  const idx=(p.players||[]).findIndex(x=>x.id===uid);
-  if(idx<0||p.players[idx].active===false)return;
-  const removed=p.players[idx],wasTurn=p.turnUid===uid;
-  const hands=priv.hands||{};delete hands[uid];
+  const [ps,ds]=await Promise.all([roomRef.child("public").get(),roomRef.child("private").get()]);
+  const p=ps.val(),priv=ds.val()||{};if(!p||p.status!=="playing")return;
+  const idx=(p.players||[]).findIndex(x=>x.id===uid);if(idx<0||p.players[idx].active===false)return;
+  const removed=p.players[idx],wasTurn=p.turnUid===uid,hands=priv.hands||{},savedHand=hands[uid]||{};
   const specialRanks=priv.specialRanks||{};delete specialRanks[uid];
-  const actions=roomRef.child("actions/"+uid);
-  p.players[idx]={...removed,active:false,status:"Removed by host",cardCount:0,unlocked:false,eligible:false};
+  p.players[idx]={...removed,active:false,status:"Removed by host",cardCount:savedHand.length,unlocked:false,eligible:false,rejoinNextRound:false};
   if(p.drawnByUid===uid){p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;}
   if(wasTurn){
    const remaining=p.players.filter(x=>x.active!==false);
    if(!remaining.length){p.status="gameComplete";p.message=removed.name+" was removed. No active players remain.";}
-   else{
-    const next=remaining.find(x=>(p.players.indexOf(x))>idx)||remaining[0];
-    p.turnUid=next.id;p.message=removed.name+" was removed by the host. "+next.name+"'s turn.";
-   }
+   else{const next=remaining.find(x=>p.players.indexOf(x)>idx)||remaining[0];p.turnUid=next.id;p.message=removed.name+" was removed by the host. "+next.name+"'s turn.";}
   }else p.message=removed.name+" was removed by the host.";
-  await Promise.all([
-   roomRef.child("private/hands").set(hands),
-   roomRef.child("private/specialRanks").set(specialRanks),
-   actions.remove(),
-   roomRef.child("public").set(p),
-   roomRef.child("lobby/players/"+uid).remove()
-  ]);
-  setLobbyNotice(removed.name+" was removed from the game.");
+  await Promise.all([roomRef.child("private/specialRanks").set(specialRanks),roomRef.child("actions/"+uid).remove(),roomRef.child("public").set(p),roomRef.child("lobby/players/"+uid).update({removed:true,ready:false})]);
+  setLobbyNotice(removed.name+" was removed. They can rejoin using this room code.");
  }catch(e){setLobbyNotice("Could not remove player: "+e.message);}
 }
 function updateDiscardCountdown(){
@@ -1638,7 +1651,7 @@ async function startOnlineNextRound(){
  try{
   const ps=await roomRef.child("public").get(),p=ps.val();
   if(!p||p.status!=="roundComplete")return;
-  const limit=Math.max(1,Number(p.scoreLimit)||200);const active=(p.players||[]).filter(x=>x.active!==false&&(p.roundResult.totals[x.id]||0)<limit);
+  const limit=Math.max(1,Number(p.scoreLimit)||200);const active=(p.players||[]).filter(x=>(x.active!==false||x.rejoinNextRound)&&(Number(p.roundResult.totals[x.id]||x.score)||0)+(x.rejoinNextRound?(Number(x.rejoinPenalty)||20):0)<limit);
   if(active.length<=1){
    const champ=active[0]||(p.players||[]).reduce((best,x)=>(p.roundResult.totals[x.id]||0)<(p.roundResult.totals[best.id]||0)?x:best,p.players[0]);
    const finished={...p,status:"gameComplete",champion:champ.name,message:champ.name+" wins Moddu Set!"};
@@ -1646,7 +1659,7 @@ async function startOnlineNextRound(){
    onlinePublic=finished;applyOnlinePublic();setLobbyNotice(champ.name+" wins the game!");
    return;
   }
-  const roundPlayers=(p.players||[]).map(x=>({...x,score:p.roundResult.totals[x.id]||0,active:active.some(a=>a.id===x.id),status:active.some(a=>a.id===x.id)?"Ready":"Eliminated",unlocked:false}));
+  const roundPlayers=(p.players||[]).map(x=>{const returning=!!x.rejoinNextRound,score=(p.roundResult.totals[x.id]||0)+(returning?(Number(x.rejoinPenalty)||20):0),isActive=active.some(a=>a.id===x.id);return {...x,score,active:isActive,status:isActive?(returning?"Rejoined with +20 penalty":"Ready"):"Eliminated",rejoinNextRound:false,rejoinPenalty:0,unlocked:false,eligible:false};});
   const d=shuffle(makeDeck(active.length)),hands={};
   active.forEach(x=>hands[x.id]=d.splice(0,13));
   const first=d.pop(),nextRound=(p.round||1)+1;
