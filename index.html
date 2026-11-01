@@ -1486,7 +1486,7 @@ async function startOnlineNextRound(){
 }
 async function runOnlineBotTurn(){
  if(!isRoomHost||!onlineMode||onlineBotBusy||!onlinePublic||onlinePublic.status!=="playing")return;
- const uid=onlinePublic.turnUid,bot=(onlinePublic.players||[]).find(x=>x.id===uid&&x.isBot&&x.active!==false);
+ const uid=onlinePublic.turnUid;let bot=(onlinePublic.players||[]).find(x=>x.id===uid&&x.isBot&&x.active!==false);
  if(!bot)return;
  onlineBotBusy=true;
  try{
@@ -1497,7 +1497,7 @@ async function runOnlineBotTurn(){
   if(bot.jokerEligible&&!bot.unlocked){
    await processOnlineAction(uid,{type:"revealSpecial"});
    [ps,ds]=await Promise.all([roomRef.child("public").get(),roomRef.child("private").get()]);
-   p=ps.val();priv=ds.val()||{};hand=(priv.hands||{})[uid]||[];specialRank=priv.specialRank||null;
+   p=ps.val();priv=ds.val()||{};hand=(priv.hands||{})[uid]||[];specialRank=priv.specialRank||null;bot=(p.players||[]).find(x=>x.id===uid)||bot;
   }
   if(!p.drawnByUid){
    const top=(p.discard||[]).slice(-1)[0];
