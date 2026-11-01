@@ -1208,10 +1208,11 @@ function openRoundResults(results){
  const hands=document.getElementById("resultsHands");
  if(!screen||!profiles||!hands)return;
  const penalties=players.map((p,i)=>i===0?0:bestUnmatchedScore(p.hand,p));
- profiles.innerHTML=players.map((p,i)=>'<div class="results-profile '+(i===0?'show-winner':'')+'"><strong>'+p.name+'</strong><span class="result-count">'+p.hand.length+' cards revealed</span><span class="result-points">+'+penalties[i]+' points · Total '+p.score+'</span>'+(i===0?'<span class="winner-tag">🏆 SHOWED</span>':'')+'</div>').join('');
- hands.innerHTML=players.map((p,i)=>{
-  const groupsHtml=i===0&&winningGroups.length?'<div class="results-winning-groups">'+winningGroups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>p.hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':renderScoringBreakdown(p.hand,p,penalties[i]);
-  return '<div class="results-hand '+(i===0?'winner-hand':'')+'"><div class="results-hand-head"><strong>'+(i===0?'🏆 ':'')+p.name+'</strong><span>'+p.hand.length+' cards · +'+penalties[i]+' points</span></div>'+groupsHtml+'</div>';
+ const resultOrder=players.map((p,i)=>({p,i,penalty:penalties[i]})).sort((a,b)=>(a.i===0?-1:b.i===0?1:a.penalty-b.penalty)||a.i-b.i);
+ profiles.innerHTML=resultOrder.map(({p,i,penalty})=>'<div class="results-profile '+(i===0?'show-winner':'')+'"><strong>'+escapeLobbyText(p.name)+'</strong><span class="result-count">'+p.hand.length+' cards revealed</span><span class="result-points">+'+penalty+' points · Total '+p.score+'</span>'+(i===0?'<span class="winner-tag">🏆 SHOWED 🎉</span>':'')+'</div>').join('');
+ hands.innerHTML=resultOrder.map(({p,i,penalty})=>{
+  const groupsHtml=i===0&&winningGroups.length?'<div class="results-winning-groups">'+winningGroups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>p.hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':renderScoringBreakdown(p.hand,p,penalty);
+  return '<div class="results-hand '+(i===0?'winner-hand':'')+'"><div class="results-hand-head"><strong>'+(i===0?'🏆🎉 ':'')+escapeLobbyText(p.name)+'</strong><span>'+p.hand.length+' cards · +'+penalty+' points</span></div>'+groupsHtml+'</div>';
  }).join('');
  document.getElementById("resultsSummary").textContent=players[0].name+" showed successfully. Their score is 0. All hands are now revealed.";
  screen.classList.remove("hidden");
@@ -1499,11 +1500,12 @@ function openOnlineRoundResults(result){
  const screen=document.getElementById("roundResults"),profiles=document.getElementById("resultsProfiles"),handsEl=document.getElementById("resultsHands");
  if(!screen||!profiles||!handsEl)return;
  const list=(onlinePublic.players||[]),winner=result.winnerUid;
- profiles.innerHTML=list.map(p=>'<div class="results-profile '+(p.id===winner?'show-winner':'')+'"><strong>'+escapeLobbyText(p.name)+'</strong><span class="result-count">'+((result.hands[p.id]||[]).length)+' cards revealed</span><span class="result-points">+'+(result.penalties[p.id]||0)+' points · Total '+(result.totals[p.id]||0)+'</span>'+(p.id===winner?'<span class="winner-tag">🏆 SHOWED</span>':'')+'</div>').join('');
- handsEl.innerHTML=list.map(p=>{
-  const hand=result.hands[p.id]||[];
-  const resultPlayer={...p,unlocked:!!p.unlocked,specialRank:(result.specialRanks||{})[p.id]||null};const winning=p.id===winner?'<div class="results-winning-groups">'+result.groups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':renderScoringBreakdown(hand,resultPlayer,result.penalties[p.id]||0);
-  return '<div class="results-hand '+(p.id===winner?'winner-hand':'')+'"><div class="results-hand-head"><strong>'+(p.id===winner?'🏆 ':'')+escapeLobbyText(p.name)+'</strong><span>'+hand.length+' cards · +'+(result.penalties[p.id]||0)+' points</span></div>'+winning+'</div>';
+ const resultOrder=list.map((p,i)=>({p,i,penalty:result.penalties[p.id]||0})).sort((a,b)=>(a.p.id===winner?-1:b.p.id===winner?1:a.penalty-b.penalty)||a.i-b.i);
+ profiles.innerHTML=resultOrder.map(({p,penalty})=>'<div class="results-profile '+(p.id===winner?'show-winner':'')+'"><strong>'+escapeLobbyText(p.name)+'</strong><span class="result-count">'+((result.hands[p.id]||[]).length)+' cards revealed</span><span class="result-points">+'+penalty+' points · Total '+(result.totals[p.id]||0)+'</span>'+(p.id===winner?'<span class="winner-tag">🏆 SHOWED 🎉</span>':'')+'</div>').join('');
+ handsEl.innerHTML=resultOrder.map(({p})=>{
+  const hand=result.hands[p.id]||[],penalty=result.penalties[p.id]||0;
+  const resultPlayer={...p,unlocked:!!p.unlocked,specialRank:(result.specialRanks||{})[p.id]||null};const winning=p.id===winner?'<div class="results-winning-groups">'+result.groups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':renderScoringBreakdown(hand,resultPlayer,penalty);
+  return '<div class="results-hand '+(p.id===winner?'winner-hand':'')+'"><div class="results-hand-head"><strong>'+(p.id===winner?'🏆🎉 ':'')+escapeLobbyText(p.name)+'</strong><span>'+hand.length+' cards · +'+penalty+' points</span></div>'+winning+'</div>';
  }).join('');
  document.getElementById("resultsSummary").textContent=result.winnerName+" showed successfully. All hands are revealed and scores are updated.";
  const footer=screen.querySelector(".results-footer");
