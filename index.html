@@ -616,6 +616,14 @@ body.app-locked{overflow:hidden}
 @keyframes playerReactionPop{0%{opacity:0;transform:translate(-50%,9px) scale(.55)}12%,78%{opacity:1;transform:translate(-50%,-5px) scale(1)}100%{opacity:0;transform:translate(-50%,-18px) scale(.92)}}
 @media(prefers-reduced-motion:reduce){.player-reaction-burst{animation:none;opacity:1}}
 
+
+/* Keep floating reactions visible above player cards on narrow screens */
+.player-strip,.player-strip .players,.player-strip .player{overflow:visible!important}
+.player-strip .players{position:relative;isolation:isolate}
+.player-strip .player{z-index:1}
+.player-strip .player:has(.player-reaction-burst){z-index:20}
+.player-reaction-burst{z-index:100!important;top:-22px!important}
+
 /* Eliminated players remain at the table as read-only spectators */
 #game.spectator-mode .spectator-notice{display:block}
 #game.spectator-mode .spectator-hand-panel,#game.spectator-mode .game-actions-panel{display:none!important}
@@ -2020,7 +2028,8 @@ function updateChatUnread(){
  const badge=document.getElementById("chatUnread");if(!badge)return;badge.textContent=chatUnreadCount>9?"9+":String(chatUnreadCount);badge.classList.toggle("hidden",chatUnreadCount===0);
 }
 function showPlayerReaction(item){
- const profile=[...document.querySelectorAll("#players .player")].find(el=>el.dataset.playerId===item.senderId);
+ const profiles=[...document.querySelectorAll("#players .player")];
+ const profile=profiles.find(el=>el.getAttribute("data-player-id")===String(item.senderId))||profiles.find(el=>el.querySelector("b,strong")?.textContent?.trim()===String(item.senderName));
  if(!profile)return;
  const existing=profile.querySelector(".player-reaction-burst");if(existing)existing.remove();
  const burst=document.createElement("div");burst.className="player-reaction-burst"+(item.type==="emoji"?"":" is-message");
