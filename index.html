@@ -1656,7 +1656,7 @@ function openOnlineGameComplete(champion){
  const screen=document.getElementById("roundResults"),profiles=document.getElementById("resultsProfiles"),handsEl=document.getElementById("resultsHands");
  if(!screen||!profiles||!handsEl)return;
  document.getElementById("resultsSummary").textContent=champion+" wins Moddu Set!";
-<span class="result-points">Total: '+(p.score||0)+'</span>
+ profiles.innerHTML=(onlinePublic.players||[]).map((p,i)=>'<div class="results-profile '+(p.name===champion?'show-winner':'')+'">'+playerIdentityMarkup(p,i,"results")+'<span class="finish-rank">'+(p.name===champion?'🥇 CHAMPION':'FINAL PLAYER')+'</span><span class="result-points">Total: '+(p.score||0)+'</span>'+(p.name===champion?'<span class="winner-tag">🏆 WINNER</span>':'')+'</div>').join('');
  handsEl.innerHTML="";
  const footer=screen.querySelector(".results-footer");
  if(footer)footer.innerHTML='<button onclick="closeResults()">Back to table</button>';
