@@ -623,6 +623,13 @@ body.app-locked{overflow:hidden}
 #game.spectator-mode #resultsHands{display:none!important}
 .spectator-notice{display:none;margin:0 0 10px;padding:11px 13px;border:1px solid #e7c77988;border-radius:12px;background:linear-gradient(145deg,#173f32,#0a2b21);color:#ffe6ad;text-align:center;font-size:12px;font-weight:800;letter-spacing:.3px}
 .spectator-result-note{padding:12px;border:1px solid #d9b66b55;border-radius:10px;background:#08291f;color:#d8e6d8;text-align:center;font-size:12px}
+
+/* Clear app navigation and current-page trail */
+.app-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 12px;padding:8px 10px;border:1px solid #d9b66b55;border-radius:13px;background:#08291fbb}
+.app-nav .nav-back{padding:8px 12px;font-size:11px;box-shadow:0 2px 0 #8e642d}
+.app-nav .nav-steps{display:flex;align-items:center;justify-content:flex-end;gap:5px;min-width:0;color:#a9c1b3;font-size:9px;font-weight:800;letter-spacing:.5px}
+.app-nav .nav-step{padding:5px 7px;border-radius:8px;background:#ffffff0b;white-space:nowrap}
+.app-nav .nav-step.current{background:#f4d28a;color:#34230c}
 </style>
 </head>
 
@@ -672,6 +679,7 @@ body.app-locked{overflow:hidden}
 </header>
 
 <main>
+<nav class="app-nav" aria-label="App navigation"><span class="nav-step current">HOME</span><span class="nav-steps">Choose a game · Find friends · History</span></nav>
 <section class="lobby-shell" id="setup">
  <div class="lobby-intro">
   <div class="lobby-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong><small>PERSONAL BRAND</small></span></div></div>
@@ -740,6 +748,7 @@ body.app-locked{overflow:hidden}
 </section>
 
 <section class="lobby-shell hidden" id="waitingRoom">
+ <nav class="app-nav" aria-label="Room navigation"><button class="nav-back" type="button" onclick="leaveRoom(true)">← Back to lobby</button><div class="nav-steps"><span class="nav-step">HOME</span><span class="nav-step current">ROOM</span><span class="nav-step">GAME</span></div></nav>
  <div class="lobby-wait-head">
   <div class="lobby-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong><small>PERSONAL BRAND</small></span></div></div>
   <div class="lobby-eyebrow">PRIVATE TABLE</div>
@@ -766,6 +775,7 @@ body.app-locked{overflow:hidden}
 </section>
 
 <section id="game" class="hidden">
+<nav class="app-nav" aria-label="Game navigation"><button class="nav-back" type="button" onclick="exitCurrentTable()">← Exit table</button><div class="nav-steps"><span class="nav-step">HOME</span><span class="nav-step">ROOM</span><span class="nav-step current">GAME</span></div></nav>
 <div class="game-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong><small>PERSONAL BRAND</small></span></div></div>
 <div class="panel player-strip">
 <div class="table-status"><span id="roundInfo">Round 1</span><span id="turnInfo"></span></div>
@@ -933,7 +943,7 @@ function initFirebase(){
   firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>setAuthStatus("Session setting: "+e.message));
   firebase.auth().onAuthStateChanged(user=>{
    authUser=user||null;
-   if(user)loadPlayerProfile(user);
+   if(user)loadPlayerProfile(user).then(()=>restoreSavedRoom());
    else{playerProfile=null;profileReady=false;showAccountState(null,null);setAuthStatus("Sign in with Google to create your player account.");}
   });
  }catch(e){setLobbyNotice("Firebase setup error: "+e.message);}
@@ -1163,6 +1173,30 @@ async function joinRoom(){
    roomCode=code;roomRef=ref;roomPlayerId=user.uid;isRoomHost=false;showWaitingRoom();
   }catch(e){setLobbyNotice("Could not join room: "+e.message);}
  },{onlyOnce:true});
+}
+const SAVED_ROOM_KEY="modduSet.activeRoomCode";
+function saveActiveRoom(){try{if(roomCode)localStorage.setItem(SAVED_ROOM_KEY,roomCode);}catch(e){}}
+function clearActiveRoom(){try{localStorage.removeItem(SAVED_ROOM_KEY);}catch(e){}}
+async function restoreSavedRoom(){
+ if(roomRestoreStarted||!authUser||!firebaseReady)return;roomRestoreStarted=true;
+ let code="";try{code=(localStorage.getItem(SAVED_ROOM_KEY)||"").trim().toUpperCase();}catch(e){}
+ if(!/^[A-Z0-9]{6}$/.test(code))return;
+ try{
+  const ref=firebase.database().ref("rooms/"+code),snap=await ref.get();if(!snap.exists()){clearActiveRoom();return;}
+  const room=snap.val(),uid=authUser.uid,l=room.lobby||{},member=(l.players||{})[uid],pub=room.public||{},gamePlayer=(pub.players||[]).find(p=>p.id===uid);
+  if(!member&&!gamePlayer){clearActiveRoom();return;}
+  roomCode=code;roomRef=ref;roomPlayerId=uid;isRoomHost=uid===l.hostId;saveActiveRoom();
+  if(l.status==="waiting"){showWaitingRoom();setLobbyNotice("Your previous room was restored.");return;}
+  if(gamePlayer&&(gamePlayer.active!==false||gamePlayer.status==="Eliminated")&&["playing","roundComplete","gameComplete"].includes(pub.status)){
+   enterOnlineGame(pub);setLobbyNotice("Your previous game was restored.");return;
+  }
+  clearActiveRoom();
+ }catch(e){setLobbyNotice("Could not restore your previous table. Check your connection and try again.");}
+}
+function exitCurrentTable(){
+ if(!onlineMode){if(!confirm("Return to the lobby? Your current solo game will end."))return;document.getElementById("game").classList.add("hidden");document.getElementById("setup").classList.remove("hidden");return;}
+ if(!confirm("Leave this table and return to the lobby? You will leave the current match."))return;
+ leaveRoom(true);
 }
 function showWaitingRoom(){
  document.getElementById("setup").classList.add("hidden");
@@ -1858,7 +1892,7 @@ function onlineMembers(l){return Object.values(l.players||{}).sort((a,b)=>(a.joi
 function createRoom(){
  const name=lobbyName();if(!name)return;if(!firebaseReady||!authUser){setLobbyNotice("Firebase sign-in is still loading.");return;}
  (async()=>{try{let code=makeRoomCode(),ref=firebase.database().ref("rooms/"+code),snap=await ref.child("lobby").get();while(snap.exists()){code=makeRoomCode();ref=firebase.database().ref("rooms/"+code);snap=await ref.child("lobby").get();}
- roomCode=code;roomRef=ref;roomPlayerId=authUser.uid;isRoomHost=true;
+ roomCode=code;roomRef=ref;roomPlayerId=authUser.uid;isRoomHost=true;saveActiveRoom();
  await ref.set({hostId:authUser.uid,lobby:{code,hostId:authUser.uid,status:"waiting",maxPlayers:6,scoreLimit:200,players:{[authUser.uid]:{id:authUser.uid,name,ready:true,joinedAt:firebase.database.ServerValue.TIMESTAMP}}},public:{},private:{deck:[],hands:{},specialRank:null,specialRanks:{}},actions:{}});
  showWaitingRoom();}catch(e){setLobbyNotice("Could not create room: "+e.message);}})();
 }
@@ -1906,7 +1940,7 @@ function showWaitingRoom(){
  onlineLobbyListener=snap=>{if(!snap.exists())return;const l=snap.val(),m=onlineMembers(l),limitEl=document.getElementById("roomScoreLimit");if(limitEl){limitEl.value=String(l.scoreLimit||200);limitEl.disabled=!isRoomHost||l.status!=="waiting";}document.getElementById("roomPlayerCount").textContent=m.length+"/"+l.maxPlayers;
  document.getElementById("roomPlayers").innerHTML=m.map((p,i)=>'<div class="room-player"><span class="avatar">'+(p.isBot?"🤖":(["🃏","🌟","🍀","🔥","🎯","👑"][i]||"🃏"))+'</span><strong>'+escapeLobbyText(p.name)+'</strong><small>'+(p.id===l.hostId?"HOST":p.isBot?"BOT":"READY")+'</small></div>').join("");
  document.getElementById("addBotBtn").disabled=m.length>=l.maxPlayers;
- if(l.status==="started")roomRef.child("public").get().then(x=>{if(!x.exists())return;const state=x.val(),me=(state.players||[]).find(p=>p.id===roomPlayerId);if(me&&me.active!==false&&state.status==="playing")enterOnlineGame(state);else if(me?.rejoinNextRound)setLobbyNotice("You are queued. You will enter automatically when the host starts the next round.");});};
+ if(l.status==="started")roomRef.child("public").get().then(x=>{if(!x.exists())return;const state=x.val(),me=(state.players||[]).find(p=>p.id===roomPlayerId);if(me&&(me.active!==false||me.status==="Eliminated")&&["playing","roundComplete","gameComplete"].includes(state.status))enterOnlineGame(state);else if(me?.rejoinNextRound)setLobbyNotice("You are queued. You will enter automatically when the host starts the next round.");});};
  rejoinPublicListener=snap=>{if(!snap.exists())return;const state=snap.val(),me=(state.players||[]).find(p=>p.id===roomPlayerId);if(me&&me.active!==false&&state.status==="playing"&&!onlineMode)enterOnlineGame(state);};
  roomRef.child("public").on("value",rejoinPublicListener);
  roomRef.child("lobby").on("value",onlineLobbyListener);
@@ -2328,7 +2362,7 @@ function showHand(){
 function startGame(){if(!onlineMode)return _soloStartGame();message("Leave the online table before starting a solo game.");}
 function leaveRoom(showLobby=true){
  if(onlineChatRef&&onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);onlineChatRef=null;onlineChatListener=null;chatIsOpen=false;chatHasOpened=false;chatUnreadCount=0;document.getElementById("gameChat")?.classList.add("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");mutedChatSenders.clear();eliminatedSpectator=false;document.getElementById("game")?.classList.remove("spectator-mode");if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);if(onlineSpecialRef)onlineSpecialRef.off("value");if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
- if(roomRef&&roomPlayerId)roomRef.child("lobby/players/"+roomPlayerId).remove().catch(()=>{});onlineMode=false;onlinePublic=null;onlinePublicRef=onlineHandRef=onlineActionRef=onlineSpecialRef=null;roomRef=null;roomCode=null;roomPlayerId=null;isRoomHost=false;onlineLobbyListener=null;
+ if(roomRef&&roomPlayerId)roomRef.child("lobby/players/"+roomPlayerId).remove().catch(()=>{});onlineMode=false;onlinePublic=null;clearActiveRoom();onlinePublicRef=onlineHandRef=onlineActionRef=onlineSpecialRef=null;roomRef=null;roomCode=null;roomPlayerId=null;isRoomHost=false;onlineLobbyListener=null;
  document.getElementById("game").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");if(showLobby)document.getElementById("setup").classList.remove("hidden");
 }
 </script>
