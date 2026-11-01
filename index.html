@@ -458,6 +458,7 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 <details class="game-actions-fold">
 <summary>Game actions</summary>
 <div class="actions">
+<button onclick="checkFourSet()">Check four-set / Reveal joker</button>
 <button onclick="showRules()">Game rules</button>
 <button onclick="startGame()">Restart game</button>
 </div>
@@ -1294,25 +1295,32 @@ function validateOnlineShow(hand,groupIds,player){
  const used=groups.flat().map(c=>c.id);
  if(used.length!==13||new Set(used).size!==13||hand.length!==13)return "All 13 cards must be used exactly once.";
  const pure=groups[0];
- if(pure.some(c=>c.joker||c.rank==="J")||!pure.every(c=>c.rank===pure[0].rank))return "The first group must be a natural four-set of the same rank.";
+ if(pure.some(c=>c.joker)||!pure.every(c=>c.rank===pure[0].rank))return "The first group must be a natural four-set of the same rank.";
  if(!groups.slice(1).every(g=>validThree(g,player)))return "Each three-card set must have the same rank, except for valid jokers.";
  return null;
 }
+const onlineActionLocks={};
 async function processOnlineAction(uid,a){
+ if(onlineActionLocks[uid])return;
+ onlineActionLocks[uid]=true;
+ try{return await processOnlineActionUnlocked(uid,a);}finally{delete onlineActionLocks[uid];}
+}
+async function processOnlineActionUnlocked(uid,a){
  if(!isRoomHost)return;
  const [ps,ds]=await Promise.all([roomRef.child("public").get(),roomRef.child("private").get()]);
  const p=ps.val(),priv=ds.val()||{};if(!p||p.status!=="playing"||p.turnUid!==uid)return;
  let d=priv.deck||[],h=priv.hands||{},hand=h[uid]||[],pile=p.discard||[],special=priv.specialRank||null,specialRanks=priv.specialRanks||{};
  const playerIndex=(p.players||[]).findIndex(x=>x.id===uid);if(playerIndex<0)return;
  const player={...p.players[playerIndex],specialRank:specialRanks[uid]||null};
- const syncUnlock=()=>{p.players[playerIndex].eligible=true;p.players[playerIndex].unlocked=true;player.eligible=true;player.unlocked=true;player.specialRank=special;};
+ const syncUnlock=()=>{p.players[playerIndex].eligible=true;p.players[playerIndex].unlocked=true;player.eligible=true;player.unlocked=true;player.specialRank=special;p.specialRank=special;};
  if(a.type==="drawClosed"||a.type==="drawOpen"){
   if(p.drawnByUid)return;
+  if(hand.length!==13){p.message="A player can hold only 13 cards before drawing. Please refresh the table to sync the hand.";await roomRef.child("public").set(p);return;}
   if(a.type==="drawOpen"){if(!pile.length)return;hand.push(pile.pop());}
   else{if(!d.length&&pile.length>1){const top=pile.pop();d=shuffle(pile);pile=[top];}if(!d.length)return;hand.push(d.pop());}
   h[uid]=hand;p.drawnByUid=uid;p.message="Card drawn. Select one card and discard it.";
  }else if(a.type==="discard"){
-  if(p.drawnByUid!==uid)return;const i=hand.findIndex(c=>c.id===a.cardId);if(i<0)return;
+  if(p.drawnByUid!==uid||hand.length!==14)return;const i=hand.findIndex(c=>c.id===a.cardId);if(i<0)return;
   pile.push(hand.splice(i,1)[0]);h[uid]=hand;p.drawnByUid=null;
   if(hand.length===13&&hasNaturalFour(hand)){
    p.players[playerIndex].eligible=true;
