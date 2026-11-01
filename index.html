@@ -525,6 +525,13 @@ body.show-player-scores .player-strip .profile-score{display:block!important;mar
 .friend-row small{display:block;color:#b8c9bd;font-size:11px;margin-top:3px}
 .friend-row button{padding:8px 10px;font-size:11px;white-space:nowrap}
 .friend-empty{font-size:12px;color:#b8c9bd;margin:4px 0}
+.history-mode{margin-top:12px;padding:12px;border:1px solid #d9b66b44;border-radius:12px;background:#0b3025}
+.history-mode h4{margin:0 0 7px;color:#ffe2a1;font-size:14px}
+.history-stats{font-size:12px;color:#f3dfb5;font-weight:800}
+.history-recent{display:grid;gap:5px;margin-top:8px}
+.history-item{display:flex;justify-content:space-between;gap:8px;padding:7px 8px;border-radius:8px;background:#174536;color:#dce9df;font-size:11px}
+.history-item strong{color:#ffe2a1}
+.history-empty{font-size:11px;color:#b8c9bd}
 @media(max-width:390px){.friend-search-row{flex-wrap:wrap}.friend-search-row button{width:100%}}
 
 </style>
@@ -585,6 +592,19 @@ body.show-player-scores .player-strip .profile-score{display:block!important;mar
    <div id="friendRequestsList" class="friend-list"><p class="lobby-hint">No pending requests.</p></div>
    <div class="lobby-section-title friend-section-heading">MY FRIENDS <span id="friendCount"></span></div>
    <div id="myFriendsList" class="friend-list"><p class="lobby-hint">No friends added yet.</p></div>
+  </div>
+  <div id="gameHistoryPanel" class="friends-panel hidden">
+   <div class="lobby-section-title">GAME HISTORY</div>
+   <div class="history-mode">
+    <h4>🤖 VS BOTS</h4>
+    <div class="history-stats" id="botHistoryStats">Games played: 0 · Won: 0 · Win rate: 0%</div>
+    <div class="history-recent" id="botHistoryRecent">No completed games yet.</div>
+   </div>
+   <div class="history-mode">
+    <h4>🌐 MULTIPLAYER</h4>
+    <div class="history-stats" id="onlineHistoryStats">Games played: 0 · Won: 0 · Win rate: 0%</div>
+    <div class="history-recent" id="onlineHistoryRecent">No completed games yet.</div>
+   </div>
   </div>
  <div id="lobbyNotice" class="lobby-notice">Private rooms are being connected. Add your Firebase project settings to enable friends joining live.</div>
 </section>
@@ -698,13 +718,37 @@ function showAccountState(user,profile){
  const name=document.getElementById("accountDisplayName"),email=document.getElementById("accountEmail"),avatar=document.getElementById("accountAvatar");
  const friendsPanel=document.getElementById("friendsPanel");
  const guestBtn=document.getElementById("guestSignInBtn");
- if(!user){if(btn)btn.classList.remove("hidden");if(guestBtn)guestBtn.classList.remove("hidden");if(setup)setup.classList.add("hidden");if(actions)actions.classList.add("hidden");if(friendsPanel)friendsPanel.classList.add("hidden");if(name)name.textContent="Welcome to Moddu Set";if(email)email.textContent="Sign in with Google or continue as a guest.";if(avatar)avatar.textContent="👤";return;}
+ if(!user){if(btn)btn.classList.remove("hidden");if(guestBtn)guestBtn.classList.remove("hidden");if(setup)setup.classList.add("hidden");if(actions)actions.classList.add("hidden");if(friendsPanel)friendsPanel.classList.add("hidden");const historyPanel=document.getElementById("gameHistoryPanel");if(historyPanel)historyPanel.classList.add("hidden");if(name)name.textContent="Welcome to Moddu Set";if(email)email.textContent="Sign in with Google or continue as a guest.";if(avatar)avatar.textContent="👤";return;}
  if(btn)btn.classList.add("hidden");if(guestBtn)guestBtn.classList.add("hidden");
  if(name)name.textContent=user.isAnonymous?"Guest player":(user.displayName||"Welcome, player");
  if(email)email.textContent=user.isAnonymous?"Temporary guest account · This device":(user.email||"Google account connected");
  if(avatar){avatar.textContent="";avatar.style.backgroundImage=user.photoURL?"url('"+user.photoURL.replace(/['()]/g,"")+"')":"";avatar.style.backgroundSize="cover";avatar.style.backgroundPosition="center";}
- if(profile){playerProfile=profile;profileReady=true;const input=document.getElementById("playerName");if(input)input.value=profile.displayName||user.displayName||"Player";if(setup)setup.classList.add("hidden");if(actions)actions.classList.remove("hidden");if(friendsPanel)friendsPanel.classList.remove("hidden");setAuthStatus("Signed in as @"+profile.username);loadFriends();}
+ if(profile){playerProfile=profile;profileReady=true;const input=document.getElementById("playerName");if(input)input.value=profile.displayName||user.displayName||"Player";if(setup)setup.classList.add("hidden");if(actions)actions.classList.remove("hidden");if(friendsPanel)friendsPanel.classList.remove("hidden");const historyPanel=document.getElementById("gameHistoryPanel");if(historyPanel)historyPanel.classList.remove("hidden");setAuthStatus("Signed in as @"+profile.username);loadFriends();loadGameHistory();}
  else{playerProfile=null;profileReady=false;if(setup)setup.classList.remove("hidden");if(actions)actions.classList.add("hidden");if(friendsPanel)friendsPanel.classList.add("hidden");const input=document.getElementById("usernameInput");if(input&&!input.value){const suggested=(user.displayName||"player").toLowerCase().replace(/[^a-z0-9_]/g,"").slice(0,12);input.value=suggested.length>=3?suggested:"player"+String(user.uid).slice(0,4);}setAuthStatus("Google connected. Choose a username once to finish setting up your player account.");}
+}
+function gameHistoryRef(mode){return firebase.database().ref("users/"+authUser.uid+"/gameHistory/"+mode);}
+async function loadGameHistory(){
+ if(!authUser||!profileReady||!firebaseReady)return;
+ const modes=[["vsBots","botHistoryStats","botHistoryRecent"],["multiplayer","onlineHistoryStats","onlineHistoryRecent"]];
+ for(const [mode,statsId,recentId] of modes){
+  try{
+   const snap=await gameHistoryRef(mode).get(),records=Object.values(snap.val()||{}).sort((a,b)=>(b.completedAt||0)-(a.completedAt||0));
+   const wins=records.filter(x=>x.won).length,played=records.length,rate=played?Math.round(wins/played*100):0;
+   const stats=document.getElementById(statsId),recent=document.getElementById(recentId);
+   if(stats)stats.textContent="Games played: "+played+" · Won: "+wins+" · Win rate: "+rate+"%";
+   if(recent)recent.innerHTML=records.slice(0,5).map(x=>'<div class="history-item"><span>'+(x.won?"🏆 Won":"Played")+' · '+new Date(x.completedAt||0).toLocaleDateString()+'</span><strong>'+(x.opponents||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))+'</strong></div>').join("")||'<div class="history-empty">No completed games yet.</div>';
+  }catch(e){const recent=document.getElementById(recentId);if(recent)recent.textContent="Could not load history.";}
+ }
+}
+async function saveCompletedGame(mode,gameId,won,opponents){
+ if(!authUser||!profileReady||!firebaseReady||!gameId)return;
+ const safeId=String(gameId).replace(/[^a-zA-Z0-9_-]/g,"_");
+ const ref=gameHistoryRef(mode).child(safeId);
+ try{
+  const record={mode,won:!!won,opponents:(opponents||[]).filter(Boolean).join(", ").slice(0,180),completedAt:firebase.database.ServerValue.TIMESTAMP};
+  await ref.transaction(current=>current===null?record:undefined);
+  await loadGameHistory();
+ }catch(e){console.warn("Could not save game history:",e);}
 }
 async function loadPlayerProfile(user){
  if(!user||!firebaseReady)return;
@@ -989,7 +1033,7 @@ const suits=["♠","♥","♦","♣"];
 const ranks=["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
 
 let deck=[],discard=[],players=[],turn=0,selected=-1;
-let scoreLimit=200;
+let scoreLimit=200,soloMatchId=null;
 let drawn=false,specialRank=null,round=1,gameOver=false;
 let arrangedGroups=[],winningGroups=[];
 let selectedIndices=[];
@@ -1034,6 +1078,7 @@ function randomBotName(existingNames=[]){
 }
 
 function startGame(){
+ soloMatchId="bots_"+Date.now()+"_"+Math.random().toString(36).slice(2,8);
  scoreLimit=Number(document.getElementById("soloScoreLimit")?.value||200);
  let count=Number(document.getElementById("playerCount").value);
  deck=shuffle(makeDeck(count));
@@ -1610,6 +1655,7 @@ function startNextRound(){
   gameOver=true;
   const champ=activePlayers[0]||players.reduce((best,p)=>p.score<best.score?p:best,players[0]);
   message(champ.name+" wins the game!");
+  if(soloMatchId)saveCompletedGame("vsBots",soloMatchId,!!champ.human,players.filter(p=>!p.human).map(p=>p.name));
   render();return;
  }
  discard.push(deck.pop());
@@ -1761,7 +1807,7 @@ function applyOnlinePublic(){
  if(myPublicPlayer&&myPublicPlayer.active===false){setLobbyNotice("The host removed you from this game.");leaveRoom(true);return;}turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);round=st.round||1;drawn=st.drawnByUid===roomPlayerId;gameOver=st.status==="roundComplete"||st.status==="gameComplete";
  const el=document.getElementById("message");if(el)el.textContent=st.message||"Online game";render();
  if(st.status==="roundComplete"&&st.roundResult)openOnlineRoundResults(st.roundResult);
- if(st.status==="gameComplete")openOnlineGameComplete(st.champion||"A player");
+ if(st.status==="gameComplete"){openOnlineGameComplete(st.champion||"A player");const me=(st.players||[]).find(p=>p.id===roomPlayerId);if(me)saveCompletedGame("multiplayer","room_"+(roomCode||"unknown"),st.championUid===roomPlayerId,(st.players||[]).filter(p=>p.id!==roomPlayerId).map(p=>p.name));}
  if(st.specialRank)highlightSpecialJoker();
  updateDiscardCountdown();
 }
@@ -1955,7 +2001,7 @@ async function startOnlineNextRound(){
   const limit=Math.max(1,Number(p.scoreLimit)||200);const active=(p.players||[]).filter(x=>(x.active!==false||x.rejoinNextRound)&&(Number(p.roundResult.totals[x.id]||x.score)||0)+(x.rejoinNextRound?(Number(x.rejoinPenalty)||20):0)<limit);
   if(active.length<=1){
    const champ=active[0]||(p.players||[]).reduce((best,x)=>(p.roundResult.totals[x.id]||0)<(p.roundResult.totals[best.id]||0)?x:best,p.players[0]);
-   const finished={...p,status:"gameComplete",champion:champ.name,message:champ.name+" wins Moddu Set!"};
+   const finished={...p,status:"gameComplete",champion:champ.name,championUid:champ.id,message:champ.name+" wins Moddu Set!"};
    await roomRef.child("public").set(finished);
    onlinePublic=finished;applyOnlinePublic();setLobbyNotice(champ.name+" wins the game!");
    return;
