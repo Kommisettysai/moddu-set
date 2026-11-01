@@ -793,10 +793,10 @@ function hasNaturalFour(hand){
 }
 
 function checkFourSet(){
- if(turn!==0){
-  message("You can check your four-set during your turn.");
-  return;
- }
+ if(turn!==0){message("You can check your four-set during your turn.");return;}
+ const p=players[0];if(!p||p.hand.length!==13||!hasNaturalFour(p.hand)){message("You need four natural cards of the same rank.");return;}
+ if(p.unlocked){message("Your special joker is already unlocked.");return;}
+ if(onlineMode){if(!confirm("Reveal the special joker now?"))return;sendOnlineAction({type:"revealSpecial"});return;}
  checkUnlock(0,true);
 }
 
@@ -1304,6 +1304,11 @@ async function processOnlineAction(uid,a){
    }
   }
   const active=(p.players||[]).filter(x=>x.active!==false),at=active.findIndex(x=>x.id===uid),next=active[(at+1)%active.length];if(!next)return;p.turnUid=next.id;p.message=p.message||next.name+"'s turn. Draw a card.";
+ }else if(a.type==="revealSpecial"){
+  if(p.drawnByUid||hand.length!==13||!player||player.unlocked||!hasNaturalFour(hand))return;
+  player.eligible=true;
+  if(!special){const skipped=[];let reveal=null;while(d.length&&!reveal){const card=d.pop();if(card.joker)skipped.push(card);else reveal=card;}if(skipped.length)d.push(...skipped);if(reveal)special=reveal.rank;}
+  if(!special)return;player.unlocked=true;specialRanks[uid]=special;p.message=player.name+" unlocked the special joker.";
  }else if(a.type==="show"){
   if(a.discardCardId){if(p.drawnByUid!==uid)return;const i=hand.findIndex(c=>c.id===a.discardCardId);if(i<0||hand.length!==14)return;pile.push(hand.splice(i,1)[0]);h[uid]=hand;p.drawnByUid=null;}
   else if(p.drawnByUid||hand.length!==13)return;
@@ -1362,7 +1367,7 @@ async function startOnlineNextRound(){
   active.forEach(x=>hands[x.id]=d.splice(0,13));
   const first=d.pop(),nextRound=(p.round||1)+1;
   const next={status:"playing",round:nextRound,turnUid:active[0].id,deckCount:d.length,discard:[first],drawnByUid:null,specialRank:null,players:roundPlayers.map(x=>({...x,cardCount:(hands[x.id]||[]).length})),message:"Round "+nextRound+". "+active[0].name+"'s turn. Draw a card."};
-  await roomRef.child("private").set({deck:d,hands});
+  await roomRef.child("private").set({deck:d,hands,specialRank:null,specialRanks:{}});
   await roomRef.child("public").set(next);
   const screen=document.getElementById("roundResults");if(screen)screen.classList.add("hidden");
   onlinePublic=next;applyOnlinePublic();
