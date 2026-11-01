@@ -917,7 +917,7 @@ function aiTurn(){
  recycleDeck();
  if(discard.length){
   const top=discard[discard.length-1];
-  const takeOpen=top.joker||bestUnmatchedScore([...p.hand,top],p)<=bestUnmatchedScore(p.hand,p);
+  const takeOpen=top.joker||deck.length===0||bestUnmatchedScore([...p.hand,top],p)<=bestUnmatchedScore(p.hand,p);
   if(takeOpen)p.hand.push(discard.pop());
   else if(deck.length)p.hand.push(deck.pop());
   else p.hand.push(discard.pop());
@@ -1501,7 +1501,7 @@ async function runOnlineBotTurn(){
   }
   if(!p.drawnByUid){
    const top=(p.discard||[]).slice(-1)[0];
-   const takeOpen=top&&(top.joker||bestUnmatchedScore([...hand,top],bot)<=bestUnmatchedScore(hand,bot));
+   const takeOpen=top&&(top.joker||!((priv.deck||[]).length)||bestUnmatchedScore([...hand,top],bot)<=bestUnmatchedScore(hand,bot));
    await processOnlineAction(uid,{type:takeOpen?"drawOpen":"drawClosed"});
   }
   [ps,ds]=await Promise.all([roomRef.child("public").get(),roomRef.child("private").get()]);
