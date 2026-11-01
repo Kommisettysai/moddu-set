@@ -2199,7 +2199,7 @@ async function processOnlineAction(uid,a){
   if(p.drawnByUid===uid){p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;}
   p.message=player.name+" dropped this round for "+dropPenalty+" points.";
   const remaining=(p.players||[]).filter(x=>x.active!==false&&!x.roundDropped);
-  if(p.turnUid===uid&&remaining.length){const next=remaining.find(x=>(p.players.indexOf(x))>playerIndex)||remaining[0];p.turnUid=next.id;}
+  if(p.turnUid===uid&&remaining.length){const next=remaining.find(x=>(p.players.indexOf(x))>playerIndex)||remaining[0];p.turnUid=next.id;p.pickDeadline=next.isBot?null:Date.now()+40000;}
   if(!remaining.length){
    const penalties={},totals={};
    (p.players||[]).forEach(x=>{penalties[x.id]=x.dropPenalty||0;totals[x.id]=x.score||0;});
