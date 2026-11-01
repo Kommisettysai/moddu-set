@@ -1274,8 +1274,8 @@ function playerAvatarFace(player,index){const faces=["👨🏻","👩🏻","🧑
   return '<div class="'+(context==="results"?'results-identity':'player-identity')+'"><span class="avatar-stack"><span class="player-avatar" aria-hidden="true">'+playerAvatarFace(player,index)+'</span><span class="avatar-count">'+count+'</span>'+(isTurn?'<span class="avatar-turn">TURN</span>':'')+'</span><span class="'+(context==="results"?'results-name':'player-name-wrap')+'">'+(context==="results"?'<strong>':'<b>')+escapeLobbyText(player.name)+(context==="results"?' </strong>':'</b>')+'<span class="player-role">'+role+'</span></span></div>';
  }
  function togglePlayerScores(){const button=document.getElementById("scoresToggle"),visible=document.body.classList.toggle("show-player-scores");if(button){button.setAttribute("aria-pressed",String(visible));button.textContent=visible?"Hide scores":"Scores";}}
- const role=playerRoleLabel(player,index,context);
- return '<div class="'+(context==="results"?'results-identity':'player-identity')+'"><span class="player-avatar" aria-hidden="true">'+playerInitials(player.name)+'</span><span class="'+(context==="results"?'results-name':'player-name-wrap')+'">'+(context==="results"?'<strong>':'<b>')+escapeLobbyText(player.name)+(context==="results"?' </strong>':'</b>')+'<span class="player-role">'+role+'</span></span></div>';
+
+
 }
 function renderResultCard(card){
  const red=["♥","♦"].includes(card.suit);
@@ -1302,7 +1302,7 @@ function openRoundResults(results,winnerIndex=0){
  if(!screen||!profiles||!hands)return;
  const penalties=players.map((p,i)=>p.roundDropped?(p.dropPenalty||0):(i===0?0:bestUnmatchedScore(p.hand,p)));
  const resultOrder=players.map((p,i)=>({p,i,penalty:penalties[i]})).sort((a,b)=>(a.i===winnerIndex?-1:b.i===winnerIndex?1:a.penalty-b.penalty)||a.i-b.i);
-<span class="result-points">Total: '+p.score+'</span><span class="result-current">This match: +'+penalty+'</span>
+ profiles.innerHTML=resultOrder.map(({p,i,penalty},position)=>'<div class="results-profile '+(i===winnerIndex?'show-winner':'')+'">'+playerIdentityMarkup(p,i,"results")+'<span class="finish-rank">'+(i===winnerIndex?'🥇 WINNER':'#'+(position+1)+' PLACE')+'</span><span class="result-count">'+p.hand.length+' cards revealed</span><span class="result-points">Total: '+p.score+'</span><span class="result-current">This match: +'+penalty+'</span>'+(i===winnerIndex?'<span class="winner-tag">🏆 SHOWED 🎉</span>':p.roundDropped?'<span class="winner-tag">⛔ DROPPED</span>':'')+'</div>').join('');
  hands.innerHTML=resultOrder.map(({p,i,penalty})=>{
   const groupsHtml=p.roundDropped?'<div class="results-breakdown-section counted"><span class="results-breakdown-title">⛔ DROPPED THIS ROUND · FIXED +'+penalty+' POINTS</span></div>':i===winnerIndex&&winningGroups.length?'<div class="results-winning-groups">'+winningGroups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>p.hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':renderScoringBreakdown(p.hand,p,penalty);
   return '<div class="results-hand '+(i===winnerIndex?'winner-hand':'')+'"><div class="results-hand-head"><div class="hand-player-identity"><span class="player-avatar">'+playerInitials(p.name)+'</span><strong class="hand-player-name">'+(i===winnerIndex?'🏆🎉 ':'')+escapeLobbyText(p.name)+'</strong></div><span>'+p.hand.length+' cards · +'+penalty+' points</span></div>'+groupsHtml+'</div>';
@@ -1641,7 +1641,7 @@ function openOnlineRoundResults(result){
  if(!screen||!profiles||!handsEl)return;
  const list=(onlinePublic.players||[]),winner=result.winnerUid;
  const resultOrder=list.map((p,i)=>({p,i,penalty:result.penalties[p.id]||0})).sort((a,b)=>(a.p.id===winner?-1:b.p.id===winner?1:a.penalty-b.penalty)||a.i-b.i);
-<span class="result-points">Total: '+(result.totals[p.id]||0)+'</span><span class="result-current">This match: +'+penalty+'</span>
+ profiles.innerHTML=resultOrder.map(({p,penalty},position)=>'<div class="results-profile '+(p.id===winner?'show-winner':'')+'">'+playerIdentityMarkup(p,position,"results")+'<span class="finish-rank">'+(p.id===winner?'🥇 WINNER':p.roundDropped?'⛔ DROPPED':'#'+(position+1)+' PLACE')+'</span><span class="result-count">'+((result.hands[p.id]||[]).length)+' cards revealed</span><span class="result-points">Total: '+(result.totals[p.id]||0)+'</span><span class="result-current">This match: +'+penalty+'</span>'+(p.id===winner?'<span class="winner-tag">🏆 SHOWED 🎉</span>':'')+'</div>').join('');
  handsEl.innerHTML=resultOrder.map(({p})=>{
   const hand=result.hands[p.id]||[],penalty=result.penalties[p.id]||0;
   const resultPlayer={...p,unlocked:!!p.unlocked,specialRank:(result.specialRanks||{})[p.id]||null};const winning=p.roundDropped?'<div class="results-breakdown-section counted"><span class="results-breakdown-title">⛔ DROPPED THIS ROUND · FIXED +'+penalty+' POINTS</span></div>':p.id===winner?'<div class="results-winning-groups">'+result.groups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':renderScoringBreakdown(hand,resultPlayer,penalty);
