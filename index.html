@@ -240,6 +240,26 @@ footer{color:#9bb9a9;padding:20px 12px 28px;letter-spacing:.7px}
 .results-footer{position:sticky;bottom:0;padding:12px 0 4px;background:linear-gradient(transparent,#08251d 28%)}
 .results-footer button{width:100%;font-weight:800}
 @media(max-width:370px){.results-card-grid{gap:4px}.results-card{height:54px;font-size:10px}.results-profile strong{font-size:13px}}
+
+/* Compact round reveal */
+.round-results{padding:12px 10px 16px!important}
+.results-header{padding:3px 4px 9px!important}
+.results-header h2{font-size:22px!important;margin:3px 0!important}
+.results-header p{font-size:11px!important}
+.results-profiles{gap:6px!important;margin-bottom:8px!important}
+.results-profile{padding:7px 5px!important;border-radius:9px!important}
+.results-profile strong{font-size:13px!important}
+.results-profile .result-count{font-size:9px!important;margin-top:2px!important}
+.results-profile .result-points{font-size:11px!important;margin-top:2px!important}
+.results-profile .winner-tag{font-size:8px!important;margin-top:3px!important;padding:2px 6px!important}
+.results-hand{padding:7px!important;margin:6px 0!important;border-radius:9px!important}
+.results-hand-head{margin-bottom:5px!important}
+.results-hand-head strong{font-size:12px!important}
+.results-hand-head span{font-size:9px!important}
+.results-card-grid{gap:4px!important}
+.results-card{height:48px!important;padding:3px!important;font-size:10px!important;border-radius:6px!important}
+.results-footer{padding:7px 0 2px!important}
+.results-footer button{padding:10px!important;font-size:13px!important}
 </style>
 </head>
 <body>
@@ -723,7 +743,7 @@ function autoArrange(showMessage=true){
  const memo=new Map();
  function search(mask,groups,wildCount){
   if(groups.length>best.groups.length||(groups.length===best.groups.length&&wildCount<best.wilds))best={groups:groups.slice(),wilds:wildCount};
-  if(groups.length===3)return;
+  if(groups.length===(pureRank?3:4))return;
   const key=mask+"|"+groups.length,seen=memo.get(key);
   if(seen!==undefined&&seen<=wildCount)return;
   memo.set(key,wildCount);
@@ -840,6 +860,34 @@ function openRoundResults(results){
 function closeResults(){
  const screen=document.getElementById("roundResults");
  if(screen)screen.classList.add("hidden");
+ startNextRound();
+}
+function startNextRound(){
+ const count=players.length;
+ round++;
+ deck=shuffle(makeDeck(count));
+ discard=[];
+ turn=0;selected=-1;drawn=false;
+ specialRank=null;gameOver=false;arrangedGroups=[];selectedIndices=[];
+ players.forEach(p=>{
+  p.hand=deck.splice(0,13);
+  p.unlocked=false;
+  p.active=p.score<200;
+  p.status=p.active?"🎴 Ready":"🚫 Eliminated";
+ });
+ const activePlayers=players.filter(p=>p.active);
+ if(activePlayers.length<=1){
+  gameOver=true;
+  const champ=activePlayers[0]||players.reduce((best,p)=>p.score<best.score?p:best,players[0]);
+  message(champ.name+" wins the game!");
+  render();return;
+ }
+ discard.push(deck.pop());
+ const roundInfo=document.getElementById("roundInfo");
+ if(roundInfo)roundInfo.textContent="Round "+round;
+ autoArrange(false);
+ message("Round "+round+". Scores carried forward. Your turn: draw from either pile.");
+ render();
 }
 function showRules(){
  alert(
