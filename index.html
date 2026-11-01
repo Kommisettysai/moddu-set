@@ -355,8 +355,9 @@ function discardSelected(){
  discard.push(card);
  drawn=false;selected=-1;arrangedGroups=[];
  checkUnlock(0);
+ autoArrange(false);
  render();
- message("Card discarded. Next player's turn.");
+ message("Card discarded. Your hand is arranged. Next player's turn.");
  nextTurn();
 }
 
@@ -472,7 +473,7 @@ function dropOnGroup(event,g){
   if(candidate.some(c=>c.joker)||!candidate.every(c=>c.rank===candidate[0].rank)){message("A pure four-set needs four natural cards of one rank.");return;}
  }else if(!validThree(candidate)){message("That card does not fit this set.");return;}
  ids.push(card.id);
- autoArrange(false);
+ render();
  message("Card moved into the set.");
 }
 function renderHandLayout(){
