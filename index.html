@@ -431,6 +431,29 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 @keyframes pilePulse{0%,100%{filter:none;transform:scale(1)}35%{filter:brightness(1.7);transform:translateY(-7px) scale(1.06)}}
 .player.action-player{animation:playerActionPulse .9s ease-out}
 @keyframes playerActionPulse{0%,100%{filter:none}35%{filter:brightness(1.65);box-shadow:0 0 0 4px #65e6ff99,0 0 20px #65e6ff}}
+
+/* Human-style shared player profiles and compact score controls */
+.players-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.players-heading h3{margin:0!important}
+.scores-toggle{padding:6px 12px!important;border-radius:999px!important;font-size:10px!important;letter-spacing:.5px;background:linear-gradient(180deg,#fff0bd,#d6a64d)!important}
+.player-strip .player{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:flex-start!important;min-height:104px!important}
+.player-strip .player-identity{flex-direction:column!important;gap:3px!important;margin:0!important}
+.avatar-stack{position:relative;display:flex;flex-direction:column;align-items:center;min-width:39px;margin-bottom:3px}
+.player-avatar{width:38px!important;height:38px!important;flex:0 0 38px!important;display:grid;place-items:center;border-radius:50%;font-family:system-ui,sans-serif!important;font-size:23px!important;background:radial-gradient(circle at 35% 25%,#ffe9bd,#b98748)!important;border:2px solid #f5d68f!important;box-shadow:0 2px 7px #0006!important}
+.avatar-count{position:absolute;top:-5px;right:-8px;min-width:17px;height:17px;padding:0 4px;border:1px solid #fff;border-radius:99px;background:#e34b55;color:#fff;font-size:9px;font-weight:900;line-height:15px;text-align:center;box-shadow:0 1px 4px #0008}
+.avatar-turn{margin-top:4px;padding:2px 7px;border-radius:99px;background:#6ce4ef;color:#073747;font-size:8px;font-weight:1000;letter-spacing:.6px;box-shadow:0 1px 5px #0005}
+.player-strip .profile-score{display:none!important}
+body.show-player-scores .player-strip .profile-score{display:block!important;margin-top:3px!important;font-size:9px!important;color:#ffe09a!important}
+.profile-status,.profile-count,.player-turn-badge,.player-unmatched{display:none!important}
+.hand-heading{align-items:center!important}
+.hand-heading h3{display:flex;align-items:center;flex-wrap:wrap;gap:7px}
+.hand-unmatched{display:inline-flex;align-items:center;padding:3px 7px;border-radius:99px;background:#6b3528;color:#ffe0c9;font:800 9px/1.2 system-ui,sans-serif;white-space:nowrap}
+.results-profile .results-identity{flex-direction:column!important;gap:3px!important}
+.results-profile .avatar-stack{margin-bottom:2px}
+.results-profile .player-avatar{width:40px!important;height:40px!important;flex-basis:40px!important;font-size:24px!important}
+.result-current{display:block;margin-top:2px;color:#d6e9d9;font-size:10px;font-weight:750}
+@media(max-width:450px){.player-strip .player{min-height:100px!important;padding:7px 2px!important}.player-strip .player-avatar{width:34px!important;height:34px!important;flex-basis:34px!important;font-size:21px!important}.hand-unmatched{font-size:8px}}
+
 </style>
 </head>
 <body>
@@ -505,7 +528,7 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 <section id="game" class="hidden">
 <div class="panel player-strip">
 <div class="table-status"><span id="roundInfo">Round 1</span><span id="turnInfo"></span></div>
-<h3>Players</h3>
+<div class="players-heading"><h3>Players</h3><button type="button" id="scoresToggle" class="scores-toggle" onclick="togglePlayerScores()" aria-pressed="false">Scores</button></div>
 <div class="players" id="players"></div>
 </div>
 
@@ -521,7 +544,7 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 </div>
 
 <div class="panel">
-<div class="hand-heading"><h3>Your cards (<span id="handCount">13</span>)</h3><div class="joker-slot" id="jokerSlot"><span class="card back joker-card">★</span><small>Special joker</small></div></div>
+<div class="hand-heading"><h3>Your cards (<span id="handCount">13</span>) <span id="handUnmatched" class="hand-unmatched">In hand: 0</span></h3><div class="joker-slot" id="jokerSlot"><span class="card back joker-card">★</span><small>Special joker</small></div></div>
 <div class="cards" id="hand"></div>
 <div class="actions hand-actions">
 <button id="discardBtn" onclick="discardSelected()" disabled>Discard selected</button>
@@ -792,9 +815,9 @@ function render(){
    turnEl.setAttribute("aria-label",activePlayer?(isMyTurn?"Your turn":activePlayer.name+"'s turn"):"");
   }
   if(players[0]){
-   document.getElementById("handCount").textContent=players[0].hand.length;
+document.getElementById("handCount").textContent=players[0].hand.length;const unmatchedEl=document.getElementById("handUnmatched");if(unmatchedEl)unmatchedEl.textContent="In hand: "+bestUnmatchedScore(players[0].hand||[],players[0])+" pts";
    if(playersEl){
-    playersEl.innerHTML=players.map((p,i)=>{const showOwnUnmatched=onlineMode?p.id===roomPlayerId:i===0;const unmatched=showOwnUnmatched?bestUnmatchedScore(p.hand||[],p):0;const level=unmatched<=10?'low':unmatched<=25?'medium':'high';return '<div class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+(p.roundDropped?' dropped-player':'')+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-count">'+p.hand.length+' cards</span><span class="profile-score">Score: '+p.score+'</span>'+(showOwnUnmatched?'<span class="player-unmatched '+level+'">Your unmatched: '+unmatched+' pts</span>':'')+(i===turn?'<span class="player-turn-badge">🎯 TURN</span>':'')+(p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+(p.roundDropped?'<span class="player-dropped">⛔ DROPPED · +'+(p.dropPenalty||0)+'</span>':'')+'<span class="profile-status">'+(p.status||"🎴 Ready")+'</span>'+(onlineMode&&isRoomHost&&p.id!==roomPlayerId&&p.active!==false&&onlinePublic?.status==="playing"?'<button class="host-remove-player" onclick="removeOnlinePlayer(\''+p.id+'\')">Remove player</button>':'')+'</div>';}).join('');
+playersEl.innerHTML=players.map((p,i)=>{return '<div class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+(p.roundDropped?' dropped-player':'')+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+p.score+'</span>'+(p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+(p.roundDropped?'<span class="player-dropped">⛔ DROPPED · +'+(p.dropPenalty||0)+'</span>':'')+(onlineMode&&isRoomHost&&p.id!==roomPlayerId&&p.active!==false&&onlinePublic?.status==="playing"?'<button class="host-remove-player" onclick="removeOnlinePlayer(\''+p.id+'\')">Remove player</button>':'')+'</div>';}).join('');
    }
    if(handEl){
     try{handEl.innerHTML=renderHandLayout();}
@@ -811,7 +834,7 @@ function render(){
  }catch(error){
   console.error("Game render error:",error);
   if(playersEl&&players.length){
-   playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+'"><b>'+escapeLobbyText(p.name)+'</b><span class="profile-count">'+p.hand.length+' cards</span><span class="profile-score">Score: '+p.score+'</span>'+(i===turn?'<span class="player-turn-badge">🎯 TURN</span>':'')+(p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+'</div>').join('');
+   playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+p.score+'</span>'+(p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+'</div>').join('');
   }
   if(handEl&&players[0]){
    handEl.innerHTML=players[0].hand.map((c,i)=>cardMarkup(c,i)).join('');
@@ -1245,10 +1268,14 @@ function playerRoleLabel(player,index,context){
  if(context==="game"&&onlineMode&&player.id===onlinePublic?.hostId)return "HOST";
  return context==="results"?"PLAYER":"SEAT "+(index+1);
 }
-function playerIdentityMarkup(player,index,context){
- const role=playerRoleLabel(player,index,context);
- return '<div class="'+(context==="results"?'results-identity':'player-identity')+'"><span class="player-avatar" aria-hidden="true">'+playerInitials(player.name)+'</span><span class="'+(context==="results"?'results-name':'player-name-wrap')+'">'+(context==="results"?'<strong>':'<b>')+escapeLobbyText(player.name)+(context==="results"?' </strong>':'</b>')+'<span class="player-role">'+role+'</span></span></div>';
-}
+function playerAvatarFace(player,index){const faces=["👨🏻","👩🏻","🧑🏽","👨🏽","👩🏽","🧑🏻"];return player.isBot?"🤖":faces[index%faces.length];}
+ function playerIdentityMarkup(player,index,context){
+  const role=playerRoleLabel(player,index,context),count=Array.isArray(player.hand)?player.hand.length:(Number(player.cardCount)||0),isTurn=context==="game"&&(onlineMode?player.id===onlinePublic?.turnUid:index===turn)&&!gameOver&&!player.roundDropped;
+  return '<div class="'+(context==="results"?'results-identity':'player-identity')+'"><span class="avatar-stack"><span class="player-avatar" aria-hidden="true">'+playerAvatarFace(player,index)+'</span><span class="avatar-count">'+count+'</span>'+(isTurn?'<span class="avatar-turn">TURN</span>':'')+'</span><span class="'+(context==="results"?'results-name':'player-name-wrap')+'">'+(context==="results"?'<strong>':'<b>')+escapeLobbyText(player.name)+(context==="results"?' </strong>':'</b>')+'<span class="player-role">'+role+'</span></span></div>';
+ }
+ function togglePlayerScores(){const button=document.getElementById("scoresToggle"),visible=document.body.classList.toggle("show-player-scores");if(button){button.setAttribute("aria-pressed",String(visible));button.textContent=visible?"Hide scores":"Scores";}}
+
+
 function renderResultCard(card){
  const red=["♥","♦"].includes(card.suit);
  if(card.joker)return '<div class="results-card joker">★<small>JOKER</small></div>';
@@ -1274,7 +1301,7 @@ function openRoundResults(results,winnerIndex=0){
  if(!screen||!profiles||!hands)return;
  const penalties=players.map((p,i)=>p.roundDropped?(p.dropPenalty||0):(i===0?0:bestUnmatchedScore(p.hand,p)));
  const resultOrder=players.map((p,i)=>({p,i,penalty:penalties[i]})).sort((a,b)=>(a.i===winnerIndex?-1:b.i===winnerIndex?1:a.penalty-b.penalty)||a.i-b.i);
- profiles.innerHTML=resultOrder.map(({p,i,penalty},position)=>'<div class="results-profile '+(i===winnerIndex?'show-winner':'')+'">'+playerIdentityMarkup(p,i,"results")+'<span class="finish-rank">'+(i===winnerIndex?'🥇 WINNER':'#'+(position+1)+' PLACE')+'</span><span class="result-count">'+p.hand.length+' cards revealed</span><span class="result-points">+'+penalty+' points · Total '+p.score+'</span>'+(i===winnerIndex?'<span class="winner-tag">🏆 SHOWED 🎉</span>':p.roundDropped?'<span class="winner-tag">⛔ DROPPED</span>':'')+'</div>').join('');
+ profiles.innerHTML=resultOrder.map(({p,i,penalty},position)=>'<div class="results-profile '+(i===winnerIndex?'show-winner':'')+'">'+playerIdentityMarkup(p,i,"results")+'<span class="finish-rank">'+(i===winnerIndex?'🥇 WINNER':'#'+(position+1)+' PLACE')+'</span><span class="result-count">'+p.hand.length+' cards revealed</span><span class="result-points">Total: '+p.score+'</span><span class="result-current">This match: +'+penalty+'</span>'+(i===winnerIndex?'<span class="winner-tag">🏆 SHOWED 🎉</span>':p.roundDropped?'<span class="winner-tag">⛔ DROPPED</span>':'')+'</div>').join('');
  hands.innerHTML=resultOrder.map(({p,i,penalty})=>{
   const groupsHtml=p.roundDropped?'<div class="results-breakdown-section counted"><span class="results-breakdown-title">⛔ DROPPED THIS ROUND · FIXED +'+penalty+' POINTS</span></div>':i===winnerIndex&&winningGroups.length?'<div class="results-winning-groups">'+winningGroups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>p.hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':renderScoringBreakdown(p.hand,p,penalty);
   return '<div class="results-hand '+(i===winnerIndex?'winner-hand':'')+'"><div class="results-hand-head"><div class="hand-player-identity"><span class="player-avatar">'+playerInitials(p.name)+'</span><strong class="hand-player-name">'+(i===winnerIndex?'🏆🎉 ':'')+escapeLobbyText(p.name)+'</strong></div><span>'+p.hand.length+' cards · +'+penalty+' points</span></div>'+groupsHtml+'</div>';
@@ -1611,9 +1638,9 @@ async function processOnlineAction(uid,a){
 function openOnlineRoundResults(result){
  const screen=document.getElementById("roundResults"),profiles=document.getElementById("resultsProfiles"),handsEl=document.getElementById("resultsHands");
  if(!screen||!profiles||!handsEl)return;
- const list=(onlinePublic.players||[]),winner=result.winnerUid;
+  const list=(onlinePublic.players||[]).map(p=>({...p,cardCount:(result.hands[p.id]||[]).length})),winner=result.winnerUid;
  const resultOrder=list.map((p,i)=>({p,i,penalty:result.penalties[p.id]||0})).sort((a,b)=>(a.p.id===winner?-1:b.p.id===winner?1:a.penalty-b.penalty)||a.i-b.i);
- profiles.innerHTML=resultOrder.map(({p,penalty},position)=>'<div class="results-profile '+(p.id===winner?'show-winner':'')+'">'+playerIdentityMarkup(p,position,"results")+'<span class="finish-rank">'+(p.id===winner?'🥇 WINNER':p.roundDropped?'⛔ DROPPED':'#'+(position+1)+' PLACE')+'</span><span class="result-count">'+((result.hands[p.id]||[]).length)+' cards revealed</span><span class="result-points">+'+penalty+' points · Total '+(result.totals[p.id]||0)+'</span>'+(p.id===winner?'<span class="winner-tag">🏆 SHOWED 🎉</span>':'')+'</div>').join('');
+ profiles.innerHTML=resultOrder.map(({p,penalty},position)=>'<div class="results-profile '+(p.id===winner?'show-winner':'')+'">'+playerIdentityMarkup(p,position,"results")+'<span class="finish-rank">'+(p.id===winner?'🥇 WINNER':p.roundDropped?'⛔ DROPPED':'#'+(position+1)+' PLACE')+'</span><span class="result-count">'+((result.hands[p.id]||[]).length)+' cards revealed</span><span class="result-points">Total: '+(result.totals[p.id]||0)+'</span><span class="result-current">This match: +'+penalty+'</span>'+(p.id===winner?'<span class="winner-tag">🏆 SHOWED 🎉</span>':'')+'</div>').join('');
  handsEl.innerHTML=resultOrder.map(({p})=>{
   const hand=result.hands[p.id]||[],penalty=result.penalties[p.id]||0;
   const resultPlayer={...p,unlocked:!!p.unlocked,specialRank:(result.specialRanks||{})[p.id]||null};const winning=p.roundDropped?'<div class="results-breakdown-section counted"><span class="results-breakdown-title">⛔ DROPPED THIS ROUND · FIXED +'+penalty+' POINTS</span></div>':p.id===winner?'<div class="results-winning-groups">'+result.groups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':renderScoringBreakdown(hand,resultPlayer,penalty);
@@ -1629,7 +1656,7 @@ function openOnlineGameComplete(champion){
  const screen=document.getElementById("roundResults"),profiles=document.getElementById("resultsProfiles"),handsEl=document.getElementById("resultsHands");
  if(!screen||!profiles||!handsEl)return;
  document.getElementById("resultsSummary").textContent=champion+" wins Moddu Set!";
- profiles.innerHTML=(onlinePublic.players||[]).map((p,i)=>'<div class="results-profile '+(p.name===champion?'show-winner':'')+'">'+playerIdentityMarkup(p,i,"results")+'<span class="finish-rank">'+(p.name===champion?'🥇 CHAMPION':'FINAL PLAYER')+'</span><span class="result-points">Final score: '+(p.score||0)+'</span>'+(p.name===champion?'<span class="winner-tag">🏆 WINNER</span>':'')+'</div>').join('');
+ profiles.innerHTML=(onlinePublic.players||[]).map((p,i)=>'<div class="results-profile '+(p.name===champion?'show-winner':'')+'">'+playerIdentityMarkup(p,i,"results")+'<span class="finish-rank">'+(p.name===champion?'🥇 CHAMPION':'FINAL PLAYER')+'</span><span class="result-points">Total: '+(p.score||0)+'</span>'+(p.name===champion?'<span class="winner-tag">🏆 WINNER</span>':'')+'</div>').join('');
  handsEl.innerHTML="";
  const footer=screen.querySelector(".results-footer");
  if(footer)footer.innerHTML='<button onclick="closeResults()">Back to table</button>';
