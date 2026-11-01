@@ -275,6 +275,47 @@ footer{color:#9bb9a9;padding:20px 12px 28px;letter-spacing:.7px}
 .results-profile .result-count{font-size:8px!important}
 .results-profile .result-points{font-size:10px!important}
 .results-profile .winner-tag{font-size:7px!important;padding:2px 5px!important}
+
+/* Main game screen: wider use of space and clearer hierarchy */
+header{
+ display:flex!important;flex-direction:row!important;align-items:center!important;
+ justify-content:center!important;gap:14px!important;padding:12px 14px!important;
+ min-height:76px!important;text-align:left!important;
+}
+header h1{font-size:clamp(23px,6vw,34px)!important;line-height:1!important;margin:0!important;white-space:nowrap!important;letter-spacing:1.5px!important}
+header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important;letter-spacing:1px!important;max-width:112px!important;margin:0!important;text-align:left!important}
+.player-strip .player{padding:7px 4px!important}
+.player-strip .player b{font-size:13px!important;font-weight:900!important;letter-spacing:.25px!important}
+.player-strip .profile-count,.player-strip .profile-score{font-size:9px!important;font-weight:700!important;color:#f1e5c7!important}
+.player-strip .profile-score{font-size:10px!important;font-weight:900!important;color:#ffe09a!important}
+.player-strip .profile-status{font-size:8px!important;font-weight:700!important}
+#game>.panel:nth-of-type(2){padding:9px 11px!important}
+#game>.panel:nth-of-type(2) h3{font-size:16px!important;margin:0 0 5px!important}
+#game>.panel:nth-of-type(2) .piles{display:flex!important;flex-direction:row!important;justify-content:center!important;align-items:center!important;gap:10px!important;margin:5px auto!important}
+#game>.panel:nth-of-type(2) .pile{width:100px!important;height:82px!important}
+#game>.panel:nth-of-type(2) #message{font-size:11px!important;padding:6px 9px!important;margin-top:5px!important;min-height:28px!important}
+#hand .hand-row{justify-content:space-between!important;gap:4px!important;padding-left:2px!important;padding-right:2px!important}
+#hand .hand-row>.card{flex:0 1 40px!important;width:40px!important;min-width:0!important;max-width:42px!important;height:61px!important;font-size:12px!important}
+#hand .hand-unit{gap:3px!important;padding:5px 3px 3px!important}
+#hand .hand-unit .card{flex:0 1 36px!important;width:36px!important;min-width:0!important;max-width:38px!important;height:57px!important;font-size:11px!important}
+#hand .hand-layout{width:100%!important}
+#hand .loose-area{padding-left:2px!important;padding-right:2px!important}
+.game-actions-panel{margin-top:14px!important;margin-bottom:10px!important}
+.game-actions-fold>summary{cursor:pointer;list-style:none;font-size:16px;font-weight:900;color:#f6d99b;padding:2px 0}
+.game-actions-fold>summary::-webkit-details-marker{display:none}
+.game-actions-fold>summary:after{content:"＋";float:right;color:#f6d99b}
+.game-actions-fold[open]>summary:after{content:"−"}
+.game-actions-fold .actions{margin-top:10px}
+@media(max-width:450px){
+ header{gap:9px!important;padding:10px 9px!important;min-height:68px!important}
+ header h1{font-size:24px!important;letter-spacing:1px!important}
+ header .sub{font-size:8px!important;max-width:100px!important}
+ .player-strip .player b{font-size:11px!important}
+ .player-strip .profile-score{font-size:9px!important}
+ #game>.panel:nth-of-type(2) .pile{width:96px!important;height:78px!important}
+ #hand .hand-row>.card{flex-basis:39px!important;height:59px!important}
+ #hand .hand-unit .card{flex-basis:35px!important;height:55px!important}
+}
 </style>
 </head>
 <body>
@@ -333,11 +374,14 @@ footer{color:#9bb9a9;padding:20px 12px 28px;letter-spacing:.7px}
 </div>
 </div>
 
-<div class="panel">
-<h3>Game actions</h3>
+<div class="panel game-actions-panel">
+<details class="game-actions-fold">
+<summary>Game actions</summary>
 <div class="actions">
 <button onclick="showRules()">Game rules</button>
 <button onclick="startGame()">Restart game</button>
+</div>
+</details>
 </div>
 
 <div id="roundResults" class="round-results hidden">
