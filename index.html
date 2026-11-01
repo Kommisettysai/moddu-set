@@ -2122,17 +2122,16 @@ async function removeOnlinePlayer(uid){
 }
 function updateDiscardCountdown(){
  const el=document.getElementById("discardTimer");if(!el)return;
- const state=onlineMode&&onlinePublic,deadline=state?(state.drawnByUid?state.discardDeadline:state.pickDeadline):null;
+ const state=onlineMode&&onlinePublic,deadline=state?state.pickDeadline:null;
  if(!deadline||!state||state.status!=="playing"){el.style.display="none";el.textContent="";return;}
  const seconds=Math.max(0,Math.ceil((deadline-Date.now())/1000));
  el.style.display="block";
- const action=state.drawnByUid?"discard":"pick up a card";
- el.textContent="⏱ "+(state.turnUid===roomPlayerId?"Your":"Current player's")+" time to "+action+": 00:"+String(seconds).padStart(2,"0");
+ el.textContent="⏱ "+(state.turnUid===roomPlayerId?"Your":"Current player's")+" turn time: 00:"+String(seconds).padStart(2,"0");
 }
 function scheduleHostDiscardTimeout(state){
  if(!isRoomHost||!roomRef)return;
- const uid=state&&state.turnUid,discarding=!!(state&&state.drawnByUid),deadline=state&&(discarding?state.discardDeadline:state.pickDeadline);
- const key=uid&&deadline?uid+":"+(discarding?"discard":"pick")+":"+deadline:null;
+ const uid=state&&state.turnUid,deadline=state&&state.pickDeadline;
+ const key=uid&&deadline?uid+":"+deadline:null;
  if(key===scheduledDiscardKey)return;
  if(hostDiscardTimeout)clearTimeout(hostDiscardTimeout);
  hostDiscardTimeout=null;scheduledDiscardKey=key;
@@ -2140,19 +2139,21 @@ function scheduleHostDiscardTimeout(state){
  hostDiscardTimeout=setTimeout(async()=>{
   try{
    const snap=await roomRef.child("public").get(),latest=snap.val();
-   const latestDiscarding=!!(latest&&latest.drawnByUid),latestDeadline=latest&&(latestDiscarding?latest.discardDeadline:latest.pickDeadline);
-   if(!latest||latest.status!=="playing"||latest.turnUid!==uid||latestDiscarding!==discarding||latestDeadline!==deadline||Date.now()<deadline)return;
-   if(discarding){
-    const handSnap=await roomRef.child("private/hands/"+uid).get(),hand=handSnap.val()||[],autoId=latest.drawnCardId;
-    if(hand.length===14&&autoId&&hand.some(card=>card.id===autoId))await processOnlineAction(uid,{type:"discard",cardId:autoId,automatic:true});
+   if(!latest||latest.status!=="playing"||latest.turnUid!==uid||latest.pickDeadline!==deadline||Date.now()<deadline)return;
+   if(latest.drawnByUid===uid){
+    const handSnap=await roomRef.child("private/hands/"+uid).get(),hand=handSnap.val()||[];
+    if(hand.length===14&&latest.drawnCardId&&hand.some(card=>card.id===latest.drawnCardId)){
+     await processOnlineAction(uid,{type:"discard",cardId:latest.drawnCardId,automatic:true});
+    }
    }else{
-    const active=(latest.players||[]).filter(x=>x.active!==false&&!x.roundDropped),at=active.findIndex(x=>x.id===uid),next=active[(at+1)%active.length];
-    if(!next)return;
-    latest.turnUid=next.id;latest.pickDeadline=next.isBot?null:Date.now()+40000;
-    latest.message="Time expired. "+(active[at]?.name||"Player")+" did not pick a card. "+next.name+"'s turn.";
-    await roomRef.child("public").set(latest);
+    await processOnlineAction(uid,{type:"drawClosed",automatic:true});
+    const afterSnap=await roomRef.child("public").get(),after=afterSnap.val();
+    const handSnap=await roomRef.child("private/hands/"+uid).get(),hand=handSnap.val()||[];
+    if(after&&after.status==="playing"&&after.turnUid===uid&&after.drawnByUid===uid&&hand.length===14&&after.drawnCardId){
+     await processOnlineAction(uid,{type:"discard",cardId:after.drawnCardId,automatic:true});
+    }
    }
-  }catch(e){setLobbyNotice("Turn timer action failed: "+e.message);}
+  }catch(e){setLobbyNotice("Automatic pickup and discard failed: "+e.message);}
  },Math.max(0,deadline-Date.now()));
 }
 if(!discardClockInterval)discardClockInterval=setInterval(updateDiscardCountdown,250);
@@ -2214,10 +2215,10 @@ async function processOnlineAction(uid,a){
   if(hand.length!==13){p.message="Draw blocked: a player must have exactly 13 cards before drawing. Current count: "+hand.length+". The host should restart this round if the hand is out of sync.";p.players[playerIndex].cardCount=hand.length;await roomRef.child("public").set(p);return;}
   if(a.type==="drawOpen"){if(!pile.length)return;hand.push(pile.pop());}
   else{if(!d.length&&pile.length>1){const top=pile.pop();d=shuffle(pile);pile=[top];}if(!d.length)return;hand.push(d.pop());}
-  h[uid]=hand;p.players[playerIndex].roundDrawCount=(p.players[playerIndex].roundDrawCount||0)+1;p.drawnByUid=uid;p.drawnCardId=hand[hand.length-1].id;p.pickDeadline=null;p.discardDeadline=Date.now()+40000;p.lastAction={type:a.type,uid,name:player.name,cardLabel:a.type==="drawOpen"?cardText(hand[hand.length-1]):null,at:Date.now()};p.message=a.type==="drawOpen"?player.name+" picked "+cardText(hand[hand.length-1])+" from the open discard pile.":player.name+" drew a face-down card from the draw deck.";
+  h[uid]=hand;p.players[playerIndex].roundDrawCount=(p.players[playerIndex].roundDrawCount||0)+1;p.drawnByUid=uid;p.drawnCardId=hand[hand.length-1].id;p.discardDeadline=null;p.lastAction={type:a.type,uid,name:player.name,cardLabel:a.type==="drawOpen"?cardText(hand[hand.length-1]):null,at:Date.now()};p.message=a.type==="drawOpen"?player.name+" picked "+cardText(hand[hand.length-1])+" from the open discard pile.":player.name+" drew a face-down card from the draw deck.";
  }else if(a.type==="discard"){
   if(p.drawnByUid!==uid||hand.length!==14){p.message="Discard blocked: a drawn hand must contain exactly 14 cards. Current count: "+hand.length+".";p.players[playerIndex].cardCount=hand.length;await roomRef.child("public").set(p);return;}const i=hand.findIndex(c=>c.id===a.cardId);if(i<0)return;
-  const timedOut=!!(p.discardDeadline&&Date.now()>=p.discardDeadline);const discardId=(a.automatic||timedOut)?p.drawnCardId:a.cardId;const discardIndex=hand.findIndex(c=>c.id===discardId);if(discardIndex<0)return;const discarded=hand.splice(discardIndex,1)[0];pile.push(discarded);h[uid]=hand;p.lastAction={type:"discard",uid,name:player.name,cardLabel:cardText(discarded),at:Date.now()};p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;a.automatic=!!(a.automatic||timedOut);
+  const timedOut=!!(p.discardDeadline&&Date.now()>=p.discardDeadline);const discardId=(a.automatic||timedOut)?p.drawnCardId:a.cardId;const discardIndex=hand.findIndex(c=>c.id===discardId);if(discardIndex<0)return;const discarded=hand.splice(discardIndex,1)[0];pile.push(discarded);h[uid]=hand;p.lastAction={type:"discard",uid,name:player.name,cardLabel:cardText(discarded),at:Date.now()};p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;p.pickDeadline=null;a.automatic=!!(a.automatic||timedOut);
   if(hand.length===13&&hasNaturalFour(hand)&&!player.unlocked){
    p.players[playerIndex].eligible=true;
    if(!special){
