@@ -1246,7 +1246,7 @@ function showWaitingRoom(){
  document.getElementById("waitingRoom").scrollIntoView({behavior:"smooth",block:"start"});
  if(onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
  onlineLobbyListener=snap=>{if(!snap.exists())return;const l=snap.val(),m=onlineMembers(l),limitEl=document.getElementById("roomScoreLimit");if(limitEl){limitEl.value=String(l.scoreLimit||200);limitEl.disabled=!isRoomHost||l.status!=="waiting";}document.getElementById("roomPlayerCount").textContent=m.length+"/"+l.maxPlayers;
- document.getElementById("roomPlayers").innerHTML=m.map((p,i)=>'<div class="room-player"><span class="avatar">'+(p.isBot?"🤖":(["🃏","🌟","🍀","🔥","🎯","👑"][i]||"🃏"))+'</span><strong>'+escapeLobbyText(p.name)+'</strong><small>'+(p.id===l.hostId?"HOST":p.isBot?"BOT":"READY")+'</small></div>').join("");
+ document.getElementById("roomPlayers").innerHTML=m.map((p,i)=>'<div class="room-player"><span class="avatar">'+(p.isBot?"🤖":(["🃏","🌟","🍀","🔥","🎯","👑"][i]||"🃏"))+'</span><strong>'+escapeLobbyText(p.name)+'</strong><small>'+(p.id===l.hostId?"HOST":p.isBot?"BOT":"READY")+'</small>'+(isRoomHost&&p.id!==roomPlayerId?'<button class="host-remove-player" onclick="hostRemovePlayer(\''+p.id+'\')">Remove</button>':'')+'</div>').join("");
  document.getElementById("addBotBtn").disabled=m.length>=l.maxPlayers;
  if(l.status==="started")roomRef.child("public").get().then(x=>{if(x.exists())enterOnlineGame(x.val());});};
  roomRef.child("lobby").on("value",onlineLobbyListener);
@@ -1266,7 +1266,7 @@ async function hostRemovePlayer(targetUid){
   updates["lobby/players/"+targetUid]=null;
   updates["private/hands/"+targetUid]=null;
   updates["private/specialRanks/"+targetUid]=null;
-  if(state&&state.status==="playing"){
+  if(state&&(state.status==="playing"||state.status==="roundComplete")){
    const oldPlayers=state.players||[];
    if(!oldPlayers.some(p=>p.id===targetUid))return;
    const remaining=oldPlayers.filter(p=>p.id!==targetUid);
@@ -1281,7 +1281,12 @@ async function hostRemovePlayer(targetUid){
    }
    const updated={...state,players:remaining,turnUid:nextTurn||state.turnUid,message:targetName+" was removed by the host."};
    if(wasTurn){updated.drawnByUid=null;updated.drawnCardId=null;updated.discardDeadline=null;}
-   if(active.length<=1&&active[0]){
+   if(updated.roundResult){
+    const rr={...updated.roundResult};
+    for(const key of ["totals","penalties","hands","specialRanks"]){if(rr[key]){rr[key]={...rr[key]};delete rr[key][targetUid];}}
+    updated.roundResult=rr;
+   }
+   if(state.status==="playing"&&active.length<=1&&active[0]){
     updated.status="gameComplete";updated.champion=active[0].name;updated.message=targetName+" was removed. "+active[0].name+" wins Moddu Set!";
    }
    updates["public"]=updated;
