@@ -558,6 +558,39 @@ footer .sai-brand-copy strong{font-size:13px}
 footer .sai-brand-copy small{font-size:6px}
 @media(max-width:450px){header{padding-top:17px}.sai-brand-mark{width:34px;height:34px;flex-basis:34px}.sai-brand-copy strong{font-size:16px}}
 
+
+/* Lightweight multiplayer table chat */
+.game-chat{padding:10px 12px!important;margin-bottom:9px!important}
+.game-chat-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.game-chat-head>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.game-chat-head strong{font-family:Georgia,serif;color:#f4d99e;font-size:16px}
+.game-chat-head small{color:#b8c9bd;font-size:10px}
+.chat-toggle{padding:8px 12px!important;font-size:12px!important;white-space:nowrap}
+.chat-unread{display:inline-grid;place-items:center;min-width:17px;height:17px;margin-left:4px;padding:0 4px;border-radius:20px;background:#7b2929;color:#fff;font-size:10px}
+.chat-drawer{padding-top:10px}
+.chat-drawer.hidden{display:none!important}
+.chat-feed{display:flex;flex-direction:column;gap:7px;max-height:190px;min-height:46px;overflow-y:auto;padding:8px;border:1px solid #d9b66b35;border-radius:11px;background:#061f18a8}
+.chat-empty{text-align:center;padding:12px 5px;color:#a9c1b3;font-size:11px}
+.chat-line{display:flex;align-items:flex-start;gap:7px;font-size:11px;line-height:1.4;overflow-wrap:anywhere}
+.chat-line.mine{justify-content:flex-end}
+.chat-bubble{max-width:88%;padding:7px 9px;border-radius:10px;background:#174a39;color:#fff3d4}
+.chat-line.mine .chat-bubble{background:#e4c17b;color:#30230c}
+.chat-sender{display:block;margin-bottom:2px;font-size:9px;font-weight:900;opacity:.78}
+.chat-emoji{font-size:25px;line-height:1.2}
+.chat-tools{padding:9px 0 5px}
+.chat-tool-label{margin:4px 0 6px;color:#d9bf83;font-size:8px;font-weight:900;letter-spacing:1.1px}
+.chat-reactions,.chat-phrases{display:flex;flex-wrap:wrap;gap:6px}
+.chat-reactions button{min-width:37px;padding:6px 8px!important;font-size:18px!important;border-radius:9px!important}
+.chat-phrases button{padding:7px 9px!important;font-size:10px!important;border-radius:9px!important;box-shadow:none!important}
+.chat-compose{display:flex;gap:7px;margin-top:7px}
+.chat-compose input{flex:1;min-width:0;padding:10px 11px;border:1px solid #d9b66b70;border-radius:10px;background:#08291f;color:#fff;font:inherit;font-size:12px}
+.chat-compose input::placeholder{color:#9eb6a8}
+.chat-compose button{padding:9px 13px!important;font-size:11px!important}
+.chat-mute{display:block;margin-top:4px;padding:3px 6px!important;border:0!important;background:transparent!important;box-shadow:none!important;color:#d9bf83!important;font-size:8px!important}
+.chat-mute:disabled{opacity:.65!important}
+.chat-footnote{margin-top:6px;color:#91aa9c;font-size:9px;text-align:center}
+@media(max-width:450px){.chat-feed{max-height:155px}.chat-phrases{gap:5px}.chat-phrases button{padding:7px!important;font-size:9px!important}}
+
 </style>
 </head>
 <body>
@@ -678,6 +711,43 @@ footer .sai-brand-copy small{font-size:6px}
 <div id="actionAnnouncement" class="action-announcement" aria-live="polite"></div>
 <div id="message">Your turn. Choose a pile.</div>
 <div id="discardTimer" aria-live="polite" style="display:none;text-align:center;margin-top:8px;font-weight:700;color:#ffe08a"></div>
+</div>
+
+<div class="game-chat panel hidden" id="gameChat">
+ <div class="game-chat-head">
+  <div><strong>Table chat</strong><small id="chatStatus">Say something to the table</small></div>
+  <button type="button" class="chat-toggle" id="chatToggle" onclick="toggleGameChat()" aria-expanded="false">💬 Chat <span id="chatUnread" class="chat-unread hidden">0</span></button>
+ </div>
+ <div id="chatDrawer" class="chat-drawer hidden">
+  <div class="chat-feed" id="chatFeed" aria-live="polite"><div class="chat-empty" id="chatEmpty">The table is quiet. Send the first reaction!</div></div>
+  <div class="chat-tools">
+   <div class="chat-tool-label">QUICK REACTIONS</div>
+   <div class="chat-reactions">
+    <button type="button" onclick="sendGameChat('emoji','😂')">😂</button>
+    <button type="button" onclick="sendGameChat('emoji','❤️')">❤️</button>
+    <button type="button" onclick="sendGameChat('emoji','🔥')">🔥</button>
+    <button type="button" onclick="sendGameChat('emoji','👏')">👏</button>
+    <button type="button" onclick="sendGameChat('emoji','😮')">😮</button>
+    <button type="button" onclick="sendGameChat('emoji','🎉')">🎉</button>
+    <button type="button" onclick="sendGameChat('emoji','🙏')">🙏</button>
+    <button type="button" onclick="sendGameChat('emoji','🤝')">🤝</button>
+   </div>
+   <div class="chat-tool-label">QUICK MESSAGES</div>
+   <div class="chat-phrases">
+    <button type="button" onclick="sendGameChat('phrase','Nice set!')">Nice set!</button>
+    <button type="button" onclick="sendGameChat('phrase','Good move!')">Good move!</button>
+    <button type="button" onclick="sendGameChat('phrase','Wait a second')">Wait a second</button>
+    <button type="button" onclick="sendGameChat('phrase','Your turn!')">Your turn!</button>
+    <button type="button" onclick="sendGameChat('phrase','Well played!')">Well played!</button>
+    <button type="button" onclick="sendGameChat('phrase','Let’s go!')">Let’s go!</button>
+   </div>
+  </div>
+  <form class="chat-compose" onsubmit="sendCustomGameChat(event)">
+   <input id="chatInput" type="text" maxlength="100" autocomplete="off" placeholder="Message everyone at the table…" aria-label="Write a chat message">
+   <button type="submit" id="chatSendBtn">Send</button>
+  </form>
+  <div class="chat-footnote">Messages are visible to everyone in this room.</div>
+ </div>
 </div>
 
 <div class="panel">
@@ -1708,6 +1778,7 @@ function showRules(){
 <script>
 /* Multiplayer v1: host-authoritative draw/discard with private hands. */
 let onlineMode=false,onlinePublic=null,onlinePublicRef=null,onlineHandRef=null,onlineActionRef=null,onlineSpecialRef=null;
+let onlineChatRef=null,onlineChatListener=null,chatIsOpen=false,chatHasOpened=false,chatUnreadCount=0,lastChatSentAt=0,mutedChatSenders=new Set();
 let discardClockInterval=null,hostDiscardTimeout=null,scheduledDiscardKey=null;
 let onlinePublicListener=null,onlineHandListener=null,onlineActionListener=null,onlineLobbyListener=null,rejoinPublicListener=null,onlineBusy={},onlineBotBusy=false;
 function onlineMembers(l){return Object.values(l.players||{}).sort((a,b)=>(a.joinedAt||0)-(b.joinedAt||0));}
@@ -1804,7 +1875,7 @@ async function startOnlineRoom(){
 }
 function enterOnlineGame(state){
  if(!roomRef||!roomPlayerId)return;onlineMode=true;onlinePublic=state;document.getElementById("setup").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");document.getElementById("game").classList.remove("hidden");
- onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);
+ onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);chatHasOpened=false;chatUnreadCount=0;chatIsOpen=false;document.getElementById("gameChat")?.classList.remove("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");document.getElementById("chatToggle")?.setAttribute("aria-expanded","false");updateChatUnread();onlineChatRef=roomRef.child("chat");if(onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);onlineChatListener=snap=>receiveGameChat(snap);onlineChatRef.limitToLast(60).on("child_added",onlineChatListener);
  if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();scheduleHostDiscardTimeout(onlinePublic);if(isRoomHost)runOnlineBotTurn();}};onlinePublicRef.on("value",onlinePublicListener);
  if(onlineSpecialRef){onlineSpecialRef.off("value");onlineSpecialRef.on("value",snap=>{const privateRank=snap.val();if(privateRank)specialRank=privateRank;render();if(specialRank)highlightSpecialJoker();});}if(onlineHandListener)onlineHandRef.off("value",onlineHandListener);onlineHandListener=s=>{if(!s.exists())return;const h=s.val()||[];if(!players.length)players=[{id:roomPlayerId,name:"You",hand:h,score:0,human:true}];else players[0]={...players[0],hand:h};if(onlinePublic?.turnUid===roomPlayerId&&h.length===14)drawn=true;else if(h.length===13)drawn=false;selected=-1;selectedIndices=[];arrangedGroups=[];applyOnlinePublic();autoArrange(false);render();};onlineHandRef.on("value",onlineHandListener);
  if(isRoomHost){if(onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);onlineActionListener=s=>{if(!s.exists())return;const uid=s.key;if(onlineBusy[uid])return;onlineBusy[uid]=true;processOnlineAction(uid,s.val()).catch(e=>setLobbyNotice("Game action failed: "+e.message)).finally(()=>{onlineActionRef.child(uid).remove().catch(()=>{});delete onlineBusy[uid];});};onlineActionRef.on("child_added",onlineActionListener);}
@@ -1826,6 +1897,49 @@ function showSharedAction(action){
  const profile=[...document.querySelectorAll("#players .player")].find(el=>el.querySelector("b")?.textContent===name);
  if(profile){profile.classList.remove("action-player");void profile.offsetWidth;profile.classList.add("action-player");}
 }
+
+function toggleGameChat(){
+ const drawer=document.getElementById("chatDrawer"),button=document.getElementById("chatToggle");if(!drawer||!button)return;
+ chatIsOpen=!chatIsOpen;drawer.classList.toggle("hidden",!chatIsOpen);button.setAttribute("aria-expanded",String(chatIsOpen));
+ if(chatIsOpen){chatHasOpened=true;chatUnreadCount=0;updateChatUnread();const feed=document.getElementById("chatFeed");if(feed)feed.scrollTop=feed.scrollHeight;}
+}
+function muteGameChatSender(uid,button){if(!uid||uid===roomPlayerId)return;mutedChatSenders.add(uid);if(button){button.textContent="Muted";button.disabled=true;button.title="Messages from this player are hidden for this room";}}
+function updateChatUnread(){
+ const badge=document.getElementById("chatUnread");if(!badge)return;badge.textContent=chatUnreadCount>9?"9+":String(chatUnreadCount);badge.classList.toggle("hidden",chatUnreadCount===0);
+}
+function receiveGameChat(snapshot){
+ const item=snapshot.val();if(!item||!item.senderId||!item.senderName||!item.type||!item.text)return;
+ if(mutedChatSenders.has(item.senderId))return;
+ const feed=document.getElementById("chatFeed");if(!feed)return;
+ const empty=document.getElementById("chatEmpty");if(empty)empty.remove();
+ const line=document.createElement("div");line.className="chat-line"+(item.senderId===roomPlayerId?" mine":"");
+ const bubble=document.createElement("div");bubble.className="chat-bubble";
+ const sender=document.createElement("span");sender.className="chat-sender";sender.textContent=item.senderId===roomPlayerId?"You":item.senderName;
+ const body=document.createElement("span");body.textContent=item.text;if(item.type==="emoji")body.className="chat-emoji";
+ bubble.append(sender,body);line.dataset.senderId=item.senderId;if(item.senderId!==roomPlayerId){const mute=document.createElement("button");mute.type="button";mute.className="chat-mute";mute.textContent="Mute";mute.title="Hide future messages from "+item.senderName;mute.onclick=()=>muteGameChatSender(item.senderId,mute);bubble.appendChild(mute);}line.appendChild(bubble);feed.appendChild(line);
+ while(feed.children.length>60)feed.removeChild(feed.firstChild);
+ if(chatIsOpen)feed.scrollTop=feed.scrollHeight;else if(chatHasOpened&&item.senderId!==roomPlayerId){chatUnreadCount++;updateChatUnread();}
+}
+async function sendGameChat(type,text){
+ if(!onlineMode||!roomRef||!roomPlayerId||!onlinePublic||onlinePublic.status!=="playing")return;
+ const allowed=["emoji","phrase"];if(!allowed.includes(type)||typeof text!=="string"||!text.trim())return;
+ await writeGameChat(type,text.trim());
+}
+async function sendCustomGameChat(event){
+ if(event)event.preventDefault();const input=document.getElementById("chatInput");if(!input)return;
+ const text=input.value.trim();if(!text)return;if(text.length>100){input.value=text.slice(0,100);return;}
+ await writeGameChat("text",text);input.value="";
+}
+async function writeGameChat(type,text){
+ if(!onlineChatRef||!authUser||authUser.uid!==roomPlayerId)return;
+ const now=Date.now();if(now-lastChatSentAt<650)return;lastChatSentAt=now;
+ const player=(onlinePublic?.players||[]).find(p=>p.id===roomPlayerId);
+ if(!player)return;
+ const messageRef=onlineChatRef.push();
+ try{await messageRef.set({senderId:roomPlayerId,senderName:String(player.name||"Player").slice(0,24),type,text:String(text).slice(0,100),createdAt:firebase.database.ServerValue.TIMESTAMP});}
+ catch(e){lastChatSentAt=0;setLobbyNotice("Chat message could not be sent. Check that the latest database rules are published.");}
+}
+
 function applyOnlinePublic(){
  if(!onlineMode||!onlinePublic)return;onlineActionPending=false;const st=onlinePublic,prior=players[0]||{},m=st.players||[];specialRank=st.specialRank||null;showSharedAction(st.lastAction);
  if(st.status==="playing"){const resultScreen=document.getElementById("roundResults");if(resultScreen)resultScreen.classList.add("hidden");}
@@ -2126,7 +2240,7 @@ function showHand(){
 }
 function startGame(){if(!onlineMode)return _soloStartGame();message("Leave the online table before starting a solo game.");}
 function leaveRoom(showLobby=true){
- if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);if(onlineSpecialRef)onlineSpecialRef.off("value");if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
+ if(onlineChatRef&&onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);onlineChatRef=null;onlineChatListener=null;chatIsOpen=false;chatHasOpened=false;chatUnreadCount=0;document.getElementById("gameChat")?.classList.add("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");mutedChatSenders.clear();if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);if(onlineSpecialRef)onlineSpecialRef.off("value");if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
  if(roomRef&&roomPlayerId)roomRef.child("lobby/players/"+roomPlayerId).remove().catch(()=>{});onlineMode=false;onlinePublic=null;onlinePublicRef=onlineHandRef=onlineActionRef=onlineSpecialRef=null;roomRef=null;roomCode=null;roomPlayerId=null;isRoomHost=false;onlineLobbyListener=null;
  document.getElementById("game").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");if(showLobby)document.getElementById("setup").classList.remove("hidden");
 }
