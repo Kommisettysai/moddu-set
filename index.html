@@ -92,6 +92,51 @@ footer{color:#9bb9a9;padding:20px 12px 28px;letter-spacing:.7px}
 @media(max-width:450px){main{padding:12px 10px 24px}.panel{padding:14px;border-radius:16px}.players{grid-template-columns:repeat(2,minmax(0,1fr))}.piles{gap:13px}.pile{height:142px}.actions button{flex:1 1 145px}.card{width:42px;height:65px}}
 @media(min-width:700px){.cards{gap:10px}.card{width:60px;height:91px;font-size:15px}.piles{gap:34px}}
 
+
+/* Compact online-card-table layout */
+.player-strip{padding:10px 12px;margin-bottom:10px}
+.player-strip h3{font-size:15px;margin:4px 0 8px}
+.table-status{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#f6d99b}
+#roundInfo{font-size:13px}
+#turnInfo{font-size:12px}
+.players{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;padding:2px 2px 7px}
+.player{flex:1 0 22%;min-width:76px;padding:7px 4px;font-size:10px;line-height:1.35}
+.player b{display:block;font-size:11px;white-space:nowrap}
+.profile-count,.profile-score{display:block;font-size:9px;color:#d5e6d9}
+.panel:has(#players){padding:10px 12px}
+#jokerInfo{display:none}
+.hand-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.hand-heading h3{margin:0}
+.joker-slot{display:flex;align-items:center;gap:6px;color:#e9d29c;font-size:10px}
+.joker-slot .card{width:31px;height:44px;min-width:31px;margin:0;padding:3px;font-size:12px}
+.joker-slot small{max-width:54px}
+.joker-face{background:linear-gradient(145deg,#fff1b9,#d8a94e)!important;color:#34230c!important;border:2px solid #ffe2a0!important;justify-content:center;text-align:center;font-weight:900}
+.hand-layout{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+.hand-group,.loose-area{padding:7px 8px;border-radius:11px;min-width:0}
+.hand-group-title,.loose-title{font-size:9px;margin-bottom:5px}
+.hand-group-cards,.loose-cards{display:flex;flex-wrap:nowrap;justify-content:flex-start;gap:5px;overflow-x:auto;padding:3px 2px 7px;min-height:0}
+.hand-group .card,.loose-cards .card{flex:0 0 40px;width:40px;height:59px;font-size:12px}
+.hand-actions{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:7px}
+.hand-actions button{padding:11px 5px;font-size:11px;white-space:nowrap}
+.arrange-tools{margin-top:10px;padding-top:8px}
+.arrange-hint{font-size:10px;margin:0 0 7px}
+#showBtn{min-width:0}
+@media(max-width:450px){
+ main{padding:8px 8px 20px}
+ .panel{padding:11px;margin-bottom:9px;border-radius:14px}
+ .players{gap:5px}
+ .player{min-width:68px;flex-basis:22%;padding:6px 3px}
+ .player b{font-size:10px}
+ .profile-count,.profile-score{font-size:8px}
+ .piles{margin:10px 0 7px}
+ .pile{height:100px;width:104px}
+ .pile strong{font-size:29px}
+ .cards{margin:8px 0;min-height:0}
+ .hand-group .card,.loose-cards .card{flex-basis:38px;width:38px;height:56px}
+}
+@media(min-width:451px){
+ .hand-group-cards,.loose-cards{flex-wrap:wrap}
+}
 </style>
 </head>
 <body>
@@ -114,13 +159,8 @@ footer{color:#9bb9a9;padding:20px 12px 28px;letter-spacing:.7px}
 </section>
 
 <section id="game" class="hidden">
-<div class="panel">
-<div id="roundInfo">Round 1</div>
-<div id="jokerInfo">Special Joker: Not revealed</div>
-<div id="turnInfo"></div>
-</div>
-
-<div class="panel">
+<div class="panel player-strip">
+<div class="table-status"><span id="roundInfo">Round 1</span><span id="turnInfo"></span></div>
 <h3>Players</h3>
 <div class="players" id="players"></div>
 </div>
@@ -143,21 +183,14 @@ footer{color:#9bb9a9;padding:20px 12px 28px;letter-spacing:.7px}
 </div>
 
 <div class="panel">
-<h3>Your cards (<span id="handCount">13</span>)</h3>
+<div class="hand-heading"><h3>Your cards (<span id="handCount">13</span>)</h3><div class="joker-slot" id="jokerSlot"><span class="card back joker-card">★</span><small>Special joker</small></div></div>
 <div class="cards" id="hand"></div>
-<div class="actions">
-<button id="discardBtn" onclick="discardSelected()" disabled>Discard selected card</button>
-<button onclick="checkFourSet()">Check four-set</button>
-</div>
-<div class="arrange-tools">
-<p class="arrange-hint">Tap cards to select them, then arrange your sets. You can rearrange at any time.</p>
-<div class="actions">
-<button onclick="makeManualGroup(3)">Group selected 3</button>
-<button onclick="makeManualGroup(4)">Pure group of 4</button>
+<div class="actions hand-actions">
+<button id="discardBtn" onclick="discardSelected()" disabled>Discard selected</button>
 <button onclick="autoArrange()">Auto arrange</button>
-<button onclick="clearGroups()">Clear groups</button>
 <button id="showBtn" onclick="showHand()">SHOW</button>
 </div>
+<div class="arrange-tools"><p class="arrange-hint">Your cards arrange automatically. Drag a card onto a set to add it, or use Auto Arrange.</p>
 
 </div>
 </div>
@@ -245,8 +278,9 @@ function message(t){
 function render(){
  document.getElementById("openCard").textContent=
  cardText(discard[discard.length-1]);
- document.getElementById("jokerInfo").textContent=
- "Special Joker: "+(specialRank||"Not revealed");
+ document.getElementById("jokerInfo").textContent="";
+ const slot=document.getElementById("jokerSlot");
+ if(slot)slot.innerHTML=specialRank&&players[0].unlocked?'<span class="card joker-face">'+specialRank+'★</span><small>Special joker</small>':'<span class="card back joker-card">★</span><small>Special joker</small>';
  document.getElementById("turnInfo").textContent=
  players[turn].name+"'s turn";
  document.getElementById("handCount").textContent=players[0].hand.length;
@@ -255,11 +289,8 @@ function render(){
  let phtml="";
  players.forEach((p,i)=>{
   phtml+=`<div class="player ${i===turn?"active":""}">
-  <b>${p.name}</b><br>
-  ${p.human?"Your hand":"🂠 🂠 🂠"}<br>
-  Cards: ${p.hand.length}<br>
-  Special joker: ${p.unlocked?"Unlocked":"Locked"}<br>
-  Score: ${p.score}
+  <b>${p.name}</b><span class="profile-count">${p.hand.length} cards</span>
+  <span class="profile-score">Score: ${p.score}</span>
   </div>`;
  });
  document.getElementById("players").innerHTML=phtml;
@@ -423,8 +454,26 @@ function aiTurn(){
 
 function cardMarkup(c,i){
  const red=["♥","♦"].includes(c.suit);
- return `<div class="card ${red?"red":""} ${(drawn?selected===i:selectedIndices.includes(i))?"selected":""}" onclick="selectCard(${i})">
+ return `<div class="card ${red?"red":""} ${(drawn?selected===i:selectedIndices.includes(i))?"selected":""}" draggable="true" ondragstart="dragCard(event,${i})" onclick="selectCard(${i})">
  <span>${c.joker?"★":c.rank}</span><span style="text-align:center">${c.suit}</span><span style="text-align:right">${c.joker?"★":c.rank}</span></div>`;
+}
+let draggedCardIndex=null;
+function dragCard(event,index){draggedCardIndex=index;event.dataTransfer.setData("text/plain",String(index));}
+function dropOnGroup(event,g){
+ event.preventDefault();
+ const index=Number(event.dataTransfer.getData("text/plain")||draggedCardIndex);
+ const hand=players[0].hand, card=hand[index];
+ if(!card||!arrangedGroups[g])return;
+ const ids=arrangedGroups[g];
+ const existing=ids.map(id=>hand.find(c=>c.id===id)).filter(Boolean);
+ if(ids.includes(card.id)||existing.length>=4)return;
+ const candidate=[...existing,card];
+ if(candidate.length===4){
+  if(candidate.some(c=>c.joker)||!candidate.every(c=>c.rank===candidate[0].rank)){message("A pure four-set needs four natural cards of one rank.");return;}
+ }else if(!validThree(candidate)){message("That card does not fit this set.");return;}
+ ids.push(card.id);
+ autoArrange(false);
+ message("Card moved into the set.");
 }
 function renderHandLayout(){
  const hand=players[0].hand;
@@ -432,10 +481,10 @@ function renderHandLayout(){
  let html='<div class="hand-layout">';
  arrangedGroups.forEach((ids,g)=>{
   const cards=ids.map(id=>({card:hand.find(c=>c.id===id),index:hand.findIndex(c=>c.id===id)})).filter(x=>x.card);
-  html+='<div class="hand-group"><div class="hand-group-title">'+(ids.length===4?'✦ PURE FOUR-CARD SET':'✦ THREE-CARD SET')+' <button class="group-remove" onclick="removeGroup('+g+')">Undo</button></div><div class="hand-group-cards">'+cards.map(x=>cardMarkup(x.card,x.index)).join('')+'</div></div>';
+  html+='<div class="hand-group" ondragover="event.preventDefault()" ondrop="dropOnGroup(event,'+g+')"><div class="hand-group-title">'+(ids.length===4?'✦ PURE FOUR-CARD SET':'✦ THREE-CARD SET')+'</div><div class="hand-group-cards">'+cards.map(x=>cardMarkup(x.card,x.index)).join('')+'</div></div>';
  });
  const loose=sortCardsLowToHigh(hand.map((card,index)=>({card,index})).filter(x=>!grouped.has(x.card.id)).map(x=>x.card)).map(card=>({card,index:hand.findIndex(x=>x.id===card.id)}));
- html+='<div class="loose-area"><div class="loose-title">YOUR UNGROUPED CARDS</div><div class="loose-cards">'+loose.map(x=>cardMarkup(x.card,x.index)).join('')+'</div></div></div>';
+ html+='<div class="loose-area"><div class="loose-title">OTHER CARDS · LOW TO HIGH</div><div class="loose-cards">'+loose.map(x=>cardMarkup(x.card,x.index)).join('')+'</div></div></div>';
  return html;
 }
 
