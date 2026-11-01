@@ -591,9 +591,63 @@ footer .sai-brand-copy small{font-size:6px}
 .chat-footnote{margin-top:6px;color:#91aa9c;font-size:9px;text-align:center}
 @media(max-width:450px){.chat-feed{max-height:155px}.chat-phrases{gap:5px}.chat-phrases button{padding:7px!important;font-size:9px!important}}
 
+
+/* App opening password gate */
+#appLockScreen{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:22px;background:radial-gradient(ellipse at 50% 0%,#28634b 0,#102f26 48%,#071d18 100%);color:#fffaf0}
+#appLockScreen[hidden]{display:none!important}
+.app-lock-card{width:min(100%,370px);padding:28px 22px;border:1px solid #d9b66b70;border-radius:20px;background:linear-gradient(145deg,#174a39,#0a2c21);box-shadow:0 20px 55px #0008;text-align:center}
+.app-lock-icon{font-size:38px;margin-bottom:10px}
+.app-lock-card h2{margin:0;color:#f4d28a;font-family:Georgia,serif;font-size:26px;letter-spacing:1px}
+.app-lock-card p{margin:8px 0 18px;color:#c4d5c9;font-size:12px;line-height:1.5}
+#appLockForm{display:flex;flex-direction:column;gap:10px}
+#appLockPassword{width:100%;padding:14px;border:1px solid #d9b66b80;border-radius:11px;background:#08291f;color:#fff;font-size:16px;text-align:center;letter-spacing:2px;outline:none}
+#appLockPassword:focus{border-color:#f4d28a;box-shadow:0 0 0 3px #f4d28a22}
+#appLockForm button{width:100%;padding:13px;border-radius:11px}
+#appLockError{min-height:17px;color:#ffb3a7;font-size:11px}
+body.app-locked{overflow:hidden}
+
 </style>
 </head>
-<body>
+
+<body class="app-locked">
+<div id="appLockScreen" role="dialog" aria-modal="true" aria-labelledby="appLockTitle">
+ <div class="app-lock-card">
+  <div class="app-lock-icon" aria-hidden="true">🔐</div>
+  <h2 id="appLockTitle">SAI • MODDU SET</h2>
+  <p>This table is private. Enter the password to continue.</p>
+  <form id="appLockForm">
+   <input id="appLockPassword" type="password" placeholder="Enter password" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+   <button type="submit">Unlock app</button>
+   <div id="appLockError" role="alert" aria-live="polite"></div>
+  </form>
+ </div>
+</div>
+<script>
+(()=>{
+ const SALT="d4abe013ca0cd3d106d5414e6d76eb3e";
+ const EXPECTED="8d65b881c8e3abba9fe0ebf04bdfcc82066454c2fdca25973c69f73cc5f6cebe";
+ const form=document.getElementById("appLockForm"),input=document.getElementById("appLockPassword"),error=document.getElementById("appLockError"),screen=document.getElementById("appLockScreen");
+ const hex=s=>Uint8Array.from(s.match(/.{2}/g),x=>parseInt(x,16));
+ const equal=(a,b)=>{if(a.length!==b.length)return false;let diff=0;for(let i=0;i<a.length;i++)diff|=a[i]^b[i];return diff===0;};
+ form.addEventListener("submit",async event=>{
+  event.preventDefault();error.textContent="";
+  const value=input.value;
+  if(!value){error.textContent="Enter the password to unlock.";return;}
+  const button=form.querySelector("button");button.disabled=true;button.textContent="Checking…";
+  try{
+   const material=await crypto.subtle.importKey("raw",new TextEncoder().encode(value),"PBKDF2",false,["deriveBits"]);
+   const bits=await crypto.subtle.deriveBits({name:"PBKDF2",salt:hex(SALT),iterations:600000,hash:"SHA-256"},material,256);
+   const actual=new Uint8Array(bits);
+   if(equal(actual,hex(EXPECTED))){
+    screen.hidden=true;document.body.classList.remove("app-locked");input.value="";
+   }else{error.textContent="Incorrect password. Try again.";input.value="";input.focus();}
+  }catch(e){error.textContent="Secure unlock is not available in this browser. Open the app using HTTPS."; }
+  finally{button.disabled=false;button.textContent="Unlock app";}
+ });
+ setTimeout(()=>input.focus(),100);
+})();
+</script>
+
 <header>
 <div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong><small>PERSONAL BRAND</small></span></div>
 <h1>🃏 MODDU SET</h1>
