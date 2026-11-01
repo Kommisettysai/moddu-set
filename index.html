@@ -276,33 +276,44 @@ function message(t){
 }
 
 function render(){
- document.getElementById("openCard").textContent=
- cardText(discard[discard.length-1]);
- const oldJokerInfo=document.getElementById("jokerInfo");
- if(oldJokerInfo)oldJokerInfo.textContent="";
- const slot=document.getElementById("jokerSlot");
- if(slot)slot.innerHTML=specialRank&&players[0].unlocked?'<span class="card joker-face">'+specialRank+'★</span><small>Special joker</small>':'<span class="card back joker-card">★</span><small>Special joker</small>';
- document.getElementById("turnInfo").textContent=
- players[turn].name+"'s turn";
- document.getElementById("handCount").textContent=players[0].hand.length;
- renderGroups();
-
- let phtml="";
- players.forEach((p,i)=>{
-  phtml+=`<div class="player ${i===turn?"active":""}">
-  <b>${p.name}</b><span class="profile-count">${p.hand.length} cards</span>
-  <span class="profile-score">Score: ${p.score}</span>
-  </div>`;
- });
- document.getElementById("players").innerHTML=phtml;
-
- if(players[0]){
-  document.getElementById("hand").innerHTML=renderHandLayout();
+ const handEl=document.getElementById("hand");
+ const playersEl=document.getElementById("players");
+ try{
+  const topDiscard=discard.length?discard[discard.length-1]:null;
+  const openEl=document.getElementById("openCard");
+  if(openEl)openEl.textContent=cardText(topDiscard);
+  const oldJokerInfo=document.getElementById("jokerInfo");
+  if(oldJokerInfo)oldJokerInfo.textContent="";
+  const slot=document.getElementById("jokerSlot");
+  if(slot)slot.innerHTML=specialRank&&players[0]&&players[0].unlocked?'<span class="card joker-face">'+specialRank+'★</span><small>Special joker</small>':'<span class="card back joker-card">★</span><small>Special joker</small>';
+  const turnEl=document.getElementById("turnInfo");
+  if(turnEl&&players[turn])turnEl.textContent=players[turn].name+"'s turn";
+  if(players[0]){
+   document.getElementById("handCount").textContent=players[0].hand.length;
+   if(playersEl){
+    playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active':'')+'"><b>'+p.name+'</b><span class="profile-count">'+p.hand.length+' cards</span><span class="profile-score">Score: '+p.score+'</span></div>').join('');
+   }
+   if(handEl){
+    try{handEl.innerHTML=renderHandLayout();}
+    catch(layoutError){
+     console.error("Hand arrangement display error:",layoutError);
+     handEl.innerHTML=players[0].hand.map((c,i)=>cardMarkup(c,i)).join('');
+    }
+   }
+  }
+  const discardBtn=document.getElementById("discardBtn");
+  if(discardBtn)discardBtn.disabled=!(turn===0&&drawn&&selected>=0);
+ }catch(error){
+  console.error("Game render error:",error);
+  if(playersEl&&players.length){
+   playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active':'')+'"><b>'+p.name+'</b><span class="profile-count">'+p.hand.length+' cards</span><span class="profile-score">Score: '+p.score+'</span></div>').join('');
+  }
+  if(handEl&&players[0]){
+   handEl.innerHTML=players[0].hand.map((c,i)=>cardMarkup(c,i)).join('');
+  }
+  message("Display recovery mode: your cards are shown in a simple layout.");
  }
- document.getElementById("discardBtn").disabled=
- !(turn===0&&drawn&&selected>=0);
 }
-
 function cardText(c){
  if(!c)return "?";
  return c.joker?"🃏":c.rank+c.suit;
