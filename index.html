@@ -753,7 +753,7 @@ function showHand(){
  const used=groups.flat().map(c=>c.id);
  if(used.length!==13||new Set(used).size!==13){message("Every card must be used exactly once. Arrange again.");return;}
  const pure=groups[0];
- if(pure.length!==4||pure.some(c=>c.joker||isWildForPlayer(c,players[0]))||!pure.every(c=>c.rank===pure[0].rank)){
+ if(pure.length!==4||pure.some(c=>c.joker)||!pure.every(c=>c.rank===pure[0].rank)){
   message("Your first group must be a pure natural four-set.");return;
  }
  if(!groups.slice(1).every(g=>{
@@ -766,6 +766,8 @@ function showHand(){
   players[0].hand=hand;
   discard.push(showDiscard);
   drawn=false;selected=-1;
+  // Rebuild the sets from the final 13 cards, excluding the discarded 14th card.
+  autoArrange(false);
  }
  arrangedGroups=groups.map(g=>g.map(c=>c.id));
  players[0].score=players[0].score||0;
