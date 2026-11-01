@@ -807,7 +807,6 @@ async function leaveRoom(showLobby=true){
  document.getElementById("waitingRoom").classList.add("hidden");
  if(showLobby)document.getElementById("setup").classList.remove("hidden");
 }
-function startBots(){document.getElementById("playerCount").value=document.getElementById("playerCount").value||"4";startGame();}
 initFirebase();
 const invitedRoom=new URLSearchParams(location.search).get("room");
 if(invitedRoom&&/^[A-Z0-9]{6}$/i.test(invitedRoom)){const roomInput=document.getElementById("roomCodeInput");if(roomInput)roomInput.value=invitedRoom.toUpperCase();}
