@@ -358,11 +358,16 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 @media(max-width:390px){.lobby-shell{margin-top:7px}.lobby-card{padding:15px 12px}.lobby-intro{padding-top:15px}}
 
 /* Highlight players who have unlocked and seen the special joker */
-.player.turn-owner{border:2px solid #fff0a6!important;box-shadow:0 0 0 3px #ffe06b55,0 0 18px #ffe06b!important;position:relative}
-.player-turn-badge{display:inline-block;margin-top:4px;padding:3px 7px;border-radius:20px;background:linear-gradient(180deg,#fff4bf,#f0c45d);color:#38270c;font-size:9px;font-weight:1000;letter-spacing:.5px;box-shadow:0 1px 6px #0006}
+/* Turn status uses cyan; joker-seen status stays gold. */
+.player.turn-owner{border:2px solid #69e6ff!important;background:linear-gradient(145deg,#124c60,#173d4b)!important;box-shadow:0 0 0 3px #42d9ff55,0 0 18px #42d9ff!important;position:relative}
+.player-turn-badge{display:inline-block;margin-top:4px;padding:3px 7px;border-radius:20px;background:linear-gradient(180deg,#c8f7ff,#52d9f2);color:#073747;font-size:9px;font-weight:1000;letter-spacing:.5px;box-shadow:0 1px 6px #0006}
 .player.joker-seen{border:2px solid #ffe06b!important;background:linear-gradient(145deg,#70521e,#31583c)!important;box-shadow:0 0 0 3px #ffe06b35,0 0 16px #ffe06b70,inset 0 1px #fff5!important}
 .player.joker-seen .profile-status{color:#fff0a6!important;font-weight:900!important}
 .joker-seen-badge{display:inline-block;margin-top:4px;padding:3px 6px;border-radius:20px;background:linear-gradient(180deg,#fff0a6,#e5b94f);color:#38270c;font-size:8px;font-weight:900;letter-spacing:.2px;box-shadow:0 1px 5px #0005}
+/* When both apply, keep a cyan turn outline and a gold joker badge. */
+.player.turn-owner.joker-seen{border:2px solid #69e6ff!important;background:linear-gradient(145deg,#124c60,#173d4b)!important;box-shadow:0 0 0 3px #42d9ff55,0 0 18px #42d9ff!important}
+.player.turn-owner.joker-seen .player-turn-badge{background:linear-gradient(180deg,#c8f7ff,#52d9f2)!important;color:#073747!important}
+.player.turn-owner.joker-seen .joker-seen-badge{background:linear-gradient(180deg,#fff0a6,#e5b94f)!important;color:#38270c!important}
 </style>
 </head>
 <body>
