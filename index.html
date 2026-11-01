@@ -617,6 +617,11 @@ body.app-locked{overflow:hidden}
 @media(prefers-reduced-motion:reduce){.player-reaction-burst{animation:none;opacity:1}}
 
 
+
+/* Floating reactions live at the document level so table re-renders cannot erase or clip them */
+.player-reaction-floating{position:fixed!important;left:0;top:0;z-index:99999!important;transform:translateX(-50%);pointer-events:none!important;max-width:calc(100vw - 16px)}
+.player-reaction-floating .reaction-content{display:block;max-width:calc(100vw - 24px);overflow-wrap:anywhere}
+
 /* Keep floating reactions visible above player cards on narrow screens */
 .player-strip,.player-strip .players,.player-strip .player{overflow:visible!important}
 .player-strip .players{position:relative;isolation:isolate}
@@ -2028,16 +2033,20 @@ function updateChatUnread(){
  const badge=document.getElementById("chatUnread");if(!badge)return;badge.textContent=chatUnreadCount>9?"9+":String(chatUnreadCount);badge.classList.toggle("hidden",chatUnreadCount===0);
 }
 function showPlayerReaction(item){
- const profiles=[...document.querySelectorAll("#players .player")];
- const profile=profiles.find(el=>el.getAttribute("data-player-id")===String(item.senderId))||profiles.find(el=>el.querySelector("b,strong")?.textContent?.trim()===String(item.senderName));
+ const profile=[...document.querySelectorAll("#players .player")].find(el=>el.getAttribute("data-player-id")===String(item.senderId));
  if(!profile)return;
- const existing=profile.querySelector(".player-reaction-burst");if(existing)existing.remove();
- const burst=document.createElement("div");burst.className="player-reaction-burst"+(item.type==="emoji"?"":" is-message");
+ const rect=profile.getBoundingClientRect();
+ const burst=document.createElement("div");
+ burst.className="player-reaction-burst player-reaction-floating"+(item.type==="emoji"?"":" is-message");
+ burst.style.left=Math.max(8,Math.min(window.innerWidth-8,rect.left+rect.width/2))+"px";
+ burst.style.top=Math.max(8,rect.top-12)+"px";
+ burst.style.setProperty("--reaction-x","-50%");
  const content=document.createElement("span");content.className="reaction-content";content.textContent=item.text;
  const sender=document.createElement("span");sender.className="reaction-sender";sender.textContent=item.senderName;
- burst.append(content,sender);profile.appendChild(burst);
+ burst.append(content,sender);document.body.appendChild(burst);
  const prior=playerReactionTimers.get(item.senderId);if(prior)clearTimeout(prior);
- const timer=setTimeout(()=>{burst.remove();playerReactionTimers.delete(item.senderId);},3300);playerReactionTimers.set(item.senderId,timer);
+ const timer=setTimeout(()=>{burst.remove();playerReactionTimers.delete(item.senderId);},3300);
+ playerReactionTimers.set(item.senderId,timer);
 }
 function receiveGameChat(snapshot,showReaction=true){
  const item=snapshot.val();if(!item||!item.senderId||!item.senderName||!item.type||!item.text)return;
