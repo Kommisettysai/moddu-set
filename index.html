@@ -503,16 +503,23 @@ function initFirebase(){
  try{
   if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
   firebaseReady=true;
+  const syncGoogleProfile=user=>{
+   if(!user)return;
+   const nameInput=document.getElementById("playerName");
+   if(nameInput&&user.displayName&&!nameInput.value.trim())nameInput.value=user.displayName.slice(0,18);
+   if(user.isAnonymous)setAuthStatus("Playing as guest. You can connect Google any time.");
+   else setAuthStatus("Google account connected: "+(user.displayName||user.email||"signed in"));
+  };
   firebase.auth().onAuthStateChanged(user=>{
    authUser=user||null;
-   if(user){
-    setAuthStatus(user.isAnonymous?"Playing as guest. Sign in with Google to link this account.":"Google account connected.");
-    const nameInput=document.getElementById("playerName");
-    if(nameInput&&!nameInput.value.trim()&&user.displayName)nameInput.value=user.displayName.slice(0,18);
-   }else setAuthStatus("Connecting as a guest…");
+   if(user)syncGoogleProfile(user);
+   else setAuthStatus("Connecting as a guest…");
   });
   firebase.auth().getRedirectResult().then(result=>{
-   if(result&&result.user)setLobbyNotice("Google sign-in successful.");
+   if(result&&result.user){
+    syncGoogleProfile(result.user);
+    setLobbyNotice("Google account connected successfully. Your profile name has been filled in; you can edit it before creating a table.");
+   }
    if(!firebase.auth().currentUser)return firebase.auth().signInAnonymously();
   }).catch(e=>{
    if(e.code==="auth/credential-already-in-use"||e.code==="auth/account-exists-with-different-credential"){
@@ -1013,38 +1020,56 @@ function sortCardsLowToHigh(cards){
 function autoArrange(showMessage=true){
  if(!players.length||!players[0].hand){if(showMessage)message("Your hand is not ready yet.");return;}
  const hand=players[0].hand;
- arrangedGroups=[];
- const available=[...hand];
- const pureRank=ranks.find(r=>available.filter(c=>!isWild(c)&&!c.joker&&c.rank===r).length>=4);
- if(pureRank){
-  const pure=available.filter(c=>!isWild(c)&&!c.joker&&c.rank===pureRank).slice(0,4);
-  arrangedGroups.push(pure.map(c=>c.id));
-  pure.forEach(c=>available.splice(available.findIndex(x=>x.id===c.id),1));
+ const wild=card=>isWild(card);
+ const candidates=[];
+ // Build every valid three-card set. Suit and colour do not matter.
+ for(let i=0;i<hand.length-2;i++)for(let j=i+1;j<hand.length-1;j++)for(let k=j+1;k<hand.length;k++){
+  const cards=[hand[i],hand[j],hand[k]];
+  if(validThree(cards))candidates.push({cards,mask:(1<<i)|(1<<j)|(1<<k),pure:false,wilds:cards.filter(wild).length});
  }
- const triples=[];
- for(let i=0;i<available.length-2;i++)for(let j=i+1;j<available.length-1;j++)for(let k=j+1;k<available.length;k++){
-  const cards=[available[i],available[j],available[k]];
-  if(validThree(cards))triples.push({cards,mask:(1<<i)|(1<<j)|(1<<k),wilds:cards.filter(isWild).length,rank:Math.min(...cards.filter(c=>!isWild(c)).map(rankValue),99)});
+ // A pure four-set must contain four natural cards of the same rank.
+ for(let i=0;i<hand.length-3;i++)for(let j=i+1;j<hand.length-2;j++)for(let k=j+1;k<hand.length-1;k++)for(let l=k+1;l<hand.length;l++){
+  const cards=[hand[i],hand[j],hand[k],hand[l]];
+  if(cards.every(c=>!c.joker&&!wild(c)&&c.rank===cards[0].rank))candidates.push({cards,mask:(1<<i)|(1<<j)|(1<<k)|(1<<l),pure:true,wilds:0});
  }
- triples.sort((x,y)=>x.wilds-y.wilds||x.rank-y.rank);
- let best={groups:[],wilds:99};
+ const byFirst=Array.from({length:hand.length},()=>[]);
+ candidates.forEach(group=>{for(let i=0;i<hand.length;i++)if(group.mask&(1<<i))byFirst[i].push(group);});
  const memo=new Map();
- function search(mask,groups,wildCount){
-  if(groups.length>best.groups.length||(groups.length===best.groups.length&&wildCount<best.wilds))best={groups:groups.slice(),wilds:wildCount};
-  if(groups.length===(pureRank?3:4))return;
-  const key=mask+"|"+groups.length,seen=memo.get(key);
-  if(seen!==undefined&&seen<=wildCount)return;
-  memo.set(key,wildCount);
-  for(const t of triples)if((t.mask&mask)===0)search(mask|t.mask,[...groups,t.cards],wildCount+t.wilds);
+ const better=(a,b)=>{
+  if(a.pure!==b.pure)return a.pure;
+  if(a.covered!==b.covered)return a.covered>b.covered;
+  if(a.groups.length!==b.groups.length)return a.groups.length>b.groups.length;
+  if(a.wilds!==b.wilds)return a.wilds<b.wilds;
+  return a.rankValue>b.rankValue;
+ };
+ function solve(mask){
+  if(mask===(1<<hand.length)-1)return {groups:[],pure:false,covered:0,wilds:0,rankValue:0};
+  if(memo.has(mask))return memo.get(mask);
+  let first=0;while(mask&(1<<first))first++;
+  const skipped=solve(mask|(1<<first));
+  let best={...skipped};
+  for(const group of byFirst[first]){
+   if(group.mask&mask)continue;
+   const rest=solve(mask|group.mask);
+   const candidate={
+    groups:[group,...rest.groups],
+    pure:group.pure||rest.pure,
+    covered:group.cards.length+rest.covered,
+    wilds:group.wilds+rest.wilds,
+    rankValue:group.cards.reduce((n,c)=>n+(Number(c.rank)||0),0)+rest.rankValue
+   };
+   if(better(candidate,best))best=candidate;
+  }
+  memo.set(mask,best);return best;
  }
- search(0,[],0);
- best.groups.sort((x,y)=>x.filter(isWild).length-y.filter(isWild).length||Math.min(...x.filter(c=>!isWild(c)).map(rankValue),99)-Math.min(...y.filter(c=>!isWild(c)).map(rankValue),99));
- best.groups.forEach(g=>arrangedGroups.push(g.map(c=>c.id)));
+ const best=solve(0);
+ const groups=best.groups.slice().sort((a,b)=>Number(b.pure)-Number(a.pure)||a.wilds-b.wilds);
+ arrangedGroups=groups.map(g=>g.cards.map(c=>c.id));
  selectedIndices=[];
  render();
  if(showMessage){
-  const loose=hand.length-arrangedGroups.flat().length;
-  message("Arranged "+(arrangedGroups.length?arrangedGroups.length+" set(s)":"your cards")+". Natural sets are preferred; jokers complete other sets when useful. "+loose+" card(s) remain loose.");
+  const loose=hand.length-best.covered;
+  message("Arranged "+groups.length+" set(s). Suits and colours do not matter; jokers are used when they complete a set. "+loose+" card(s) remain loose.");
  }
 }
 
@@ -1215,7 +1240,13 @@ async function joinRoom(){
  roomCode=code;roomRef=ref;roomPlayerId=authUser.uid;isRoomHost=false;showWaitingRoom();}catch(e){setLobbyNotice("Could not join room: "+e.message);}
 }
 function showWaitingRoom(){
- document.getElementById("setup").classList.remove("hidden");document.getElementById("waitingRoom").classList.remove("hidden");document.getElementById("roomCodeLabel").textContent=roomCode;document.getElementById("startRoomBtn").classList.toggle("hidden",!isRoomHost);document.getElementById("addBotBtn").classList.toggle("hidden",!isRoomHost);
+ // Replace the login/setup view with the waiting room so its controls are immediately visible.
+ document.getElementById("setup").classList.add("hidden");
+ document.getElementById("waitingRoom").classList.remove("hidden");
+ document.getElementById("roomCodeLabel").textContent=roomCode;
+ document.getElementById("startRoomBtn").classList.toggle("hidden",!isRoomHost);
+ document.getElementById("addBotBtn").classList.toggle("hidden",!isRoomHost);
+ document.getElementById("waitingRoom").scrollIntoView({behavior:"smooth",block:"start"});
  if(onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
  onlineLobbyListener=snap=>{if(!snap.exists())return;const l=snap.val(),m=onlineMembers(l);document.getElementById("roomPlayerCount").textContent=m.length+"/"+l.maxPlayers;
  document.getElementById("roomPlayers").innerHTML=m.map((p,i)=>'<div class="room-player"><span class="avatar">'+(p.isBot?"🤖":(["🃏","🌟","🍀","🔥","🎯","👑"][i]||"🃏"))+'</span><strong>'+escapeLobbyText(p.name)+'</strong><small>'+(p.id===l.hostId?"HOST":p.isBot?"BOT":"READY")+'</small></div>').join("");
