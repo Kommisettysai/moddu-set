@@ -1164,7 +1164,7 @@ function showHand(){
  const used=groups.flat().map(c=>c.id);
  if(used.length!==13||new Set(used).size!==13){message("Every card must be used exactly once.");return;}
  const pure=groups[0];
- if(pure.some(c=>c.joker)||!pure.every(c=>c.rank===pure[0].rank)){message("The first group must be a pure natural four-set.");return;}
+ if(pure.some(c=>c.joker||isWildForPlayer(c,players[0]))||!pure.every(c=>c.rank===pure[0].rank)){message("The first group must be a pure natural four-set.");return;}
  if(!groups.slice(1).every(g=>{const natural=g.filter(c=>!isWildForPlayer(c,players[0]));return !natural.length||natural.every(c=>c.rank===natural[0].rank);})){message("One or more three-card sets are invalid.");return;}
  finishSoloRound(0,groups.map(g=>g.map(c=>c.id)));
 }function renderResultCard(card){
@@ -1350,7 +1350,7 @@ function validateOnlineShow(hand,groupIds,player){
  const used=groups.flat().map(c=>c.id);
  if(used.length!==13||new Set(used).size!==13||hand.length!==13)return "All 13 cards must be used exactly once.";
  const pure=groups[0];
- if(pure.some(c=>c.joker)||!pure.every(c=>c.rank===pure[0].rank))return "The first group must be a natural four-set of the same rank.";
+ if(pure.some(c=>c.joker||isWildForPlayer(c,players[0]))||!pure.every(c=>c.rank===pure[0].rank))return "The first group must be a natural four-set of the same rank.";
  if(!groups.slice(1).every(g=>{const natural=g.filter(c=>!isWildForPlayer(c,player));return !natural.length||natural.every(c=>c.rank===natural[0].rank);}))return "Each three-card set must have the same rank, except for valid jokers.";
  return null;
 }
