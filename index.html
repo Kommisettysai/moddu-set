@@ -619,7 +619,7 @@ body.app-locked{overflow:hidden}
 
 
 /* Floating reactions live at the document level so table re-renders cannot erase or clip them */
-.player-reaction-floating{position:fixed!important;left:0;top:0;z-index:99999!important;transform:translateX(-50%);pointer-events:none!important;max-width:calc(100vw - 16px)}
+.player-reaction-floating{position:fixed!important;z-index:99999!important;transform:translateX(-50%);pointer-events:none!important;max-width:calc(100vw - 16px);animation:playerReactionPop 3.2s ease forwards!important}
 .player-reaction-floating .reaction-content{display:block;max-width:calc(100vw - 24px);overflow-wrap:anywhere}
 
 /* Keep floating reactions visible above player cards on narrow screens */
@@ -627,7 +627,7 @@ body.app-locked{overflow:hidden}
 .player-strip .players{position:relative;isolation:isolate}
 .player-strip .player{z-index:1}
 .player-strip .player:has(.player-reaction-burst){z-index:20}
-.player-reaction-burst{z-index:100!important;top:-22px!important}
+.player-reaction-burst{z-index:100!important;top:-22px!important}.player-reaction-floating{top:auto!important;left:auto!important}
 
 /* Eliminated players remain at the table as read-only spectators */
 #game.spectator-mode .spectator-notice{display:block}
