@@ -711,7 +711,7 @@ footer .sai-brand-copy small{font-size:6px}
 <div id="discardTimer" aria-live="polite" style="display:none;text-align:center;margin-top:8px;font-weight:700;color:#ffe08a"></div>
 </div>
 
-<div class="game-chat panel" id="gameChat">
+<div class="game-chat panel hidden" id="gameChat">
  <div class="game-chat-head">
   <div><strong>Table chat</strong><small id="chatStatus">Say something to the table</small></div>
   <button type="button" class="chat-toggle" id="chatToggle" onclick="toggleGameChat()" aria-expanded="false">💬 Chat <span id="chatUnread" class="chat-unread hidden">0</span></button>
@@ -1776,7 +1776,7 @@ function showRules(){
 <script>
 /* Multiplayer v1: host-authoritative draw/discard with private hands. */
 let onlineMode=false,onlinePublic=null,onlinePublicRef=null,onlineHandRef=null,onlineActionRef=null,onlineSpecialRef=null;
-let onlineChatRef=null,onlineChatListener=null,chatIsOpen=false,chatUnreadCount=0,lastChatSentAt=0,mutedChatSenders=new Set();
+let onlineChatRef=null,onlineChatListener=null,chatIsOpen=false,chatHasOpened=false,chatUnreadCount=0,lastChatSentAt=0,mutedChatSenders=new Set();
 let discardClockInterval=null,hostDiscardTimeout=null,scheduledDiscardKey=null;
 let onlinePublicListener=null,onlineHandListener=null,onlineActionListener=null,onlineLobbyListener=null,rejoinPublicListener=null,onlineBusy={},onlineBotBusy=false;
 function onlineMembers(l){return Object.values(l.players||{}).sort((a,b)=>(a.joinedAt||0)-(b.joinedAt||0));}
@@ -1873,7 +1873,7 @@ async function startOnlineRoom(){
 }
 function enterOnlineGame(state){
  if(!roomRef||!roomPlayerId)return;onlineMode=true;onlinePublic=state;document.getElementById("setup").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");document.getElementById("game").classList.remove("hidden");
- onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);onlineChatRef=roomRef.child("chat");if(onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);onlineChatListener=snap=>receiveGameChat(snap);onlineChatRef.limitToLast(60).on("child_added",onlineChatListener);
+ onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);chatHasOpened=false;chatUnreadCount=0;chatIsOpen=false;document.getElementById("gameChat")?.classList.remove("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");document.getElementById("chatToggle")?.setAttribute("aria-expanded","false");updateChatUnread();onlineChatRef=roomRef.child("chat");if(onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);onlineChatListener=snap=>receiveGameChat(snap);onlineChatRef.limitToLast(60).on("child_added",onlineChatListener);
  if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();scheduleHostDiscardTimeout(onlinePublic);if(isRoomHost)runOnlineBotTurn();}};onlinePublicRef.on("value",onlinePublicListener);
  if(onlineSpecialRef){onlineSpecialRef.off("value");onlineSpecialRef.on("value",snap=>{const privateRank=snap.val();if(privateRank)specialRank=privateRank;render();if(specialRank)highlightSpecialJoker();});}if(onlineHandListener)onlineHandRef.off("value",onlineHandListener);onlineHandListener=s=>{if(!s.exists())return;const h=s.val()||[];if(!players.length)players=[{id:roomPlayerId,name:"You",hand:h,score:0,human:true}];else players[0]={...players[0],hand:h};if(onlinePublic?.turnUid===roomPlayerId&&h.length===14)drawn=true;else if(h.length===13)drawn=false;selected=-1;selectedIndices=[];arrangedGroups=[];applyOnlinePublic();autoArrange(false);render();};onlineHandRef.on("value",onlineHandListener);
  if(isRoomHost){if(onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);onlineActionListener=s=>{if(!s.exists())return;const uid=s.key;if(onlineBusy[uid])return;onlineBusy[uid]=true;processOnlineAction(uid,s.val()).catch(e=>setLobbyNotice("Game action failed: "+e.message)).finally(()=>{onlineActionRef.child(uid).remove().catch(()=>{});delete onlineBusy[uid];});};onlineActionRef.on("child_added",onlineActionListener);}
@@ -1899,7 +1899,7 @@ function showSharedAction(action){
 function toggleGameChat(){
  const drawer=document.getElementById("chatDrawer"),button=document.getElementById("chatToggle");if(!drawer||!button)return;
  chatIsOpen=!chatIsOpen;drawer.classList.toggle("hidden",!chatIsOpen);button.setAttribute("aria-expanded",String(chatIsOpen));
- if(chatIsOpen){chatUnreadCount=0;updateChatUnread();const feed=document.getElementById("chatFeed");if(feed)feed.scrollTop=feed.scrollHeight;}
+ if(chatIsOpen){chatHasOpened=true;chatUnreadCount=0;updateChatUnread();const feed=document.getElementById("chatFeed");if(feed)feed.scrollTop=feed.scrollHeight;}
 }
 function updateChatUnread(){
  const badge=document.getElementById("chatUnread");if(!badge)return;badge.textContent=chatUnreadCount>9?"9+":String(chatUnreadCount);badge.classList.toggle("hidden",chatUnreadCount===0);
@@ -1915,7 +1915,7 @@ function receiveGameChat(snapshot){
  const body=document.createElement("span");body.textContent=item.text;if(item.type==="emoji")body.className="chat-emoji";
  bubble.append(sender,body);line.appendChild(bubble);feed.appendChild(line);
  while(feed.children.length>60)feed.removeChild(feed.firstChild);
- if(chatIsOpen)feed.scrollTop=feed.scrollHeight;else if(item.senderId!==roomPlayerId){chatUnreadCount++;updateChatUnread();}
+ if(chatIsOpen)feed.scrollTop=feed.scrollHeight;else if(chatHasOpened&&item.senderId!==roomPlayerId){chatUnreadCount++;updateChatUnread();}
 }
 async function sendGameChat(type,text){
  if(!onlineMode||!roomRef||!roomPlayerId||!onlinePublic||onlinePublic.status!=="playing")return;
@@ -2237,7 +2237,7 @@ function showHand(){
 }
 function startGame(){if(!onlineMode)return _soloStartGame();message("Leave the online table before starting a solo game.");}
 function leaveRoom(showLobby=true){
- if(onlineChatRef&&onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);onlineChatRef=null;onlineChatListener=null;chatIsOpen=false;chatUnreadCount=0;mutedChatSenders.clear();if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);if(onlineSpecialRef)onlineSpecialRef.off("value");if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
+ if(onlineChatRef&&onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);onlineChatRef=null;onlineChatListener=null;chatIsOpen=false;chatHasOpened=false;chatUnreadCount=0;document.getElementById("gameChat")?.classList.add("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");mutedChatSenders.clear();if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);if(onlineSpecialRef)onlineSpecialRef.off("value");if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
  if(roomRef&&roomPlayerId)roomRef.child("lobby/players/"+roomPlayerId).remove().catch(()=>{});onlineMode=false;onlinePublic=null;onlinePublicRef=onlineHandRef=onlineActionRef=onlineSpecialRef=null;roomRef=null;roomCode=null;roomPlayerId=null;isRoomHost=false;onlineLobbyListener=null;
  document.getElementById("game").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");if(showLobby)document.getElementById("setup").classList.remove("hidden");
 }
