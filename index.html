@@ -606,6 +606,15 @@ footer .sai-brand-copy small{font-size:6px}
 #appLockError{min-height:17px;color:#ffb3a7;font-size:11px}
 body.app-locked{overflow:hidden}
 
+
+/* Live table reactions: everyone sees who sent each reaction */
+.player{position:relative}
+.player-reaction-burst{position:absolute;z-index:30;left:50%;top:-13px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;max-width:calc(100% - 8px);pointer-events:none;animation:playerReactionPop 3.2s ease forwards}
+.player-reaction-burst .reaction-content{display:block;padding:5px 9px;border:2px solid #ffe3a0;border-radius:15px;background:linear-gradient(145deg,#fff0bd,#e0b65f);color:#30230c;font-size:clamp(23px,7vw,34px);line-height:1.15;box-shadow:0 4px 14px #0009,0 0 18px #ffe08a88;white-space:nowrap}
+.player-reaction-burst.is-message .reaction-content{max-width:180px;overflow:hidden;text-overflow:ellipsis;font-size:11px;font-weight:900;white-space:normal;text-align:center;padding:7px 10px}
+.player-reaction-burst .reaction-sender{max-width:150px;padding:2px 7px;border-radius:10px;background:#071f18ed;color:#ffe8b2;font-size:8px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 6px #0008}
+@keyframes playerReactionPop{0%{opacity:0;transform:translate(-50%,9px) scale(.55)}12%,78%{opacity:1;transform:translate(-50%,-5px) scale(1)}100%{opacity:0;transform:translate(-50%,-18px) scale(.92)}}
+@media(prefers-reduced-motion:reduce){.player-reaction-burst{animation:none;opacity:1}}
 </style>
 </head>
 
@@ -1289,7 +1298,7 @@ function render(){
   if(players[0]){
 document.getElementById("handCount").textContent=players[0].hand.length;const unmatchedEl=document.getElementById("handUnmatched");if(unmatchedEl)unmatchedEl.textContent="In hand: "+bestUnmatchedScore(players[0].hand||[],players[0])+" pts";
    if(playersEl){
-playersEl.innerHTML=players.map((p,i)=>{return '<div class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+(p.roundDropped?' dropped-player':'')+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+p.score+'</span>'+(p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+(p.roundDropped?'<span class="player-dropped">⛔ DROPPED · +'+(p.dropPenalty||0)+'</span>':'')+(onlineMode&&isRoomHost&&p.id!==roomPlayerId&&p.active!==false&&onlinePublic?.status==="playing"?'<button class="host-remove-player" onclick="removeOnlinePlayer(\''+p.id+'\')">Remove player</button>':'')+'</div>';}).join('');
+playersEl.innerHTML=players.map((p,i)=>{return '<div data-player-id="'+escapeLobbyText(p.id||"")+'" class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+(p.roundDropped?' dropped-player':'')+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+p.score+'</span>'+(p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+(p.roundDropped?'<span class="player-dropped">⛔ DROPPED · +'+(p.dropPenalty||0)+'</span>':'')+(onlineMode&&isRoomHost&&p.id!==roomPlayerId&&p.active!==false&&onlinePublic?.status==="playing"?'<button class="host-remove-player" onclick="removeOnlinePlayer(\''+p.id+'\')">Remove player</button>':'')+'</div>';}).join('');
    }
    if(handEl){
     try{handEl.innerHTML=renderHandLayout();}
@@ -1833,6 +1842,7 @@ function showRules(){
 /* Multiplayer v1: host-authoritative draw/discard with private hands. */
 let onlineMode=false,onlinePublic=null,onlinePublicRef=null,onlineHandRef=null,onlineActionRef=null,onlineSpecialRef=null;
 let onlineChatRef=null,onlineChatListener=null,chatIsOpen=false,chatHasOpened=false,chatUnreadCount=0,lastChatSentAt=0,mutedChatSenders=new Set();
+let playerReactionTimers=new Map();
 let discardClockInterval=null,hostDiscardTimeout=null,scheduledDiscardKey=null;
 let onlinePublicListener=null,onlineHandListener=null,onlineActionListener=null,onlineLobbyListener=null,rejoinPublicListener=null,onlineBusy={},onlineBotBusy=false;
 function onlineMembers(l){return Object.values(l.players||{}).sort((a,b)=>(a.joinedAt||0)-(b.joinedAt||0));}
@@ -1929,7 +1939,7 @@ async function startOnlineRoom(){
 }
 function enterOnlineGame(state){
  if(!roomRef||!roomPlayerId)return;onlineMode=true;onlinePublic=state;document.getElementById("setup").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");document.getElementById("game").classList.remove("hidden");
- onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);chatHasOpened=false;chatUnreadCount=0;chatIsOpen=false;document.getElementById("gameChat")?.classList.remove("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");document.getElementById("chatToggle")?.setAttribute("aria-expanded","false");updateChatUnread();onlineChatRef=roomRef.child("chat");if(onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);onlineChatListener=snap=>receiveGameChat(snap);onlineChatRef.limitToLast(60).on("child_added",onlineChatListener);
+ onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);chatHasOpened=false;chatUnreadCount=0;chatIsOpen=false;document.getElementById("gameChat")?.classList.remove("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");document.getElementById("chatToggle")?.setAttribute("aria-expanded","false");updateChatUnread();onlineChatRef=roomRef.child("chat");if(onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);const chatRefForLoad=onlineChatRef;chatRefForLoad.limitToLast(60).once("value").then(initial=>{if(!onlineMode||onlineChatRef!==chatRefForLoad)return;const oldKeys=new Set(Object.keys(initial.val()||{}));onlineChatListener=snap=>{const isOld=oldKeys.has(snap.key);oldKeys.delete(snap.key);receiveGameChat(snap,!isOld);};chatRefForLoad.limitToLast(60).on("child_added",onlineChatListener);}).catch(()=>{});
  if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();scheduleHostDiscardTimeout(onlinePublic);if(isRoomHost)runOnlineBotTurn();}};onlinePublicRef.on("value",onlinePublicListener);
  if(onlineSpecialRef){onlineSpecialRef.off("value");onlineSpecialRef.on("value",snap=>{const privateRank=snap.val();if(privateRank)specialRank=privateRank;render();if(specialRank)highlightSpecialJoker();});}if(onlineHandListener)onlineHandRef.off("value",onlineHandListener);onlineHandListener=s=>{if(!s.exists())return;const h=s.val()||[];if(!players.length)players=[{id:roomPlayerId,name:"You",hand:h,score:0,human:true}];else players[0]={...players[0],hand:h};if(onlinePublic?.turnUid===roomPlayerId&&h.length===14)drawn=true;else if(h.length===13)drawn=false;selected=-1;selectedIndices=[];arrangedGroups=[];applyOnlinePublic();autoArrange(false);render();};onlineHandRef.on("value",onlineHandListener);
  if(isRoomHost){if(onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);onlineActionListener=s=>{if(!s.exists())return;const uid=s.key;if(onlineBusy[uid])return;onlineBusy[uid]=true;processOnlineAction(uid,s.val()).catch(e=>setLobbyNotice("Game action failed: "+e.message)).finally(()=>{onlineActionRef.child(uid).remove().catch(()=>{});delete onlineBusy[uid];});};onlineActionRef.on("child_added",onlineActionListener);}
@@ -1961,9 +1971,21 @@ function muteGameChatSender(uid,button){if(!uid||uid===roomPlayerId)return;muted
 function updateChatUnread(){
  const badge=document.getElementById("chatUnread");if(!badge)return;badge.textContent=chatUnreadCount>9?"9+":String(chatUnreadCount);badge.classList.toggle("hidden",chatUnreadCount===0);
 }
-function receiveGameChat(snapshot){
+function showPlayerReaction(item){
+ const profile=[...document.querySelectorAll("#players .player")].find(el=>el.dataset.playerId===item.senderId);
+ if(!profile)return;
+ const existing=profile.querySelector(".player-reaction-burst");if(existing)existing.remove();
+ const burst=document.createElement("div");burst.className="player-reaction-burst"+(item.type==="emoji"?"":" is-message");
+ const content=document.createElement("span");content.className="reaction-content";content.textContent=item.text;
+ const sender=document.createElement("span");sender.className="reaction-sender";sender.textContent=item.senderName;
+ burst.append(content,sender);profile.appendChild(burst);
+ const prior=playerReactionTimers.get(item.senderId);if(prior)clearTimeout(prior);
+ const timer=setTimeout(()=>{burst.remove();playerReactionTimers.delete(item.senderId);},3300);playerReactionTimers.set(item.senderId,timer);
+}
+function receiveGameChat(snapshot,showReaction=true){
  const item=snapshot.val();if(!item||!item.senderId||!item.senderName||!item.type||!item.text)return;
  if(mutedChatSenders.has(item.senderId))return;
+ if(showReaction)showPlayerReaction(item);
  const feed=document.getElementById("chatFeed");if(!feed)return;
  const empty=document.getElementById("chatEmpty");if(empty)empty.remove();
  const line=document.createElement("div");line.className="chat-line"+(item.senderId===roomPlayerId?" mine":"");
