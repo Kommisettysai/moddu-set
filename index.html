@@ -89,6 +89,9 @@ select{padding:12px 14px;border-radius:11px;background:#09291f;color:#fff;border
 #roundInfo{font-family:Georgia,serif;font-size:20px;color:#f6d99b}
 #jokerInfo{font-size:13px}
 #turnInfo{font-weight:750;color:#fff0c8}
+#turnInfo.own-turn{color:#ff5555!important;font-weight:1000!important;text-shadow:0 0 7px #ff2020aa;animation:ownTurnBlink .85s steps(2,start) infinite}
+@keyframes ownTurnBlink{0%,100%{opacity:1}50%{opacity:.28}}
+@media(prefers-reduced-motion:reduce){#turnInfo.own-turn{animation:none;opacity:1}}
 footer{color:#9bb9a9;padding:20px 12px 28px;letter-spacing:.7px}
 @media(max-width:450px){main{padding:12px 10px 24px}.panel{padding:14px;border-radius:16px}.players{grid-template-columns:repeat(2,minmax(0,1fr))}.piles{gap:13px}.pile{height:142px}.actions button{flex:1 1 145px}.card{width:42px;height:65px}}
 @media(min-width:700px){.cards{gap:10px}.card{width:60px;height:91px;font-size:15px}.piles{gap:34px}}
@@ -757,7 +760,12 @@ function render(){
   const canSeeSpecial=!!(players[0]&&players[0].unlocked);
   if(slot)slot.innerHTML=(canSeeSpecial&&specialRank)?'<span class="card joker-face">'+specialRank+'★</span><small>Special joker</small>':'<span class="card back joker-card">★</span><small>Special joker</small>';
   const turnEl=document.getElementById("turnInfo");
-  if(turnEl&&players[turn])turnEl.textContent=players[turn].name+"'s turn";
+  if(turnEl){
+   const activePlayer=players[turn],isMyTurn=!!activePlayer&&(onlineMode?activePlayer.id===roomPlayerId:turn===0);
+   turnEl.textContent=activePlayer?activePlayer.name+"'s turn":"";
+   turnEl.classList.toggle("own-turn",isMyTurn&&!gameOver&&!activePlayer?.roundDropped);
+   turnEl.setAttribute("aria-label",activePlayer?(isMyTurn?"Your turn":activePlayer.name+"'s turn"):"");
+  }
   if(players[0]){
    document.getElementById("handCount").textContent=players[0].hand.length;
    if(playersEl){
