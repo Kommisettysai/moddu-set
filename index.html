@@ -20,6 +20,7 @@ select{padding:12px;border-radius:8px}
 .pile{width:85px;height:112px;border:2px dashed #b7c9b9;border-radius:10px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer;background:#174335}
 .pile strong{font-size:25px}
 .players{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.host-remove-player{display:block;margin-top:6px;padding:5px 9px;border-radius:8px;font-size:12px;background:#7b2929;color:#fff;border:1px solid #d88b75;cursor:pointer}
 .player{background:#245641;border-radius:10px;padding:10px;text-align:center;font-size:13px}
 .player.active{outline:2px solid #f0cb78}
 .cards{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:15px 0}
@@ -716,7 +717,7 @@ function render(){
   if(players[0]){
    document.getElementById("handCount").textContent=players[0].hand.length;
    if(playersEl){
-    playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active':'')+'"><b>'+p.name+'</b><span class="profile-count">'+p.hand.length+' cards</span><span class="profile-score">Score: '+p.score+'</span><span class="profile-status">'+(p.status||"🎴 Ready")+'</span></div>').join('');
+    playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active':'')+'"><b>'+escapeLobbyText(p.name)+'</b><span class="profile-count">'+p.hand.length+' cards</span><span class="profile-score">Score: '+p.score+'</span><span class="profile-status">'+(p.status||"🎴 Ready")+'</span>'+(onlineMode&&isRoomHost&&p.id!==roomPlayerId&&p.active!==false&&onlinePublic?.status==="playing"?'<button class="host-remove-player" onclick="removeOnlinePlayer(\''+p.id+'\')">Remove player</button>':'')+'</div>').join('');
    }
    if(handEl){
     try{handEl.innerHTML=renderHandLayout();}
@@ -1298,13 +1299,48 @@ function applyOnlinePublic(){
  if(!onlineMode||!onlinePublic)return;onlineActionPending=false;const st=onlinePublic,prior=players[0]||{},m=st.players||[];specialRank=st.specialRank||null;
  if(st.status==="playing"){const resultScreen=document.getElementById("roundResults");if(resultScreen)resultScreen.classList.add("hidden");}
  const ordered=[...m].sort((a,b)=>a.id===roomPlayerId?-1:b.id===roomPlayerId?1:0);
- players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,unlocked:!!p.unlocked,active:true,human:p.id===roomPlayerId,cardCount:p.cardCount||0,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
- if(!players.length)return;turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);round=st.round||1;drawn=st.drawnByUid===roomPlayerId;gameOver=st.status==="roundComplete"||st.status==="gameComplete";
+ players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,unlocked:!!p.unlocked,active:p.active!==false,human:p.id===roomPlayerId,cardCount:p.cardCount||0,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
+ if(!players.length)return;
+ const myPublicPlayer=m.find(p=>p.id===roomPlayerId);
+ if(myPublicPlayer&&myPublicPlayer.active===false){setLobbyNotice("The host removed you from this game.");leaveRoom(true);return;}turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);round=st.round||1;drawn=st.drawnByUid===roomPlayerId;gameOver=st.status==="roundComplete"||st.status==="gameComplete";
  const el=document.getElementById("message");if(el)el.textContent=st.message||"Online game";render();
  if(st.status==="roundComplete"&&st.roundResult)openOnlineRoundResults(st.roundResult);
  if(st.status==="gameComplete")openOnlineGameComplete(st.champion||"A player");
  if(st.specialRank)highlightSpecialJoker();
  updateDiscardCountdown();
+}
+async function removeOnlinePlayer(uid){
+ if(!onlineMode||!isRoomHost||!roomRef||!uid||uid===roomPlayerId)return;
+ if(!confirm("Remove this player from the ongoing game? They will be eliminated and cannot rejoin this round."))return;
+ try{
+  const ps=await roomRef.child("public").get(),ds=await roomRef.child("private").get();
+  const p=ps.val(),priv=ds.val()||{};
+  if(!p||p.status!=="playing")return;
+  const idx=(p.players||[]).findIndex(x=>x.id===uid);
+  if(idx<0||p.players[idx].active===false)return;
+  const removed=p.players[idx],wasTurn=p.turnUid===uid;
+  const hands=priv.hands||{};delete hands[uid];
+  const specialRanks=priv.specialRanks||{};delete specialRanks[uid];
+  const actions=roomRef.child("actions/"+uid);
+  p.players[idx]={...removed,active:false,status:"Removed by host",cardCount:0,unlocked:false,eligible:false};
+  if(p.drawnByUid===uid){p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;}
+  if(wasTurn){
+   const remaining=p.players.filter(x=>x.active!==false);
+   if(!remaining.length){p.status="gameComplete";p.message=removed.name+" was removed. No active players remain.";}
+   else{
+    const next=remaining.find(x=>(p.players.indexOf(x))>idx)||remaining[0];
+    p.turnUid=next.id;p.message=removed.name+" was removed by the host. "+next.name+"'s turn.";
+   }
+  }else p.message=removed.name+" was removed by the host.";
+  await Promise.all([
+   roomRef.child("private/hands").set(hands),
+   roomRef.child("private/specialRanks").set(specialRanks),
+   actions.remove(),
+   roomRef.child("public").set(p),
+   roomRef.child("lobby/players/"+uid).remove()
+  ]);
+  setLobbyNotice(removed.name+" was removed from the game.");
+ }catch(e){setLobbyNotice("Could not remove player: "+e.message);}
 }
 function updateDiscardCountdown(){
  const el=document.getElementById("discardTimer");if(!el)return;
