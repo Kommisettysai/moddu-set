@@ -1188,14 +1188,14 @@ function showRules(){
 
 <script>
 /* Multiplayer v1: host-authoritative draw/discard with private hands. */
-let onlineMode=false,onlinePublic=null,onlinePublicRef=null,onlineHandRef=null,onlineActionRef=null;
+let onlineMode=false,onlinePublic=null,onlinePublicRef=null,onlineHandRef=null,onlineActionRef=null,onlineSpecialRef=null;
 let onlinePublicListener=null,onlineHandListener=null,onlineActionListener=null,onlineLobbyListener=null,onlineBusy={},onlineBotBusy=false;
 function onlineMembers(l){return Object.values(l.players||{}).sort((a,b)=>(a.joinedAt||0)-(b.joinedAt||0));}
 function createRoom(){
  const name=lobbyName();if(!name)return;if(!firebaseReady||!authUser){setLobbyNotice("Firebase sign-in is still loading.");return;}
  (async()=>{try{let code=makeRoomCode(),ref=firebase.database().ref("rooms/"+code),snap=await ref.child("lobby").get();while(snap.exists()){code=makeRoomCode();ref=firebase.database().ref("rooms/"+code);snap=await ref.child("lobby").get();}
  roomCode=code;roomRef=ref;roomPlayerId=authUser.uid;isRoomHost=true;
- await ref.set({hostId:authUser.uid,lobby:{code,hostId:authUser.uid,status:"waiting",maxPlayers:6,players:{[authUser.uid]:{id:authUser.uid,name,ready:true,joinedAt:firebase.database.ServerValue.TIMESTAMP}}},public:{},private:{deck:[],hands:{}},actions:{}});
+ await ref.set({hostId:authUser.uid,lobby:{code,hostId:authUser.uid,status:"waiting",maxPlayers:6,players:{[authUser.uid]:{id:authUser.uid,name,ready:true,joinedAt:firebase.database.ServerValue.TIMESTAMP}}},public:{},private:{deck:[],hands:{},specialRank:null,specialRanks:{}},actions:{}});
  showWaitingRoom();}catch(e){setLobbyNotice("Could not create room: "+e.message);}})();
 }
 async function joinRoom(){
@@ -1247,14 +1247,14 @@ async function startOnlineRoom(){
  if(!isRoomHost||!roomRef)return;try{const snap=await roomRef.child("lobby").get(),l=snap.val(),m=onlineMembers(l);if(m.length<2){setLobbyNotice("Invite at least one friend before starting.");return;}
  const d=shuffle(makeDeck(m.length)),hands={};m.forEach(p=>hands[p.id]=d.splice(0,13));const first=d.pop();
  const pub={status:"playing",round:1,turnUid:l.hostId,deckCount:d.length,discard:[first],drawnByUid:null,specialRank:null,players:m.map(p=>({id:p.id,name:p.name,isBot:!!p.isBot,active:true,score:0,cardCount:13,unlocked:false,status:"Ready"})),message:"Cards dealt. "+m[0].name+"'s turn. Draw a card."};
- await roomRef.child("private").set({deck:d,hands});await roomRef.child("public").set(pub);await roomRef.child("lobby/status").set("started");enterOnlineGame(pub);
+ await roomRef.child("private").set({deck:d,hands,specialRank:null,specialRanks:{}});await roomRef.child("public").set(pub);await roomRef.child("lobby/status").set("started");enterOnlineGame(pub);
  }catch(e){setLobbyNotice("Could not start game: "+e.message);}
 }
 function enterOnlineGame(state){
  if(!roomRef||!roomPlayerId)return;onlineMode=true;onlinePublic=state;document.getElementById("setup").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");document.getElementById("game").classList.remove("hidden");
- onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");
+ onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);
  if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();if(isRoomHost)runOnlineBotTurn();}};onlinePublicRef.on("value",onlinePublicListener);
- if(onlineHandListener)onlineHandRef.off("value",onlineHandListener);onlineHandListener=s=>{if(!s.exists())return;const h=s.val()||[];if(!players.length)players=[{id:roomPlayerId,name:"You",hand:h,score:0,human:true}];else players[0]={...players[0],hand:h};selected=-1;selectedIndices=[];arrangedGroups=[];applyOnlinePublic();};onlineHandRef.on("value",onlineHandListener);
+ if(onlineSpecialRef){onlineSpecialRef.off("value");onlineSpecialRef.on("value",snap=>{specialRank=snap.val()||null;render();});}if(onlineHandListener)onlineHandRef.off("value",onlineHandListener);onlineHandListener=s=>{if(!s.exists())return;const h=s.val()||[];if(!players.length)players=[{id:roomPlayerId,name:"You",hand:h,score:0,human:true}];else players[0]={...players[0],hand:h};selected=-1;selectedIndices=[];arrangedGroups=[];applyOnlinePublic();};onlineHandRef.on("value",onlineHandListener);
  if(isRoomHost){if(onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);onlineActionListener=s=>{if(!s.exists())return;const uid=s.key;if(onlineBusy[uid])return;onlineBusy[uid]=true;processOnlineAction(uid,s.val()).catch(e=>setLobbyNotice("Game action failed: "+e.message)).finally(()=>{onlineActionRef.child(uid).remove().catch(()=>{});delete onlineBusy[uid];});};onlineActionRef.on("child_added",onlineActionListener);}
  applyOnlinePublic();
 }
@@ -1263,7 +1263,7 @@ function applyOnlinePublic(){
  if(st.status==="playing"){const resultScreen=document.getElementById("roundResults");if(resultScreen)resultScreen.classList.add("hidden");}
  const ordered=[...m].sort((a,b)=>a.id===roomPlayerId?-1:b.id===roomPlayerId?1:0);
  players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,unlocked:!!p.unlocked,active:true,human:p.id===roomPlayerId,cardCount:p.cardCount||0,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
- if(!players.length)return;turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);specialRank=st.specialRank||null;round=st.round||1;drawn=st.drawnByUid===roomPlayerId;gameOver=st.status==="roundComplete"||st.status==="gameComplete";
+ if(!players.length)return;turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);round=st.round||1;drawn=st.drawnByUid===roomPlayerId;gameOver=st.status==="roundComplete"||st.status==="gameComplete";
  const el=document.getElementById("message");if(el)el.textContent=st.message||"Online game";render();
  if(st.status==="roundComplete"&&st.roundResult)openOnlineRoundResults(st.roundResult);
  if(st.status==="gameComplete")openOnlineGameComplete(st.champion||"A player");
@@ -1284,39 +1284,39 @@ async function processOnlineAction(uid,a){
  if(!isRoomHost)return;
  const [ps,ds,ls]=await Promise.all([roomRef.child("public").get(),roomRef.child("private").get(),roomRef.child("lobby").get()]);
  const p=ps.val(),priv=ds.val()||{},l=ls.val();if(!p||p.status!=="playing"||p.turnUid!==uid)return;
- let d=priv.deck||[],h=priv.hands||{},hand=h[uid]||[],pile=p.discard||[];
+ let d=priv.deck||[],h=priv.hands||{},hand=h[uid]||[],pile=p.discard||[],special=priv.specialRank||null,specialRanks=priv.specialRanks||{};
+ const player=(p.players||[]).find(x=>x.id===uid);
  if(a.type==="drawClosed"||a.type==="drawOpen"){
   if(p.drawnByUid)return;
   if(a.type==="drawOpen"){if(!pile.length)return;hand.push(pile.pop());}
   else{if(!d.length&&pile.length>1){const top=pile.pop();d=shuffle(pile);pile=[top];}if(!d.length)return;hand.push(d.pop());}
   h[uid]=hand;p.drawnByUid=uid;p.message="Card drawn. Select one card and discard it.";
  }else if(a.type==="discard"){
-  if(p.drawnByUid!==uid)return;
-  const i=hand.findIndex(c=>c.id===a.cardId);if(i<0)return;
+  if(p.drawnByUid!==uid)return;const i=hand.findIndex(c=>c.id===a.cardId);if(i<0)return;
   pile.push(hand.splice(i,1)[0]);h[uid]=hand;p.drawnByUid=null;
-  const active=(p.players||[]).filter(x=>x.active!==false),at=active.findIndex(x=>x.id===uid),next=active[(at+1)%active.length];if(!next)return;p.turnUid=next.id;p.message=next.name+"'s turn. Draw a card.";
+  if(player&&hand.length===13&&hasNaturalFour(hand)){
+   player.eligible=true;
+   if(!player.unlocked){
+    if(!special){
+     while(d.length){const card=d.pop();if(!card.joker){special=card.rank;break;}d.push(card);break;}
+    }
+    if(special){player.unlocked=true;specialRanks[uid]=special;p.message=player.name+" unlocked the special joker.";}
+   }
+  }
+  const active=(p.players||[]).filter(x=>x.active!==false),at=active.findIndex(x=>x.id===uid),next=active[(at+1)%active.length];if(!next)return;p.turnUid=next.id;p.message=p.message||next.name+"'s turn. Draw a card.";
  }else if(a.type==="show"){
-  if(a.discardCardId){
-   if(p.drawnByUid!==uid)return;
-   const i=hand.findIndex(c=>c.id===a.discardCardId);if(i<0||hand.length!==14)return;
-   pile.push(hand.splice(i,1)[0]);h[uid]=hand;p.drawnByUid=null;
-  }else if(p.drawnByUid||hand.length!==13)return;
-  const winner=(p.players||[]).find(x=>x.id===uid);
-  const invalid=validateOnlineShow(hand,a.groups,winner||{unlocked:false});
+  if(a.discardCardId){if(p.drawnByUid!==uid)return;const i=hand.findIndex(c=>c.id===a.discardCardId);if(i<0||hand.length!==14)return;pile.push(hand.splice(i,1)[0]);h[uid]=hand;p.drawnByUid=null;}
+  else if(p.drawnByUid||hand.length!==13)return;
+  const winner=(p.players||[]).find(x=>x.id===uid),invalid=validateOnlineShow(hand,a.groups,winner||{unlocked:false});
   if(invalid){p.message=invalid;p.discard=pile;p.deckCount=d.length;await roomRef.child("public").set(p);return;}
-  const penalties={},totals={};
-  (p.players||[]).forEach(player=>{
-   const penalty=player.id===uid?0:bestUnmatchedScore(h[player.id]||[],player);
-   penalties[player.id]=penalty;totals[player.id]=(player.score||0)+penalty;
-  });
-  p.players=(p.players||[]).map(player=>({...player,score:totals[player.id],cardCount:(h[player.id]||[]).length}));
+  const penalties={},totals={};(p.players||[]).forEach(x=>{const penalty=x.id===uid?0:bestUnmatchedScore(h[x.id]||[],x);penalties[x.id]=penalty;totals[x.id]=(x.score||0)+penalty;});
+  p.players=(p.players||[]).map(x=>({...x,score:totals[x.id],cardCount:(h[x.id]||[]).length}));
   p.status="roundComplete";p.discard=pile;p.deckCount=d.length;p.message=winner.name+" showed successfully. All hands are revealed.";
   p.roundResult={winnerUid:uid,winnerName:winner.name,groups:a.groups,penalties,totals,hands:h,completedAt:Date.now()};
-  await Promise.all([roomRef.child("private/deck").set(d),roomRef.child("private/hands").set(h),roomRef.child("public").set(p)]);
-  return;
+  await Promise.all([roomRef.child("private/deck").set(d),roomRef.child("private/hands").set(h),roomRef.child("private/specialRank").set(special),roomRef.child("private/specialRanks").set(specialRanks),roomRef.child("public").set(p)]);return;
  }
  p.discard=pile;p.deckCount=d.length;p.players=(p.players||[]).map(x=>({...x,cardCount:(h[x.id]||[]).length}));
- await Promise.all([roomRef.child("private/deck").set(d),roomRef.child("private/hands").set(h),roomRef.child("public").set(p)]);
+ await Promise.all([roomRef.child("private/deck").set(d),roomRef.child("private/hands").set(h),roomRef.child("private/specialRank").set(special),roomRef.child("private/specialRanks").set(specialRanks),roomRef.child("public").set(p)]);
 }
 function openOnlineRoundResults(result){
  const screen=document.getElementById("roundResults"),profiles=document.getElementById("resultsProfiles"),handsEl=document.getElementById("resultsHands");
@@ -1421,8 +1421,8 @@ function showHand(){
 }
 function startGame(){if(!onlineMode)return _soloStartGame();message("Leave the online table before starting a solo game.");}
 function leaveRoom(showLobby=true){
- if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
- if(roomRef&&roomPlayerId)roomRef.child("lobby/players/"+roomPlayerId).remove().catch(()=>{});onlineMode=false;onlinePublic=null;onlinePublicRef=onlineHandRef=onlineActionRef=null;roomRef=null;roomCode=null;roomPlayerId=null;isRoomHost=false;onlineLobbyListener=null;
+ if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);if(onlineSpecialRef)onlineSpecialRef.off("value");if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
+ if(roomRef&&roomPlayerId)roomRef.child("lobby/players/"+roomPlayerId).remove().catch(()=>{});onlineMode=false;onlinePublic=null;onlinePublicRef=onlineHandRef=onlineActionRef=onlineSpecialRef=null;roomRef=null;roomCode=null;roomPlayerId=null;isRoomHost=false;onlineLobbyListener=null;
  document.getElementById("game").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");if(showLobby)document.getElementById("setup").classList.remove("hidden");
 }
 </script>
