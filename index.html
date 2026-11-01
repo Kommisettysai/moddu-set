@@ -1901,7 +1901,7 @@ function showRules(){
 /* Multiplayer v1: host-authoritative draw/discard with private hands. */
 let onlineMode=false,onlinePublic=null,onlinePublicRef=null,onlineHandRef=null,onlineActionRef=null,onlineSpecialRef=null;
 let onlineChatRef=null,onlineChatListener=null,chatIsOpen=false,chatHasOpened=false,chatUnreadCount=0,lastChatSentAt=0,mutedChatSenders=new Set();
-let playerReactionTimers=new Map(),locallyShownChatMessages=new Set();
+let locallyShownChatMessages=new Set();
 let eliminatedSpectator=false;
 let discardClockInterval=null,hostDiscardTimeout=null,scheduledDiscardKey=null;
 let onlinePublicListener=null,onlineHandListener=null,onlineActionListener=null,onlineLobbyListener=null,rejoinPublicListener=null,onlineBusy={},onlineBotBusy=false;
@@ -2034,19 +2034,25 @@ function updateChatUnread(){
 }
 function showPlayerReaction(item){
  const profile=[...document.querySelectorAll("#players .player")].find(el=>el.getAttribute("data-player-id")===String(item.senderId));
- if(!profile)return;
+ if(!profile)return null;
  const rect=profile.getBoundingClientRect();
  const burst=document.createElement("div");
  burst.className="player-reaction-burst player-reaction-floating"+(item.type==="emoji"?"":" is-message");
  burst.style.setProperty("left",Math.max(8,Math.min(window.innerWidth-8,rect.left+rect.width/2))+"px","important");
  burst.style.setProperty("top",Math.max(8,rect.top-12)+"px","important");
- burst.style.setProperty("--reaction-x","-50%");
+ burst.style.setProperty("animation","none","important");
+ burst.style.setProperty("opacity","1","important");
+ burst.style.setProperty("transition","opacity .4s ease","important");
  const content=document.createElement("span");content.className="reaction-content";content.textContent=item.text;
  const sender=document.createElement("span");sender.className="reaction-sender";sender.textContent=item.senderName;
  burst.append(content,sender);document.body.appendChild(burst);
- const prior=playerReactionTimers.get(item.senderId);if(prior)clearTimeout(prior);
- const timer=setTimeout(()=>{burst.style.setProperty("opacity","0","important");const fadeTimer=setTimeout(()=>{burst.remove();if(playerReactionTimers.get(item.senderId)===timer)playerReactionTimers.delete(item.senderId);},450);playerReactionTimers.set(item.senderId,fadeTimer);},10000);
- playerReactionTimers.set(item.senderId,timer);
+ // Every bubble owns its own timer. A later reaction must never cancel this one.
+ window.setTimeout(()=>{
+  if(!burst.isConnected)return;
+  burst.style.setProperty("opacity","0","important");
+  window.setTimeout(()=>burst.remove(),450);
+ },10000);
+ return burst;
 }
 function receiveGameChat(snapshot,showReaction=true){
  const item=snapshot.val();if(!item||!item.senderId||!item.senderName||!item.type||!item.text)return;
@@ -2083,7 +2089,7 @@ async function writeGameChat(type,text){
  locallyShownChatMessages.add(messageRef.key);
  showPlayerReaction(chatItem);
  try{await messageRef.set({...chatItem,createdAt:firebase.database.ServerValue.TIMESTAMP});}
- catch(e){locallyShownChatMessages.delete(messageRef.key);const timer=playerReactionTimers.get(roomPlayerId);if(timer)clearTimeout(timer);playerReactionTimers.delete(roomPlayerId);document.querySelectorAll(".player-reaction-floating").forEach(el=>el.remove());lastChatSentAt=0;setLobbyNotice("Chat message could not be sent. Check that the latest database rules are published.");}
+ catch(e){locallyShownChatMessages.delete(messageRef.key);const ownBubbles=[...document.querySelectorAll(".player-reaction-floating")].filter(el=>el.querySelector(".reaction-sender")?.textContent===chatItem.senderName);const latestBubble=ownBubbles[ownBubbles.length-1];if(latestBubble)latestBubble.remove();lastChatSentAt=0;setLobbyNotice("Chat message could not be sent. Check that the latest database rules are published.");}
 }
 
 function applyOnlinePublic(){
