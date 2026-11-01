@@ -356,6 +356,11 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 .room-player small{font-size:10px;color:#b9cdbf}
 .lobby-text-button{display:block;margin:15px auto 0;background:transparent!important;color:#d9c69b!important;box-shadow:none!important;border:0!important}
 @media(max-width:390px){.lobby-shell{margin-top:7px}.lobby-card{padding:15px 12px}.lobby-intro{padding-top:15px}}
+
+/* Highlight players who have unlocked and seen the special joker */
+.player.joker-seen{border:2px solid #ffe06b!important;background:linear-gradient(145deg,#70521e,#31583c)!important;box-shadow:0 0 0 3px #ffe06b35,0 0 16px #ffe06b70,inset 0 1px #fff5!important}
+.player.joker-seen .profile-status{color:#fff0a6!important;font-weight:900!important}
+.joker-seen-badge{display:inline-block;margin-top:4px;padding:3px 6px;border-radius:20px;background:linear-gradient(180deg,#fff0a6,#e5b94f);color:#38270c;font-size:8px;font-weight:900;letter-spacing:.2px;box-shadow:0 1px 5px #0005}
 </style>
 </head>
 <body>
@@ -717,7 +722,7 @@ function render(){
   if(players[0]){
    document.getElementById("handCount").textContent=players[0].hand.length;
    if(playersEl){
-    playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active':'')+'"><b>'+escapeLobbyText(p.name)+'</b><span class="profile-count">'+p.hand.length+' cards</span><span class="profile-score">Score: '+p.score+'</span><span class="profile-status">'+(p.status||"🎴 Ready")+'</span>'+(onlineMode&&isRoomHost&&p.id!==roomPlayerId&&p.active!==false&&onlinePublic?.status==="playing"?'<button class="host-remove-player" onclick="removeOnlinePlayer(\''+p.id+'\')">Remove player</button>':'')+'</div>').join('');
+    playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active ':'')+(p.unlocked?'joker-seen':'')+'"><b>'+escapeLobbyText(p.name)+'</b><span class="profile-count">'+p.hand.length+' cards</span><span class="profile-score">Score: '+p.score+'</span>'+(p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+'<span class="profile-status">'+(p.status||"🎴 Ready")+'</span>'+(onlineMode&&isRoomHost&&p.id!==roomPlayerId&&p.active!==false&&onlinePublic?.status==="playing"?'<button class="host-remove-player" onclick="removeOnlinePlayer(\''+p.id+'\')">Remove player</button>':'')+'</div>').join('');
    }
    if(handEl){
     try{handEl.innerHTML=renderHandLayout();}
@@ -732,7 +737,7 @@ function render(){
  }catch(error){
   console.error("Game render error:",error);
   if(playersEl&&players.length){
-   playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active':'')+'"><b>'+p.name+'</b><span class="profile-count">'+p.hand.length+' cards</span><span class="profile-score">Score: '+p.score+'</span></div>').join('');
+   playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active ':'')+(p.unlocked?'joker-seen':'')+'"><b>'+escapeLobbyText(p.name)+'</b><span class="profile-count">'+p.hand.length+' cards</span><span class="profile-score">Score: '+p.score+'</span>'+(p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+'</div>').join('');
   }
   if(handEl&&players[0]){
    handEl.innerHTML=players[0].hand.map((c,i)=>cardMarkup(c,i)).join('');
