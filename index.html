@@ -358,6 +358,8 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 @media(max-width:390px){.lobby-shell{margin-top:7px}.lobby-card{padding:15px 12px}.lobby-intro{padding-top:15px}}
 
 /* Highlight players who have unlocked and seen the special joker */
+.player.turn-owner{border:2px solid #fff0a6!important;box-shadow:0 0 0 3px #ffe06b55,0 0 18px #ffe06b!important;position:relative}
+.player-turn-badge{display:inline-block;margin-top:4px;padding:3px 7px;border-radius:20px;background:linear-gradient(180deg,#fff4bf,#f0c45d);color:#38270c;font-size:9px;font-weight:1000;letter-spacing:.5px;box-shadow:0 1px 6px #0006}
 .player.joker-seen{border:2px solid #ffe06b!important;background:linear-gradient(145deg,#70521e,#31583c)!important;box-shadow:0 0 0 3px #ffe06b35,0 0 16px #ffe06b70,inset 0 1px #fff5!important}
 .player.joker-seen .profile-status{color:#fff0a6!important;font-weight:900!important}
 .joker-seen-badge{display:inline-block;margin-top:4px;padding:3px 6px;border-radius:20px;background:linear-gradient(180deg,#fff0a6,#e5b94f);color:#38270c;font-size:8px;font-weight:900;letter-spacing:.2px;box-shadow:0 1px 5px #0005}
@@ -476,6 +478,7 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 <div class="actions">
 <button onclick="showRules()">Game rules</button>
 <button onclick="startGame()">Restart game</button>
+<button id="newRoundBtn" onclick="startFreshRoundWithScores()">Start new round (keep scores)</button>
 </div>
 </details>
 </div>
@@ -722,7 +725,7 @@ function render(){
   if(players[0]){
    document.getElementById("handCount").textContent=players[0].hand.length;
    if(playersEl){
-    playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active ':'')+(p.unlocked?'joker-seen':'')+'"><b>'+escapeLobbyText(p.name)+'</b><span class="profile-count">'+p.hand.length+' cards</span><span class="profile-score">Score: '+p.score+'</span>'+(p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+'<span class="profile-status">'+(p.status||"🎴 Ready")+'</span>'+(onlineMode&&isRoomHost&&p.id!==roomPlayerId&&p.active!==false&&onlinePublic?.status==="playing"?'<button class="host-remove-player" onclick="removeOnlinePlayer(\''+p.id+'\')">Remove player</button>':'')+'</div>').join('');
+    playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+'"><b>'+escapeLobbyText(p.name)+'</b><span class="profile-count">'+p.hand.length+' cards</span><span class="profile-score">Score: '+p.score+'</span>'+(i===turn?'<span class="player-turn-badge">🎯 TURN</span>':'')+(p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+'<span class="profile-status">'+(p.status||"🎴 Ready")+'</span>'+(onlineMode&&isRoomHost&&p.id!==roomPlayerId&&p.active!==false&&onlinePublic?.status==="playing"?'<button class="host-remove-player" onclick="removeOnlinePlayer(\''+p.id+'\')">Remove player</button>':'')+'</div>').join('');
    }
    if(handEl){
     try{handEl.innerHTML=renderHandLayout();}
@@ -737,7 +740,7 @@ function render(){
  }catch(error){
   console.error("Game render error:",error);
   if(playersEl&&players.length){
-   playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active ':'')+(p.unlocked?'joker-seen':'')+'"><b>'+escapeLobbyText(p.name)+'</b><span class="profile-count">'+p.hand.length+' cards</span><span class="profile-score">Score: '+p.score+'</span>'+(p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+'</div>').join('');
+   playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+'"><b>'+escapeLobbyText(p.name)+'</b><span class="profile-count">'+p.hand.length+' cards</span><span class="profile-score">Score: '+p.score+'</span>'+(i===turn?'<span class="player-turn-badge">🎯 TURN</span>':'')+(p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+'</div>').join('');
   }
   if(handEl&&players[0]){
    handEl.innerHTML=players[0].hand.map((c,i)=>cardMarkup(c,i)).join('');
@@ -752,7 +755,8 @@ function cardText(c){
 
 function selectCard(i){
  if(gameOver)return;
- if(drawn){if(turn!==0)return;selected=selected===i?-1:i;}
+ const onlineFourteen=onlineMode&&turn===0&&players[0]?.hand?.length===14&&onlinePublic?.turnUid===roomPlayerId;
+ if(drawn||onlineFourteen){if(turn!==0)return;drawn=true;selected=selected===i?-1:i;}
  else{selectedIndices=selectedIndices.includes(i)?selectedIndices.filter(x=>x!==i):[...selectedIndices,i];}
  render();
 }
@@ -1296,7 +1300,7 @@ function enterOnlineGame(state){
  if(!roomRef||!roomPlayerId)return;onlineMode=true;onlinePublic=state;document.getElementById("setup").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");document.getElementById("game").classList.remove("hidden");
  onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);
  if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();scheduleHostDiscardTimeout(onlinePublic);if(isRoomHost)runOnlineBotTurn();}};onlinePublicRef.on("value",onlinePublicListener);
- if(onlineSpecialRef){onlineSpecialRef.off("value");onlineSpecialRef.on("value",snap=>{const privateRank=snap.val();if(privateRank)specialRank=privateRank;render();if(specialRank)highlightSpecialJoker();});}if(onlineHandListener)onlineHandRef.off("value",onlineHandListener);onlineHandListener=s=>{if(!s.exists())return;const h=s.val()||[];if(!players.length)players=[{id:roomPlayerId,name:"You",hand:h,score:0,human:true}];else players[0]={...players[0],hand:h};selected=-1;selectedIndices=[];arrangedGroups=[];applyOnlinePublic();autoArrange(false);render();};onlineHandRef.on("value",onlineHandListener);
+ if(onlineSpecialRef){onlineSpecialRef.off("value");onlineSpecialRef.on("value",snap=>{const privateRank=snap.val();if(privateRank)specialRank=privateRank;render();if(specialRank)highlightSpecialJoker();});}if(onlineHandListener)onlineHandRef.off("value",onlineHandListener);onlineHandListener=s=>{if(!s.exists())return;const h=s.val()||[];if(!players.length)players=[{id:roomPlayerId,name:"You",hand:h,score:0,human:true}];else players[0]={...players[0],hand:h};if(onlinePublic?.turnUid===roomPlayerId&&h.length===14)drawn=true;else if(h.length===13)drawn=false;selected=-1;selectedIndices=[];arrangedGroups=[];applyOnlinePublic();autoArrange(false);render();};onlineHandRef.on("value",onlineHandListener);
  if(isRoomHost){if(onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);onlineActionListener=s=>{if(!s.exists())return;const uid=s.key;if(onlineBusy[uid])return;onlineBusy[uid]=true;processOnlineAction(uid,s.val()).catch(e=>setLobbyNotice("Game action failed: "+e.message)).finally(()=>{onlineActionRef.child(uid).remove().catch(()=>{});delete onlineBusy[uid];});};onlineActionRef.on("child_added",onlineActionListener);}
  applyOnlinePublic();
 }
@@ -1420,7 +1424,7 @@ async function processOnlineAction(uid,a){
   if(!special){const skipped=[];let reveal=null;while(d.length&&!reveal){const card=d.pop();if(card.joker)skipped.push(card);else reveal=card;}if(skipped.length)d.push(...skipped);if(reveal)special=reveal.rank;}
   if(!special)return;syncUnlock();specialRanks[uid]=special;p.specialRank=special;p.message=player.name+" unlocked the special joker.";
  }else if(a.type==="show"){
-  if(a.discardCardId){if(p.drawnByUid!==uid)return;const i=hand.findIndex(c=>c.id===a.discardCardId);if(i<0||hand.length!==14)return;pile.push(hand.splice(i,1)[0]);h[uid]=hand;p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;}
+  if(a.discardCardId){if((p.drawnByUid&&p.drawnByUid!==uid)||hand.length!==14){p.message="SHOW could not sync: expected your 14-card hand and one selected discard. Please try again.";await roomRef.child("public").set(p);return;}const i=hand.findIndex(c=>c.id===a.discardCardId);if(i<0)return;pile.push(hand.splice(i,1)[0]);h[uid]=hand;p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;}
   else if(p.drawnByUid||hand.length!==13)return;
   if(player.isBot&&!player.unlocked&&hand.length===13&&hasNaturalFour(hand)){
    p.players[playerIndex].eligible=true;
@@ -1488,6 +1492,27 @@ async function startOnlineNextRound(){
   onlinePublic=next;applyOnlinePublic();
  }catch(e){message("Could not start next round: "+e.message);}
 }
+async function startFreshRoundWithScores(){
+ if(!confirm("Start a fresh round now? All current scores will be kept."))return;
+ if(!onlineMode){startNextRound();return;}
+ if(!isRoomHost||!roomRef){message("Only the host can start a new online round.");return;}
+ try{
+  const snap=await roomRef.child("public").get(),p=snap.val();
+  if(!p||!Array.isArray(p.players)){message("Could not read the current game.");return;}
+  const limit=Math.max(1,Number(p.scoreLimit)||200);
+  const active=p.players.filter(x=>x.active!==false&&(Number(x.score)||0)<limit);
+  if(active.length<=1){message("There are not enough active players to start another round.");return;}
+  const roundPlayers=p.players.map(x=>({...x,active:active.some(a=>a.id===x.id),status:active.some(a=>a.id===x.id)?"Ready":"Eliminated",unlocked:false,eligible:false,specialRank:null}));
+  const d=shuffle(makeDeck(active.length)),hands={};
+  active.forEach(x=>hands[x.id]=d.splice(0,13));
+  const first=d.pop(),nextRound=(Number(p.round)||1)+1;
+  const next={status:"playing",round:nextRound,scoreLimit:limit,turnUid:active[0].id,deckCount:d.length,discard:[first],drawnByUid:null,drawnCardId:null,discardDeadline:null,specialRank:null,players:roundPlayers.map(x=>({...x,cardCount:(hands[x.id]||[]).length})),message:"Round "+nextRound+" started by the host. Previous scores are preserved. "+active[0].name+"'s turn."};
+  await roomRef.child("private").set({deck:d,hands,specialRank:null,specialRanks:{}});
+  await roomRef.child("public").set(next);
+  onlinePublic=next;drawn=false;selected=-1;applyOnlinePublic();
+ }catch(e){message("Could not start a new round: "+e.message);}
+}
+
 async function runOnlineBotTurn(){
  if(!isRoomHost||!onlineMode||onlineBotBusy||!onlinePublic||onlinePublic.status!=="playing")return;
  const uid=onlinePublic.turnUid,bot=(onlinePublic.players||[]).find(x=>x.id===uid&&x.isBot&&x.active!==false);if(!bot)return;
@@ -1530,10 +1555,12 @@ function showHand(){
  if(!onlineMode)return _soloShowHand();
  if(!onlinePublic||onlinePublic.status!=="playing"||turn!==0||gameOver){message("You cannot show right now.");return;}
  const hand=players[0].hand||[];let discardCardId=null;
- if(drawn){
-  if(selected<0||selected>=hand.length){message("Select the extra card to discard before SHOW.");return;}
+ const hasFourteen=hand.length===14;
+ if(drawn||hasFourteen){
+  if(!hasFourteen){message("Your hand is still syncing. Please wait a moment and try again.");return;}
+  if(selected<0||selected>=hand.length){message("Select one of your 14 cards to discard before SHOW.");return;}
   discardCardId=hand[selected].id;
- }else if(hand.length!==13){message("You need 13 cards to show, or select the extra card to discard.");return;}
+ }else if(hand.length!==13){message("Your hand has "+hand.length+" cards. A SHOW needs 13 cards, or 14 with one selected to discard.");return;}
  const original=players[0].hand;
  if(discardCardId)players[0].hand=original.filter(c=>c.id!==discardCardId);
  autoArrange(false);
