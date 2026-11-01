@@ -935,7 +935,7 @@ function aiTurn(){
   const ids=final.groups.sort((a,b)=>Number(b.pure)-Number(a.pure)).map(g=>g.cards.map(c=>c.id));
   const invalid=validateOnlineShow(p.hand,ids,p);
   if(!invalid){const penalties={};players.forEach((x,i)=>{const score=x.roundDropped?(x.dropPenalty||0):(i===turn?0:bestUnmatchedScore(x.hand,x));if(!x.roundDropped)x.score+=score;penalties[x.name]=score;});
-   winningGroups=ids;gameOver=true;render();openRoundResults(players.map(x=>x.name+": +"+(penalties[x.name]||0)+" (total "+x.score+")"));return;}
+   winningGroups=ids;gameOver=true;render();openRoundResults(players.map(x=>x.name+": +"+(penalties[x.name]||0)+" (total "+x.score+")"),turn);return;}
  }
  render();nextTurn();
 }
@@ -1217,19 +1217,19 @@ function resultOrderedHand(hand,player){
  remaining.filter(c=>!paired.has(c.id)).forEach(c=>extras.push(c));
  return ordered.concat(extras);
 }
-function openRoundResults(results){
+function openRoundResults(results,winnerIndex=0){
  const screen=document.getElementById("roundResults");
  const profiles=document.getElementById("resultsProfiles");
  const hands=document.getElementById("resultsHands");
  if(!screen||!profiles||!hands)return;
  const penalties=players.map((p,i)=>p.roundDropped?(p.dropPenalty||0):(i===0?0:bestUnmatchedScore(p.hand,p)));
- const resultOrder=players.map((p,i)=>({p,i,penalty:penalties[i]})).sort((a,b)=>(a.i===0?-1:b.i===0?1:a.penalty-b.penalty)||a.i-b.i);
- profiles.innerHTML=resultOrder.map(({p,i,penalty})=>'<div class="results-profile '+(i===0?'show-winner':'')+'"><strong>'+escapeLobbyText(p.name)+'</strong><span class="result-count">'+p.hand.length+' cards revealed</span><span class="result-points">+'+penalty+' points · Total '+p.score+'</span>'+(i===0?'<span class="winner-tag">🏆 SHOWED 🎉</span>':'')+'</div>').join('');
+ const resultOrder=players.map((p,i)=>({p,i,penalty:penalties[i]})).sort((a,b)=>(a.i===winnerIndex?-1:b.i===winnerIndex?1:a.penalty-b.penalty)||a.i-b.i);
+ profiles.innerHTML=resultOrder.map(({p,i,penalty})=>'<div class="results-profile '+(i===winnerIndex?'show-winner':'')+'"><strong>'+escapeLobbyText(p.name)+'</strong><span class="result-count">'+p.hand.length+' cards revealed</span><span class="result-points">+'+penalty+' points · Total '+p.score+'</span>'+(i===winnerIndex?'<span class="winner-tag">🏆 SHOWED 🎉</span>':p.roundDropped?'<span class="winner-tag">⛔ DROPPED</span>':'')+'</div>').join('');
  hands.innerHTML=resultOrder.map(({p,i,penalty})=>{
-  const groupsHtml=p.roundDropped?'<div class="results-breakdown-section counted"><span class="results-breakdown-title">⛔ DROPPED THIS ROUND · FIXED +'+penalty+' POINTS</span></div>':i===0&&winningGroups.length?'<div class="results-winning-groups">'+winningGroups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>p.hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':renderScoringBreakdown(p.hand,p,penalty);
-  return '<div class="results-hand '+(i===0?'winner-hand':'')+'"><div class="results-hand-head"><strong>'+(i===0?'🏆🎉 ':'')+escapeLobbyText(p.name)+'</strong><span>'+p.hand.length+' cards · +'+penalty+' points</span></div>'+groupsHtml+'</div>';
+  const groupsHtml=p.roundDropped?'<div class="results-breakdown-section counted"><span class="results-breakdown-title">⛔ DROPPED THIS ROUND · FIXED +'+penalty+' POINTS</span></div>':i===winnerIndex&&winningGroups.length?'<div class="results-winning-groups">'+winningGroups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>p.hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':renderScoringBreakdown(p.hand,p,penalty);
+  return '<div class="results-hand '+(i===winnerIndex?'winner-hand':'')+'"><div class="results-hand-head"><strong>'+(i===winnerIndex?'🏆🎉 ':'')+escapeLobbyText(p.name)+'</strong><span>'+p.hand.length+' cards · +'+penalty+' points</span></div>'+groupsHtml+'</div>';
  }).join('');
- document.getElementById("resultsSummary").textContent=players[0].name+" showed successfully. Their score is 0. All hands are now revealed.";
+ document.getElementById("resultsSummary").textContent=players[winnerIndex].name+" showed successfully. All hands are now revealed.";
  screen.classList.remove("hidden");
 }
 function closeResults(){
