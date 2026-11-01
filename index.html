@@ -615,6 +615,14 @@ body.app-locked{overflow:hidden}
 .player-reaction-burst .reaction-sender{max-width:150px;padding:2px 7px;border-radius:10px;background:#071f18ed;color:#ffe8b2;font-size:8px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 6px #0008}
 @keyframes playerReactionPop{0%{opacity:0;transform:translate(-50%,9px) scale(.55)}12%,78%{opacity:1;transform:translate(-50%,-5px) scale(1)}100%{opacity:0;transform:translate(-50%,-18px) scale(.92)}}
 @media(prefers-reduced-motion:reduce){.player-reaction-burst{animation:none;opacity:1}}
+
+/* Eliminated players remain at the table as read-only spectators */
+#game.spectator-mode .spectator-notice{display:block}
+#game.spectator-mode .spectator-hand-panel,#game.spectator-mode .game-actions-panel{display:none!important}
+#game.spectator-mode .pile{pointer-events:none;filter:saturate(.65);cursor:default}
+#game.spectator-mode #resultsHands{display:none!important}
+.spectator-notice{display:none;margin:0 0 10px;padding:11px 13px;border:1px solid #e7c77988;border-radius:12px;background:linear-gradient(145deg,#173f32,#0a2b21);color:#ffe6ad;text-align:center;font-size:12px;font-weight:800;letter-spacing:.3px}
+.spectator-result-note{padding:12px;border:1px solid #d9b66b55;border-radius:10px;background:#08291f;color:#d8e6d8;text-align:center;font-size:12px}
 </style>
 </head>
 
@@ -1843,6 +1851,7 @@ function showRules(){
 let onlineMode=false,onlinePublic=null,onlinePublicRef=null,onlineHandRef=null,onlineActionRef=null,onlineSpecialRef=null;
 let onlineChatRef=null,onlineChatListener=null,chatIsOpen=false,chatHasOpened=false,chatUnreadCount=0,lastChatSentAt=0,mutedChatSenders=new Set();
 let playerReactionTimers=new Map();
+let eliminatedSpectator=false;
 let discardClockInterval=null,hostDiscardTimeout=null,scheduledDiscardKey=null;
 let onlinePublicListener=null,onlineHandListener=null,onlineActionListener=null,onlineLobbyListener=null,rejoinPublicListener=null,onlineBusy={},onlineBotBusy=false;
 function onlineMembers(l){return Object.values(l.players||{}).sort((a,b)=>(a.joinedAt||0)-(b.joinedAt||0));}
@@ -1938,7 +1947,8 @@ async function startOnlineRoom(){
  }catch(e){setLobbyNotice("Could not start game: "+e.message);}
 }
 function enterOnlineGame(state){
- if(!roomRef||!roomPlayerId)return;onlineMode=true;onlinePublic=state;document.getElementById("setup").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");document.getElementById("game").classList.remove("hidden");
+ if(!roomRef||!roomPlayerId)return;onlineMode=true;onlinePublic=state;eliminatedSpectator=false;document.getElementById("setup").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");document.getElementById("game").classList.remove("hidden");
+ const notice=document.createElement("div");notice.id="spectatorNotice";notice.className="spectator-notice";notice.textContent="👀 You are eliminated. You can watch the game, but cannot play or view anyone’s cards.";document.getElementById("game").prepend(notice);
  onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);chatHasOpened=false;chatUnreadCount=0;chatIsOpen=false;document.getElementById("gameChat")?.classList.remove("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");document.getElementById("chatToggle")?.setAttribute("aria-expanded","false");updateChatUnread();onlineChatRef=roomRef.child("chat");if(onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);const chatRefForLoad=onlineChatRef;chatRefForLoad.limitToLast(60).once("value").then(initial=>{if(!onlineMode||onlineChatRef!==chatRefForLoad)return;const oldKeys=new Set(Object.keys(initial.val()||{}));onlineChatListener=snap=>{const isOld=oldKeys.has(snap.key);oldKeys.delete(snap.key);receiveGameChat(snap,!isOld);};chatRefForLoad.limitToLast(60).on("child_added",onlineChatListener);}).catch(()=>{});
  if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();scheduleHostDiscardTimeout(onlinePublic);if(isRoomHost)runOnlineBotTurn();}};onlinePublicRef.on("value",onlinePublicListener);
  if(onlineSpecialRef){onlineSpecialRef.off("value");onlineSpecialRef.on("value",snap=>{const privateRank=snap.val();if(privateRank)specialRank=privateRank;render();if(specialRank)highlightSpecialJoker();});}if(onlineHandListener)onlineHandRef.off("value",onlineHandListener);onlineHandListener=s=>{if(!s.exists())return;const h=s.val()||[];if(!players.length)players=[{id:roomPlayerId,name:"You",hand:h,score:0,human:true}];else players[0]={...players[0],hand:h};if(onlinePublic?.turnUid===roomPlayerId&&h.length===14)drawn=true;else if(h.length===13)drawn=false;selected=-1;selectedIndices=[];arrangedGroups=[];applyOnlinePublic();autoArrange(false);render();};onlineHandRef.on("value",onlineHandListener);
@@ -2023,7 +2033,7 @@ function applyOnlinePublic(){
  players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,roundDrawCount:p.roundDrawCount||0,roundDropped:!!p.roundDropped,dropPenalty:p.dropPenalty||0,unlocked:!!p.unlocked,active:p.active!==false,human:p.id===roomPlayerId,cardCount:p.cardCount||0,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
  if(!players.length)return;
  const myPublicPlayer=m.find(p=>p.id===roomPlayerId);
- if(myPublicPlayer&&myPublicPlayer.active===false){setLobbyNotice("The host removed you from this game.");leaveRoom(true);return;}turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);round=st.round||1;drawn=st.drawnByUid===roomPlayerId;gameOver=st.status==="roundComplete"||st.status==="gameComplete";
+ if(myPublicPlayer&&myPublicPlayer.active===false&&myPublicPlayer.status==="Removed by host"){setLobbyNotice("The host removed you from this game.");leaveRoom(true);return;}eliminatedSpectator=!!(myPublicPlayer&&myPublicPlayer.active===false&&myPublicPlayer.status==="Eliminated");const gameRoot=document.getElementById("game");if(gameRoot){gameRoot.classList.toggle("spectator-mode",eliminatedSpectator);const notice=document.getElementById("spectatorNotice");if(notice)notice.textContent=eliminatedSpectator?"👀 You reached the score limit. Stay and watch the rest of the match. Other players’ cards are hidden.":"";const handPanel=document.getElementById("hand")?.closest(".panel");if(handPanel)handPanel.classList.toggle("spectator-hand-panel",eliminatedSpectator);}if(eliminatedSpectator){players[0].hand=[];drawn=false;selected=-1;selectedIndices=[];arrangedGroups=[];}turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);round=st.round||1;drawn=st.drawnByUid===roomPlayerId;gameOver=st.status==="roundComplete"||st.status==="gameComplete";
  const el=document.getElementById("message");if(el)el.textContent=st.message||"Online game";render();
  if(st.status==="roundComplete"&&st.roundResult)openOnlineRoundResults(st.roundResult);
  if(st.status==="gameComplete"){openOnlineGameComplete(st.champion||"A player");const me=(st.players||[]).find(p=>p.id===roomPlayerId);if(me)saveCompletedGame("multiplayer","room_"+(roomCode||"unknown"),st.championUid===roomPlayerId,(st.players||[]).filter(p=>p.id!==roomPlayerId).map(p=>p.name));}
@@ -2091,6 +2101,7 @@ function validateOnlineShow(hand,groupIds,player){
  return null;
 }
 function dropCurrentRound(){
+ if(eliminatedSpectator){message("You are watching this game and cannot play.");return;}
  if(gameOver){message("This round is already complete.");return;}
  if(onlineMode){
   const me=(onlinePublic?.players||[]).find(p=>p.id===roomPlayerId);
@@ -2180,7 +2191,7 @@ function openOnlineRoundResults(result){
   const list=(onlinePublic.players||[]).map(p=>({...p,cardCount:(result.hands[p.id]||[]).length})),winner=result.winnerUid;
  const resultOrder=list.map((p,i)=>({p,i,penalty:result.penalties[p.id]||0})).sort((a,b)=>(a.p.id===winner?-1:b.p.id===winner?1:a.penalty-b.penalty)||a.i-b.i);
  profiles.innerHTML=resultOrder.map(({p,penalty},position)=>'<div class="results-profile '+(p.id===winner?'show-winner':'')+'">'+playerIdentityMarkup(p,position,"results")+'<span class="finish-rank">'+(p.id===winner?'🥇 WINNER':p.roundDropped?'⛔ DROPPED':'#'+(position+1)+' PLACE')+'</span><span class="result-points">Total: '+(result.totals[p.id]||0)+'</span><span class="result-current">This match: +'+penalty+'</span>'+(p.id===winner?'<span class="winner-tag">🏆 SHOWED 🎉</span>':'')+'</div>').join('');
- handsEl.innerHTML=resultOrder.map(({p})=>{
+ handsEl.innerHTML=eliminatedSpectator?'<div class="spectator-result-note">👀 You are watching this result. Other players’ cards are hidden.</div>':resultOrder.map(({p})=>{
   const hand=result.hands[p.id]||[],penalty=result.penalties[p.id]||0;
   const resultPlayer={...p,unlocked:!!p.unlocked,specialRank:(result.specialRanks||{})[p.id]||null};const winning=p.roundDropped?'<div class="results-breakdown-section counted"><span class="results-breakdown-title">⛔ DROPPED THIS ROUND · FIXED +'+penalty+' POINTS</span></div>':p.id===winner?'<div class="results-winning-groups">'+result.groups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':renderScoringBreakdown(hand,resultPlayer,penalty);
   return '<div class="results-hand '+(p.id===winner?'winner-hand':'')+'"><div class="results-hand-head"><div class="hand-player-identity"><span class="player-avatar">'+playerInitials(p.name)+'</span><strong class="hand-player-name">'+(p.id===winner?'🏆🎉 ':'')+escapeLobbyText(p.name)+'</strong></div><span>+'+penalty+' points this round</span></div>'+winning+'</div>';
@@ -2292,7 +2303,7 @@ async function runOnlineBotTurn(){
  finally{onlineBotBusy=false;const latest=await roomRef.child("public").get().catch(()=>null),state=latest&&latest.val();if(state&&state.status==="playing"&&state.turnUid!==uid)runOnlineBotTurn();}
 }
 let onlineActionPending=false;
-async function sendOnlineAction(a){if(onlineActionPending){message("Your previous action is still syncing. Please wait.");return;}if(!onlinePublic||onlinePublic.status!=="playing"||(a.type!=="dropRound"&&onlinePublic.turnUid!==roomPlayerId)){message("Please wait for your turn.");return;}onlineActionPending=true;try{if(isRoomHost){await processOnlineAction(roomPlayerId,a);onlineActionPending=false;}else{await onlineActionRef.child(roomPlayerId).set({...a,requestedAt:Date.now()});setTimeout(()=>{onlineActionPending=false;},1800);}}catch(e){onlineActionPending=false;message("Action failed: "+e.message);}}
+async function sendOnlineAction(a){if(eliminatedSpectator){message("You are watching this game and cannot play.");return;}if(onlineActionPending){message("Your previous action is still syncing. Please wait.");return;}if(!onlinePublic||onlinePublic.status!=="playing"||(a.type!=="dropRound"&&onlinePublic.turnUid!==roomPlayerId)){message("Please wait for your turn.");return;}onlineActionPending=true;try{if(isRoomHost){await processOnlineAction(roomPlayerId,a);onlineActionPending=false;}else{await onlineActionRef.child(roomPlayerId).set({...a,requestedAt:Date.now()});setTimeout(()=>{onlineActionPending=false;},1800);}}catch(e){onlineActionPending=false;message("Action failed: "+e.message);}}
 const _soloDrawClosed=drawClosed,_soloDrawOpen=drawOpen,_soloDiscardSelected=discardSelected,_soloShowHand=showHand,_soloStartGame=startGame;
 function drawClosed(){if(!onlineMode)return _soloDrawClosed();if(turn!==0||drawn)return;sendOnlineAction({type:"drawClosed"});}
 function drawOpen(){if(!onlineMode)return _soloDrawOpen();if(turn!==0||drawn)return;sendOnlineAction({type:"drawOpen"});}
@@ -2316,7 +2327,7 @@ function showHand(){
 }
 function startGame(){if(!onlineMode)return _soloStartGame();message("Leave the online table before starting a solo game.");}
 function leaveRoom(showLobby=true){
- if(onlineChatRef&&onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);onlineChatRef=null;onlineChatListener=null;chatIsOpen=false;chatHasOpened=false;chatUnreadCount=0;document.getElementById("gameChat")?.classList.add("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");mutedChatSenders.clear();if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);if(onlineSpecialRef)onlineSpecialRef.off("value");if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
+ if(onlineChatRef&&onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);onlineChatRef=null;onlineChatListener=null;chatIsOpen=false;chatHasOpened=false;chatUnreadCount=0;document.getElementById("gameChat")?.classList.add("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");mutedChatSenders.clear();eliminatedSpectator=false;document.getElementById("game")?.classList.remove("spectator-mode");if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);if(onlineSpecialRef)onlineSpecialRef.off("value");if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
  if(roomRef&&roomPlayerId)roomRef.child("lobby/players/"+roomPlayerId).remove().catch(()=>{});onlineMode=false;onlinePublic=null;onlinePublicRef=onlineHandRef=onlineActionRef=onlineSpecialRef=null;roomRef=null;roomCode=null;roomPlayerId=null;isRoomHost=false;onlineLobbyListener=null;
  document.getElementById("game").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");if(showLobby)document.getElementById("setup").classList.remove("hidden");
 }
