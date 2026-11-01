@@ -716,7 +716,7 @@ function render(){
   if(players[0]){
    document.getElementById("handCount").textContent=players[0].hand.length;
    if(playersEl){
-    playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active':'')+'"><b>'+p.name+'</b><span class="profile-count">'+p.hand.length+' cards</span><span class="profile-score">Score: '+p.score+'</span><span class="profile-status">'+(p.status||"🎴 Ready")+'</span></div>').join('');
+    playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active':'')+'"><b>'+escapeLobbyText(p.name)+'</b><span class="profile-count">'+p.hand.length+' cards</span><span class="profile-score">Score: '+p.score+'</span><span class="profile-status">'+(p.status||"🎴 Ready")+'</span>'+(onlineMode&&isRoomHost&&p.id!==roomPlayerId?'<button class="host-remove-player" onclick="hostRemovePlayer(\''+p.id+'\')">Remove player</button>':'')+'</div>').join('');
    }
    if(handEl){
     try{handEl.innerHTML=renderHandLayout();}
@@ -1252,6 +1252,44 @@ function showWaitingRoom(){
  roomRef.child("lobby").on("value",onlineLobbyListener);
 }
 
+async function hostRemovePlayer(targetUid){
+ if(!isRoomHost||!roomRef||!targetUid||targetUid===roomPlayerId)return;
+ const current=(onlinePublic&&onlinePublic.players||[]).find(p=>p.id===targetUid);
+ const lobbySnap=await roomRef.child("lobby").get(),lobby=lobbySnap.val()||{};
+ const lobbyPlayer=(lobby.players||{})[targetUid];
+ const targetName=current?.name||lobbyPlayer?.name||"this player";
+ if(!confirm("Remove "+targetName+" from this table?"))return;
+ try{
+  const [publicSnap,privateSnap]=await Promise.all([roomRef.child("public").get(),roomRef.child("private").get()]);
+  const state=publicSnap.val(),priv=privateSnap.val()||{};
+  const updates={};
+  updates["lobby/players/"+targetUid]=null;
+  updates["private/hands/"+targetUid]=null;
+  updates["private/specialRanks/"+targetUid]=null;
+  if(state&&state.status==="playing"){
+   const oldPlayers=state.players||[];
+   if(!oldPlayers.some(p=>p.id===targetUid))return;
+   const remaining=oldPlayers.filter(p=>p.id!==targetUid);
+   const wasTurn=state.turnUid===targetUid;
+   const active=remaining.filter(p=>p.active!==false);
+   let nextTurn=state.turnUid;
+   if(wasTurn){
+    const oldActive=oldPlayers.filter(p=>p.active!==false);
+    const oldIndex=oldActive.findIndex(p=>p.id===targetUid);
+    const candidates=oldActive.slice(oldIndex+1).concat(oldActive.slice(0,oldIndex));
+    nextTurn=(candidates.find(p=>p.id!==targetUid&&remaining.some(r=>r.id===p.id&&r.active!==false))||active[0]||{}).id||null;
+   }
+   const updated={...state,players:remaining,turnUid:nextTurn||state.turnUid,message:targetName+" was removed by the host."};
+   if(wasTurn){updated.drawnByUid=null;updated.drawnCardId=null;updated.discardDeadline=null;}
+   if(active.length<=1&&active[0]){
+    updated.status="gameComplete";updated.champion=active[0].name;updated.message=targetName+" was removed. "+active[0].name+" wins Moddu Set!";
+   }
+   updates["public"]=updated;
+  }
+  await roomRef.update(updates);
+  setLobbyNotice(targetName+" was removed from the table.");
+ }catch(e){setLobbyNotice("Could not remove player: "+e.message);}
+}
 async function updateRoomScoreLimit(value){
  if(!isRoomHost||!roomRef)return;
  const limit=[100,150,200,250,300].includes(Number(value))?Number(value):200;
