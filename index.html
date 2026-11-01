@@ -1382,7 +1382,11 @@ async function runOnlineBotTurn(){
    await processOnlineAction(uid,{type:"discard",cardId:card.id});
   }
  }catch(e){setLobbyNotice("Bot turn error: "+e.message);}
- finally{onlineBotBusy=false;}
+ finally{
+  onlineBotBusy=false;
+  const latest=await roomRef.child("public").get().catch(()=>null),state=latest&&latest.val();
+  if(state&&state.status==="playing"&&state.turnUid!==uid)runOnlineBotTurn();
+ }
 }
 async function sendOnlineAction(a){if(!onlinePublic||onlinePublic.turnUid!==roomPlayerId){message("Please wait for your turn.");return;}try{if(isRoomHost)await processOnlineAction(roomPlayerId,a);else await onlineActionRef.child(roomPlayerId).set({...a,requestedAt:Date.now()});}catch(e){message("Action failed: "+e.message);}}
 const _soloDrawClosed=drawClosed,_soloDrawOpen=drawOpen,_soloDiscardSelected=discardSelected,_soloShowHand=showHand,_soloStartGame=startGame;
