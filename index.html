@@ -1238,12 +1238,12 @@ function startNextRound(){
 function showRules(){
  alert(
  "MODDU SET RULES\\n\\n"+
- "13 cards per player. Draw one card and discard one card.\\n"+
- "Winning hand: one pure four-card set and three valid three-card sets.\\n"+
- "A natural four-set unlocks special joker eligibility.\\n"+
- "Printed jokers and special joker ranks score zero when unmatched.\\n"+
- "Cumulative score of 200 eliminates a player.\\n\\n"+
- "This prototype does not yet validate winning hands or calculate final scores."
+ "Each player receives 13 cards. On your turn, draw one card from the closed pile or the top open card, then discard one card.\\n"+
+ "A show must use all 13 cards: one pure natural four-card set and three valid three-card sets. Suits and colours do not matter; ranks must match.\\n"+
+ "Printed jokers are wild in three-card sets. A natural four-set makes you eligible to reveal the special joker. You may decline and reveal it later.\\n"+
+ "The special joker is a normal rank card kept aside. Once revealed, that rank acts as a joker for eligible players. A pure four-set is still required when showing.\\n"+
+ "Unmatched printed jokers and a player's revealed special-rank cards score zero. A=1, 2-10 face value, J=11, Q=12, K=13.\\n"+
+ "After a show, the winner scores zero and other players receive the lowest possible unmatched-card penalty using valid sets. Scores carry forward; 200 points eliminates a player. Last active player wins."
  );
 }
 </script>
