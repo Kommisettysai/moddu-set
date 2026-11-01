@@ -1345,7 +1345,7 @@ async function processOnlineAction(uid,a){
   h[uid]=hand;p.drawnByUid=uid;p.drawnCardId=hand[hand.length-1].id;p.discardDeadline=Date.now()+30000;p.message="Card drawn. You have 30 seconds to discard.";
  }else if(a.type==="discard"){
   if(p.drawnByUid!==uid||hand.length!==14){p.message="Discard blocked: a drawn hand must contain exactly 14 cards. Current count: "+hand.length+".";p.players[playerIndex].cardCount=hand.length;await roomRef.child("public").set(p);return;}const i=hand.findIndex(c=>c.id===a.cardId);if(i<0)return;
-  const discarded=hand.splice(i,1)[0];pile.push(discarded);h[uid]=hand;p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;
+  const timedOut=!!(p.discardDeadline&&Date.now()>=p.discardDeadline);const discardId=(a.automatic||timedOut)?p.drawnCardId:a.cardId;const discardIndex=hand.findIndex(c=>c.id===discardId);if(discardIndex<0)return;const discarded=hand.splice(discardIndex,1)[0];pile.push(discarded);h[uid]=hand;p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;a.automatic=!!(a.automatic||timedOut);
   if(hand.length===13&&hasNaturalFour(hand)&&!player.unlocked){
    p.players[playerIndex].eligible=true;
    if(!special){
