@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moddu Set - Telugu Card Game</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#102b24;color:white;font-family:Arial,sans-serif}
+header{text-align:center;padding:16px;background:#091c18}
+h1{margin:0;color:#f5d68a}
+.sub{color:#b8c9c1;font-size:12px;margin-top:5px}
+main{max-width:850px;margin:auto;padding:12px}
+.panel{background:#1b493b;border:1px solid #3d725c;border-radius:14px;padding:14px;margin-bottom:12px}
+button{border:0;border-radius:9px;padding:12px 15px;font-weight:bold;background:#f0cb78;color:#30230c;font-size:14px}
+button:disabled{opacity:.4}
+select{padding:12px;border-radius:8px}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin:12px 0}
+.piles{display:flex;justify-content:center;gap:25px;margin:15px 0}
+.pile{width:85px;height:112px;border:2px dashed #b7c9b9;border-radius:10px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer;background:#174335}
+.pile strong{font-size:25px}
+.players{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.player{background:#245641;border-radius:10px;padding:10px;text-align:center;font-size:13px}
+.player.active{outline:2px solid #f0cb78}
+.cards{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:15px 0}
+.card{background:#fff;color:#222;width:48px;height:70px;border-radius:7px;border:2px solid #ddd;display:flex;flex-direction:column;justify-content:space-between;padding:5px;font-weight:bold;cursor:pointer;box-shadow:0 2px 4px #071c16}
+.card.red{color:#d32f2f}
+.card.selected{transform:translateY(-9px);border:3px solid #f0bd47}
+.card.back{background:repeating-linear-gradient(45deg,#173c70,#173c70 5px,#315a91 5px,#315a91 10px);color:white}
+.small{font-size:10px}
+#message{min-height:35px;color:#ffe5a3;padding:8px}
+.hidden{display:none}
+footer{text-align:center;color:#9bb3a8;font-size:11px;padding:15px}
+@media(max-width:450px){.card{width:43px;height:64px}.players{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<header>
+<h1>🃏 MODDU SET</h1>
+<div class="sub">Traditional Telugu Card Game</div>
+</header>
+
+<main>
+<section class="panel" id="setup">
+<h3>Start a new game</h3>
+<label>Number of players: </label>
+<select id="playerCount">
+<option value="4">4 Players</option>
+<option value="5">5 Players</option>
+<option value="6">6 Players</option>
+</select>
+<p class="sub">You play against computer opponents.</p>
+<button onclick="startGame()">Start Game</button>
+</section>
+
+<section id="game" class="hidden">
+<div class="panel">
+<div id="roundInfo">Round 1</div>
+<div id="jokerInfo">Special Joker: Not revealed</div>
+<div id="turnInfo"></div>
+</div>
+
+<div class="panel">
+<h3>Players</h3>
+<div class="players" id="players"></div>
+</div>
+
+<div class="panel">
+<h3 style="text-align:center">Game Table</h3>
+<div class="piles">
+<div>
+<div class="pile" onclick="drawClosed()">
+<div><strong>🂠</strong><br><small>Closed pile</small></div>
+</div>
+</div>
+<div>
+<div class="pile" onclick="drawOpen()">
+<div><strong id="openCard">?</strong><br><small>Open pile</small></div>
+</div>
+</div>
+</div>
+<div id="message">Your turn. Choose a pile.</div>
+</div>
+
+<div class="panel">
+<h3>Your cards (<span id="handCount">13</span>)</h3>
+<div class="cards" id="hand"></div>
+<div class="actions">
+<button id="discardBtn" onclick="discardSelected()" disabled>Discard selected card</button>
+<button onclick="checkFourSet()">Check four-set</button>
+</div>
+</div>
+
+<div class="panel">
+<h3>Game actions</h3>
+<div class="actions">
+<button onclick="showRules()">Game rules</button>
+<button onclick="startGame()">Restart game</button>
+</div>
+</div>
+</section>
+</main>
+
+<footer>Moddu Set • Early development version</footer>
+
+<script>
+const suits=["♠","♥","♦","♣"];
+const ranks=["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+
+let deck=[],discard=[],players=[],turn=0,selected=-1;
+let drawn=false,specialRank=null,round=1,gameOver=false;
+
+function makeDeck(count){
+ let cards=[];
+ let packs=count<=4?2:3;
+
+ for(let d=0;d<packs;d++){
+  for(let s of suits){
+   for(let r of ranks){
+    cards.push({rank:r,suit:s,id:crypto.randomUUID(),joker:false});
+   }
+  }
+ }
+ // Printed jokers are included within the configured total.
+ // Random normal cards are replaced to keep the deck at 52 cards per pack.
+ for(let i=0;i<count;i++){
+  let index=Math.floor(Math.random()*cards.length);
+  cards.splice(index,1);
+  cards.push({rank:"JOKER",suit:"★",id:crypto.randomUUID(),joker:true});
+ }
+ return cards;
+}
+
+function shuffle(a){
+ for(let i=a.length-1;i>0;i--){
+  let j=Math.floor(Math.random()*(i+1));
+  [a[i],a[j]]=[a[j],a[i]];
+ }
+ return a;
+}
+
+function startGame(){
+ let count=Number(document.getElementById("playerCount").value);
+ deck=shuffle(makeDeck(count));
+ discard=[];
+ players=[];
+ turn=0;selected=-1;drawn=false;
+ specialRank=null;gameOver=false;
+
+ for(let i=0;i<count;i++){
+  players.push({
+   name:i===0?"You":"Computer "+i,
+   hand:deck.splice(0,13),
+   score:0,
+   unlocked:false,
+   active:true,
+   human:i===0
+  });
+ }
+
+ discard.push(deck.pop());
+ document.getElementById("setup").classList.add("hidden");
+ document.getElementById("game").classList.remove("hidden");
+ message("Your turn. You may take the open card or draw from the closed pile.");
+ render();
+}
+
+function message(t){
+ document.getElementById("message").textContent=t;
+}
+
+function render(){
+ document.getElementById("openCard").textContent=
+ cardText(discard[discard.length-1]);
+ document.getElementById("jokerInfo").textContent=
+ "Special Joker: "+(specialRank||"Not revealed");
+ document.getElementById("turnInfo").textContent=
+ players[turn].name+"'s turn";
+ document.getElementById("handCount").textContent=players[0].hand.length;
+
+ let phtml="";
+ players.forEach((p,i)=>{
+  phtml+=`<div class="player ${i===turn?"active":""}">
+  <b>${p.name}</b><br>
+  ${p.human?"Your hand":"🂠 🂠 🂠"}<br>
+  Cards: ${p.hand.length}<br>
+  Special joker: ${p.unlocked?"Unlocked":"Locked"}<br>
+  Score: ${p.score}
+  </div>`;
+ });
+ document.getElementById("players").innerHTML=phtml;
+
+ if(players[0]){
+  document.getElementById("hand").innerHTML=players[0].hand.map((c,i)=>{
+   let red=["♥","♦"].includes(c.suit);
+   return `<div class="card ${red?"red":""} ${selected===i?"selected":""}"
+   onclick="selectCard(${i})">
+   <span>${c.rank==="JOKER"?"★":c.rank}</span>
+   <span style="text-align:center">${c.suit}</span>
+   <span style="text-align:right">${c.rank==="JOKER"?"★":c.rank}</span>
+   </div>`;
+  }).join("");
+ }
+ document.getElementById("discardBtn").disabled=
+ !(turn===0&&drawn&&selected>=0);
+}
+
+function cardText(c){
+ if(!c)return "?";
+ return c.joker?"🃏":c.rank+c.suit;
+}
+
+function selectCard(i){
+ if(turn!==0||!drawn)return;
+ selected=i;
+ render();
+}
+
+function recycleDeck(){
+ if(deck.length>0)return;
+ if(discard.length<=1){
+  message("No cards available to recycle.");
+  return;
+ }
+ let top=discard.pop();
+ deck=shuffle(discard);
+ discard=[top];
+ message("Closed deck empty. Discard cards shuffled into a new deck.");
+}
+
+function drawClosed(){
+ if(turn!==0||drawn)return;
+ recycleDeck();
+ if(deck.length===0){message("No cards available.");return;}
+ players[0].hand.push(deck.pop());
+ drawn=true;
+ selected=-1;
+ message("Card drawn. Select one card to discard.");
+ render();
+}
+
+function drawOpen(){
+ if(turn!==0||drawn)return;
+ if(discard.length===0)return;
+ players[0].hand.push(discard.pop());
+ drawn=true;
+ selected=-1;
+ message("Open card taken. Select one card to discard.");
+ render();
+}
+
+function discardSelected(){
+ if(turn!==0||!drawn||selected<0)return;
+ let card=players[0].hand.splice(selected,1)[0];
+ discard.push(card);
+ drawn=false;selected=-1;
+ checkUnlock(0);
+ render();
+ message("Card discarded. Next player's turn.");
+ nextTurn();
+}
+
+function hasNaturalFour(hand){
+ let counts={};
+ hand.filter(c=>!c.joker).forEach(c=>{
+  counts[c.rank]=(counts[c.rank]||0)+1;
+ });
+ return Object.values(counts).some(n=>n>=4);
+}
+
+function checkFourSet(){
+ if(turn!==0){
+  message("You can check your four-set during your turn.");
+  return;
+ }
+ checkUnlock(0,true);
+}
+
+function checkUnlock(index,manual=false){
+ let p=players[index];
+ if(p.hand.length!==13||p.unlocked||!hasNaturalFour(p.hand))return;
+
+ if(specialRank){
+  if(p.human){
+   if(confirm("You have a natural four-set. Do you want to see the special joker?")){
+    p.unlocked=true;
+    alert("Special joker rank: "+specialRank);
+   }
+  }else p.unlocked=true;
+ }else{
+  if(p.human){
+   if(confirm("You have a natural four-set. Do you want to reveal the special joker?")){
+    revealSpecial(p);
+   }
+  }else revealSpecial(p);
+ }
+ render();
+}
+
+function revealSpecial(p){
+ let c;
+ recycleDeck();
+ if(deck.length===0){message("No card available to reveal special joker.");return;}
+ do{
+  c=deck.pop();
+  if(c.joker){
+   // Printed joker is not used as the special rank.
+   if(deck.length===0)recycleDeck();
+  }
+ }while(c.joker&&deck.length>0);
+
+ if(c.joker){
+  message("Could not find a normal card for special joker.");
+  return;
+ }
+ specialRank=c.rank;
+ p.unlocked=true;
+ message("Special joker revealed: "+specialRank+". The card is kept aside.");
+}
+
+function nextTurn(){
+ if(gameOver)return;
+ turn=(turn+1)%players.length;
+ render();
+ if(turn!==0)setTimeout(aiTurn,700);
+ else{
+  checkUnlock(0);
+  message("Your turn. Draw from either pile.");
+ }
+}
+
+function aiTurn(){
+ if(gameOver||turn===0)return;
+ let p=players[turn];
+ recycleDeck();
+ if(discard.length&&Math.random()<0.35){
+  p.hand.push(discard.pop());
+ }else if(deck.length){
+  p.hand.push(deck.pop());
+ }else{
+  nextTurn();return;
+ }
+
+ // Basic random AI discard. Improved strategy will be added later.
+ let index=Math.floor(Math.random()*p.hand.length);
+ discard.push(p.hand.splice(index,1)[0]);
+
+ checkUnlock(turn);
+ render();
+ nextTurn();
+}
+
+function showRules(){
+ alert(
+ "MODDU SET RULES\\n\\n"+
+ "13 cards per player. Draw one card and discard one card.\\n"+
+ "Winning hand: one pure four-card set and three valid three-card sets.\\n"+
+ "A natural four-set unlocks special joker eligibility.\\n"+
+ "Printed jokers and special joker ranks score zero when unmatched.\\n"+
+ "Cumulative score of 200 eliminates a player.\\n\\n"+
+ "This prototype does not yet validate winning hands or calculate final scores."
+ );
+}
+</script>
+</body>
+  </html>
+  
