@@ -510,6 +510,7 @@ body.show-player-scores .player-strip .profile-score{display:block!important;mar
 .username-input-row{display:flex;align-items:center;gap:7px;margin:10px 0}
 .username-input-row>span{font-size:20px;color:#f4d28a;font-weight:900}
 .username-input-row input{min-width:0;flex:1}
+#suggestUsernameBtn{width:100%;margin:2px 0 8px;background:linear-gradient(180deg,#dce9df,#a9c2b1);color:#17392b;border-color:#dce9df;box-shadow:0 3px 0 #71877a}
 #saveUsernameBtn{width:100%}
 #roomActions{margin-top:20px}
 #roomActions .lobby-text-button{display:block;margin:10px auto 0}
@@ -555,6 +556,8 @@ body.show-player-scores .player-strip .profile-score{display:block!important;mar
    <div class="lobby-section-title">CHOOSE YOUR PLAYER USERNAME</div>
    <p class="lobby-hint">Your friends can find you using this unique username.</p>
    <div class="username-input-row"><span>@</span><input id="usernameInput" class="lobby-input" maxlength="16" placeholder="yourname" autocomplete="username" autocapitalize="none"></div>
+   <button type="button" class="lobby-secondary" id="suggestUsernameBtn" onclick="suggestUsername()">🎲 Suggest a random name</button>
+   <p class="lobby-hint">Pick a suggestion or edit it before saving.</p>
    <button class="lobby-primary" id="saveUsernameBtn" onclick="savePlayerUsername()">Save username</button>
    <p class="lobby-hint" id="usernameNotice">Use 3 to 16 letters, numbers or underscores.</p>
   </div>
@@ -763,6 +766,17 @@ async function continueWithGoogle(){
   setAuthStatus(msg);setLobbyNotice(msg);
  }finally{if(btn){btn.disabled=false;btn.textContent="🌐 Continue with Google";}}
 }
+const USERNAME_NAME_POOL=["aarav","vivaan","arjun","kabir","aditya","ishaan","rohan","karthik","rahul","varun","teja","harsha","naveen","rohit","vikram","ananya","aadhya","priya","kavya","meera","diya","nisha","sneha","saanvi"];
+function suggestUsername(){
+ const input=document.getElementById("usernameInput"),notice=document.getElementById("usernameNotice");
+ if(!input)return;
+ const name=USERNAME_NAME_POOL[Math.floor(Math.random()*USERNAME_NAME_POOL.length)];
+ const suffix=Math.floor(10+Math.random()*90);
+ input.value=name+suffix;
+ input.focus();
+ if(notice){notice.textContent="Suggested: @"+input.value+". You can edit it or try another suggestion.";notice.style.color="#b8c9bd";}
+}
+
 async function savePlayerUsername(){
  if(!authUser||!firebaseReady){setUsernameNotice("Please sign in with Google first.",true);return;}
  const input=document.getElementById("usernameInput"),btn=document.getElementById("saveUsernameBtn");
