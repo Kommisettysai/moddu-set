@@ -208,6 +208,10 @@ footer{color:#9bb9a9;padding:20px 12px 28px;letter-spacing:.7px}
  .player-strip .profile-count,.player-strip .profile-score{font-size:7px!important}
  #game>.panel:nth-of-type(2) .pile{width:78px!important;height:78px!important}
 }
+
+/* Stronger player names for quick recognition */
+.player-strip .player b{font-size:12px!important;font-weight:900!important;letter-spacing:.15px!important;text-shadow:0 1px 2px #0006}
+@media(max-width:450px){.player-strip .player b{font-size:11px!important;font-weight:900!important}}
 </style>
 </head>
 <body>
@@ -695,19 +699,87 @@ function autoArrange(showMessage=true){
  }
 }
 
+function isWildForPlayer(card,player){
+ return !!card.joker||(!!player.unlocked&&!!specialRank&&card.rank===specialRank);
+}
+function unmatchedCardPoints(card){
+ if(card.joker||specialRank&&card.rank===specialRank)return 0;
+ if(card.rank==="A")return 1;
+ if(card.rank==="J")return 11;
+ if(card.rank==="Q")return 12;
+ if(card.rank==="K")return 13;
+ return Number(card.rank)||0;
+}
+function bestUnmatchedScore(hand,player){
+ const n=hand.length,triples=[],fours=[];
+ for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)for(let k=j+1;k<n;k++){
+  const set=[hand[i],hand[j],hand[k]],natural=set.filter(c=>!isWildForPlayer(c,player));
+  if(!natural.length||natural.every(c=>c.rank===natural[0].rank))triples.push((1<<i)|(1<<j)|(1<<k));
+ }
+ for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)for(let k=j+1;k<n;k++)for(let l=k+1;l<n;l++){
+  const set=[hand[i],hand[j],hand[k],hand[l]];
+  if(set.every(c=>!c.joker&&!isWildForPlayer(c,player)&&c.rank===set[0].rank))fours.push((1<<i)|(1<<j)|(1<<k)|(1<<l));
+ }
+ const melds=[...triples,...fours],memo=new Map();
+ const full=(1<<n)-1;
+ function solve(mask){
+  if(mask===full)return 0;
+  if(memo.has(mask))return memo.get(mask);
+  let first=0;while(mask&(1<<first))first++;
+  let best=unmatchedCardPoints(hand[first])+solve(mask|(1<<first));
+  for(const meld of melds){
+   if((meld&(1<<first))&&!(meld&mask))best=Math.min(best,solve(mask|meld));
+  }
+  memo.set(mask,best);return best;
+ }
+ return solve(0);
+}
 function showHand(){
- if(!players.length||turn!==0||drawn){message("Finish your turn before showing.");return;}
- if(players[0].hand.length!==13){message("You must have exactly 13 cards to show.");return;}
- if(arrangedGroups.length!==4){message("Arrange one pure four-set and three valid three-card sets first. Try Auto arrange.");return;}
- const groups=arrangedGroups.map(ids=>ids.map(id=>players[0].hand.find(c=>c.id===id)).filter(Boolean));
- if(groups.some(g=>g.length!== (groups.indexOf(g)===0?4:3))){message("Some arranged cards are missing. Please arrange again.");return;}
+ if(!players.length||turn!==0||gameOver){message("You cannot show right now.");return;}
+ let hand=[...players[0].hand];
+ let showDiscard=null;
+ if(drawn){
+  if(selected<0||selected>=hand.length){message("Select the extra card to discard before SHOW.");return;}
+  showDiscard=hand.splice(selected,1)[0];
+ }else if(hand.length!==13){
+  message("You must have 13 cards to show, or select your 14th card as the discard.");return;
+ }
+ if(hand.length!==13){message("A valid SHOW needs exactly 13 cards after the discard.");return;}
+ const byId=new Map(hand.map(c=>[c.id,c]));
+ const groups=arrangedGroups.map(ids=>ids.map(id=>byId.get(id)).filter(Boolean));
+ if(groups.length!==4||groups.some((g,i)=>g.length!==(i===0?4:3))){
+  message("Your 13 cards must form one pure four-set and three three-card sets. Try Auto arrange.");return;
+ }
  const used=groups.flat().map(c=>c.id);
- if(new Set(used).size!==13||used.length!==13){message("Every card must be used exactly once.");return;}
+ if(used.length!==13||new Set(used).size!==13){message("Every card must be used exactly once. Arrange again.");return;}
  const pure=groups[0];
- if(pure.length!==4||pure.some(c=>c.joker)||!pure.every(c=>c.rank===pure[0].rank)){message("Your first group must be a pure natural four-set.");return;}
- if(!groups.slice(1).every(validThree)){message("One or more three-card sets are invalid.");return;}
- gameOver=true;message("SHOW accepted! Your hand is valid. Round result and scoring are the next feature to implement.");
- alert("Valid SHOW! Your hand has one pure four-set and three valid three-card sets.");
+ if(pure.length!==4||pure.some(c=>c.joker||isWildForPlayer(c,players[0]))||!pure.every(c=>c.rank===pure[0].rank)){
+  message("Your first group must be a pure natural four-set.");return;
+ }
+ if(!groups.slice(1).every(g=>{
+  const natural=g.filter(c=>!isWildForPlayer(c,players[0]));
+  return !natural.length||natural.every(c=>c.rank===natural[0].rank);
+ })){
+  message("One or more three-card sets are invalid. Check your joker use.");return;
+ }
+ if(showDiscard){
+  players[0].hand=hand;
+  discard.push(showDiscard);
+  drawn=false;selected=-1;
+ }
+ arrangedGroups=groups.map(g=>g.map(c=>c.id));
+ players[0].score=players[0].score||0;
+ const results=[];
+ players.forEach((p,i)=>{
+  const penalty=i===0?0:bestUnmatchedScore(p.hand,p);
+  p.score+=penalty;
+  results.push(p.name+": +"+penalty+" (total "+p.score+")");
+ });
+ gameOver=true;
+ render();
+ const summary="SHOW accepted! Your score: 0. Other players' penalty points have been calculated. "+results.join(" | ");
+ message(summary);
+ alert(summary);
 }
 
 function showRules(){
