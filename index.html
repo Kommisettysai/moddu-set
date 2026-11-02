@@ -2243,6 +2243,20 @@ let voiceJoined=false,voiceMuted=true,voiceStream=null,voiceParticipantsRef=null
 let voiceParticipantsListener=null,voicePeerConnections=new Map(),voiceSignalListeners=new Map(),voicePendingCandidates=new Map();
 const VOICE_ICE_SERVERS=[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}];
 function voiceSetStatus(text){const el=document.getElementById("voiceStatus");if(el)el.textContent=text;}
+async function voiceMicrophoneErrorMessage(error){
+ const name=error&&error.name||"";
+ if(!window.isSecureContext)return "Microphone access needs a secure HTTPS page. Open the game using its https:// address, then try again.";
+ if(name==="NotAllowedError"||name==="PermissionDeniedError"){
+  let permission="blocked or denied";
+  try{const result=await navigator.permissions?.query({name:"microphone"});if(result?.state)permission=result.state;}catch(e){}
+  return "Microphone permission is "+permission+". In Chrome on Android, tap the site icon beside the address bar → Permissions → Microphone → Allow. If it is blocked in Android Settings, allow Chrome to use the microphone too. Reload this page and tap Try Again.";
+ }
+ if(name==="NotFoundError"||name==="DevicesNotFoundError")return "No microphone was found. Connect or enable a microphone, then tap Try Again.";
+ if(name==="NotReadableError"||name==="TrackStartError")return "The microphone is busy or Android could not open it. End any phone/WhatsApp call, close other apps using the mic, then tap Try Again.";
+ if(name==="OverconstrainedError")return "The microphone does not support the requested audio settings. Try again after updating your browser.";
+ if(name==="SecurityError")return "The browser blocked microphone access. Open this game in Chrome over HTTPS and allow microphone permission.";
+ return "Could not access the microphone ("+(name||"unknown error")+"). Check Chrome and Android microphone permissions, close other apps using the mic, then tap Try Again.";
+}
 function voiceRoomMember(uid){return !!uid&&!!roomRef&&!!roomPlayerId;}
 function voiceSignalPath(from,to){return roomRef.child("voice/signals/"+from+"/"+to);}
 function voiceRenderPeople(list){
@@ -2358,8 +2372,8 @@ async function joinVoiceChat(){
  }catch(e){
   voiceJoined=false;
   if(voiceStream){voiceStream.getTracks().forEach(t=>t.stop());voiceStream=null;}
-  voiceSetStatus(e.name==="NotAllowedError"?"Microphone permission was denied. Allow it in browser settings and try again.":"Could not join voice: "+(e.message||e.name));
- }finally{if(joinBtn){joinBtn.disabled=false;joinBtn.textContent="Join Voice";}}
+  voiceSetStatus(await voiceMicrophoneErrorMessage(e));
+ }finally{if(joinBtn){joinBtn.disabled=false;joinBtn.textContent="Try Again";}}
 }
 async function toggleVoiceMute(){
  if(!voiceJoined||!voiceStream)return;
