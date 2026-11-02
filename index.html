@@ -669,6 +669,16 @@ body.app-locked{overflow:hidden}
 .voice-person.muted{opacity:.65}
 .voice-note{font-size:10px;color:#b9cdbf;line-height:1.4;margin-top:8px}
 
+
+/* Keep voice and chat below the hand so the cards stay near the top. */
+.game-communication-compact{display:grid;grid-template-columns:1fr;gap:10px;margin:12px 0 18px}
+.game-communication-compact .voice-panel,
+.game-communication-compact .game-chat{margin:0;padding:12px}
+.game-communication-compact .voice-head{gap:8px}
+.game-communication-compact .voice-note{font-size:.82rem;margin-top:8px}
+.game-communication-compact .game-chat-head{padding:0}
+.game-communication-compact .chat-drawer{max-height:240px;overflow:auto}
+.game-communication-compact .voice-people:empty{display:none}
 </style>
 </head>
 
@@ -840,6 +850,25 @@ body.app-locked{overflow:hidden}
 <div id="discardTimer" aria-live="polite" style="display:none;text-align:center;margin-top:8px;font-weight:700;color:#ffe08a"></div>
 </div>
 
+
+
+<div class="panel">
+<div class="hand-heading"><h3>Your cards (<span id="handCount">13</span>) <span id="handUnmatched" class="hand-unmatched">In hand: 0</span></h3><div class="joker-slot" id="jokerSlot"><span class="card back joker-card">★</span><small>Special joker</small></div></div>
+<div class="cards" id="hand"></div>
+<div class="actions hand-actions">
+<button id="discardBtn" onclick="discardSelected()" disabled>Discard selected</button>
+<button onclick="autoArrange()">Auto arrange</button>
+<button id="showBtn" onclick="showHand()">SHOW</button>
+</div>
+<button id="dropRoundBtn" class="drop-round-btn" onclick="dropCurrentRound()">DROP 20</button>
+<div class="arrange-tools"><p class="arrange-hint">Your cards arrange automatically. Drag a card onto a set to add it, or use Auto Arrange.</p>
+
+</div>
+</div>
+
+
+
+<div class="game-communication-compact">
 <section class="panel voice-panel hidden" id="voicePanel" aria-label="Voice chat">
  <div class="voice-head"><div><h3>🎙️ Table voice</h3><div class="voice-status" id="voiceStatus">Voice is off. Join when you want to talk.</div></div><span id="voiceCount" class="voice-person">0 connected</span></div>
  <div class="voice-controls">
@@ -885,19 +914,6 @@ body.app-locked{overflow:hidden}
   </form>
   <div class="chat-footnote">Messages are visible to everyone in this room.</div>
  </div>
-</div>
-
-<div class="panel">
-<div class="hand-heading"><h3>Your cards (<span id="handCount">13</span>) <span id="handUnmatched" class="hand-unmatched">In hand: 0</span></h3><div class="joker-slot" id="jokerSlot"><span class="card back joker-card">★</span><small>Special joker</small></div></div>
-<div class="cards" id="hand"></div>
-<div class="actions hand-actions">
-<button id="discardBtn" onclick="discardSelected()" disabled>Discard selected</button>
-<button onclick="autoArrange()">Auto arrange</button>
-<button id="showBtn" onclick="showHand()">SHOW</button>
-</div>
-<button id="dropRoundBtn" class="drop-round-btn" onclick="dropCurrentRound()">DROP 20</button>
-<div class="arrange-tools"><p class="arrange-hint">Your cards arrange automatically. Drag a card onto a set to add it, or use Auto Arrange.</p>
-
 </div>
 </div>
 
