@@ -424,6 +424,17 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 .card-stack span:nth-child(2){transform:translate(3px,-2px) rotate(5deg)}
 .card-stack span:nth-child(3){transform:translate(0,2px)}
 .top-discard-card{width:48px;height:66px;border:2px solid #f0d38f;border-radius:7px;background:linear-gradient(145deg,#fff,#eee8d9);color:#17231d;display:flex;align-items:center;justify-content:center;font:bold 21px Georgia,serif;box-shadow:0 5px 9px #0007}
+/* Three-card discard history: newest card on top, earlier cards remain visible below */
+.discard-pile{position:relative;flex-direction:column;justify-content:flex-start;gap:2px;padding-top:5px;overflow:visible}
+.discard-stack{position:relative;width:58px;height:78px;flex:0 0 78px;margin:0 auto}
+.discard-history-card{position:absolute;top:calc(var(--stack-index)*11px);left:50%;transform:translateX(-50%);width:48px;height:64px;box-sizing:border-box;border:2px solid #e8d9b9;border-radius:7px;background:linear-gradient(145deg,#fff,#eee8d9);color:#17231d;box-shadow:0 3px 7px #0008;display:flex;flex-direction:column;justify-content:space-between;padding:4px;font:bold 13px Georgia,serif;z-index:calc(4 - var(--stack-index));}
+.discard-history-card.red{color:#d32f2f}
+.discard-history-card .discard-history-suit{text-align:center;font-size:16px}
+.discard-history-card .discard-history-corner{text-align:right;font-size:9px;line-height:1}
+.open-pick-indicator{position:absolute;top:-10px;right:-10px;z-index:8;padding:3px 5px;border-radius:6px;background:#35d4e8;color:#062b30;font-size:7px;font-weight:1000;white-space:nowrap;box-shadow:0 2px 7px #0008}
+.discard-pile>small{position:relative;z-index:5;margin-top:0}
+@media(max-width:450px){.discard-stack{transform:scale(.92);transform-origin:top center;margin-bottom:-6px}.discard-history-card{width:45px;height:60px}}
+
 .action-announcement{display:none;margin:8px auto 2px;padding:9px 12px;border:1px solid #6de4ff99;border-radius:11px;background:linear-gradient(90deg,#0d4555,#123d4b);color:#e1fbff;text-align:center;font-size:12px;font-weight:900;letter-spacing:.3px;box-shadow:0 0 14px #42d9ff35}
 .action-announcement.show{display:block;animation:actionSlideIn .35s ease-out}
 @keyframes actionSlideIn{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
@@ -803,7 +814,7 @@ body.app-locked{overflow:hidden}
 <h3 style="text-align:center">Game Table</h3>
 <div class="piles">
 <div><div class="pile draw-pile" id="drawPile" onclick="drawClosed()" aria-label="Draw deck, face down"><div class="card-stack" aria-hidden="true"><span></span><span></span><span></span></div><small>DRAW DECK</small></div></div>
-<div><div class="pile discard-pile" id="discardPile" onclick="drawOpen()" aria-label="Discard pile, take visible top card"><div class="top-discard-card" id="openCard">?</div><small>DISCARD PILE</small></div></div>
+<div><div class="pile discard-pile" id="discardPile" onclick="drawOpen()" aria-label="Discard pile, take the latest face-up card"><div class="discard-stack" id="discardStack" aria-hidden="true"></div><span class="open-pick-indicator hidden" id="openPickIndicator">OPEN CARD PICKED</span><small>DISCARD PILE</small></div></div>
 </div>
 <div id="actionAnnouncement" class="action-announcement" aria-live="polite"></div>
 <div id="message">Your turn. Choose a pile.</div>
@@ -1339,9 +1350,7 @@ function render(){
  const handEl=document.getElementById("hand");
  const playersEl=document.getElementById("players");
  try{
-  const topDiscard=discard.length?discard[discard.length-1]:null;
-  const openEl=document.getElementById("openCard");
-  if(openEl)openEl.textContent=cardText(topDiscard);
+  renderDiscardHistory();
   const oldJokerInfo=document.getElementById("jokerInfo");
   if(oldJokerInfo)oldJokerInfo.textContent="";
   const slot=document.getElementById("jokerSlot");
@@ -1381,6 +1390,23 @@ playersEl.innerHTML=players.map((p,i)=>{return '<div data-player-id="'+escapeLob
   }
   message("Display recovery mode: your cards are shown in a simple layout.");
  }
+}
+function renderDiscardHistory(){
+ const stack=document.getElementById("discardStack");
+ if(!stack)return;
+ const recent=discard.slice(-3).reverse();
+ stack.innerHTML=recent.map((card,index)=>{
+  const red=card&&["♥","♦"].includes(card.suit);
+  const label=cardText(card);
+  return '<div class="discard-history-card '+(red?'red':'')+'" style="--stack-index:'+index+'" title="'+escapeLobbyText(label)+'">'+
+   '<span>'+escapeLobbyText(card&&card.joker?'★':card&&card.rank||'?')+'</span>'+
+   '<span class="discard-history-suit">'+escapeLobbyText(card&&card.joker?'★':card&&card.suit||'')+'</span>'+
+   '<span class="discard-history-corner">'+escapeLobbyText(label)+'</span></div>';
+ }).join("");
+ stack.setAttribute("aria-label",recent.length?"Latest discarded card "+cardText(recent[0])+(recent.length>1?", previous "+recent.slice(1).map(cardText).join(", "):""):"No discarded cards");
+ const indicator=document.getElementById("openPickIndicator");
+ const pickedOpen=onlineMode&&onlinePublic?.lastAction?.type==="drawOpen";
+ if(indicator)indicator.classList.toggle("hidden",!pickedOpen);
 }
 function cardText(c){
  if(!c)return "?";
