@@ -91,6 +91,15 @@
           ".write": "auth != null && ((auth.uid === $uid && root.child('friendRequests').child($uid).child($friendUid).exists()) || (auth.uid === $friendUid && root.child('friendRequests').child($friendUid).child($uid).exists()))"
         }
       }
+    },
+    "roomInvites": {
+      "$recipientUid": {
+        ".read": "auth != null && auth.uid === $recipientUid",
+        "$inviteId": {
+          ".write": "auth != null && ((!data.exists() && newData.exists() && root.child('friends').child(auth.uid).child($recipientUid).exists() && root.child('rooms').child(newData.child('roomCode').val()).child('lobby').child('hostId').val() === auth.uid && root.child('rooms').child(newData.child('roomCode').val()).child('lobby').child('status').val() === 'waiting' && root.child('rooms').child(newData.child('roomCode').val()).child('lobby').child('players').child(auth.uid).exists()) || (auth.uid === $recipientUid && !newData.exists()))",
+          ".validate": "!newData.exists() || (newData.hasChildren(['roomCode','inviterUid','inviterName','createdAt']) && newData.child('inviterUid').val() === auth.uid && newData.child('roomCode').isString() && newData.child('inviterName').isString() && newData.child('createdAt').isNumber())"
+        }
+      }
     }
   }
 }

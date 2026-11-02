@@ -772,6 +772,8 @@ body.app-locked{overflow:hidden}
    <div id="friendRequestsList" class="friend-list"><p class="lobby-hint">No pending requests.</p></div>
    <div class="lobby-section-title friend-section-heading">MY FRIENDS <span id="friendCount"></span></div>
    <div id="myFriendsList" class="friend-list"><p class="lobby-hint">No friends added yet.</p></div>
+   <div class="lobby-section-title friend-section-heading">GAME INVITATIONS <span id="roomInviteCount"></span></div>
+   <div id="roomInvitesList" class="friend-list"><p class="lobby-hint">No game invitations.</p></div>
   </div>
   <div id="gameHistoryPanel" class="friends-panel hidden">
    <div class="lobby-section-title">GAME HISTORY</div>
@@ -807,6 +809,8 @@ body.app-locked{overflow:hidden}
    <option value="100">100 points</option><option value="150">150 points</option><option value="200" selected>200 points</option><option value="250">250 points</option><option value="300">300 points</option>
   </select>
   <p class="lobby-hint" id="scoreLimitHint">Players are eliminated when their total score reaches this limit.</p>
+  <div class="lobby-section-title friend-section-heading">INVITE YOUR FRIENDS</div>
+  <div id="roomFriendInviteList" class="friend-list"><p class="lobby-hint">Loading your friends…</p></div>
   <div class="actions">
    <button class="lobby-secondary" onclick="shareRoomInvite()">Invite friends</button>
    <button class="lobby-secondary" id="addBotBtn" onclick="addBotToRoom()">＋ Add bot</button>
@@ -1165,6 +1169,7 @@ async function sendFriendRequest(targetUid){
 }
 async function loadFriends(){
  if(!authUser||!profileReady)return;
+ await loadIncomingRoomInvites();
  const db=firebase.database(),requestsEl=document.getElementById("friendRequestsList"),friendsEl=document.getElementById("myFriendsList");
  try{
   const reqSnap=await db.ref("friendRequests/"+authUser.uid).get(),requests=reqSnap.val()||{},entries=Object.entries(requests);
@@ -1172,11 +1177,66 @@ async function loadFriends(){
   if(requestsEl)requestsEl.innerHTML=entries.length?entries.map(([uid,r])=>friendRowMarkup(uid,{username:r.username||"player",displayName:r.displayName||r.username||"Player"},'<div><button onclick="acceptFriendRequest(\''+uid+'\')">Accept</button> <button onclick="declineFriendRequest(\''+uid+'\')">Decline</button></div>')).join(""):'<p class="friend-empty">No pending requests.</p>';
   const friendSnap=await db.ref("friends/"+authUser.uid).get(),friendIds=Object.keys(friendSnap.val()||{});
   document.getElementById("friendCount").textContent=friendIds.length?"("+friendIds.length+")":"";
-  if(!friendIds.length){if(friendsEl)friendsEl.innerHTML='<p class="friend-empty">No friends added yet. Search for a username above.</p>';return;}
+  if(!friendIds.length){if(friendsEl)friendsEl.innerHTML='<p class="friend-empty">No friends added yet. Search for a username above.</p>';await renderRoomFriendInvites([],[]);return;}
   const profiles=await Promise.all(friendIds.map(uid=>db.ref("users/"+uid).get()));
   if(friendsEl)friendsEl.innerHTML=profiles.map((snap,i)=>friendRowMarkup(friendIds[i],snap.val()||{username:"player",displayName:"Player"},'<span>Friend ✓</span>')).join("");
+  await renderRoomFriendInvites(friendIds,profiles.map(x=>x.val()||{}));
  }catch(e){if(requestsEl)requestsEl.innerHTML='<p class="friend-empty">Could not load friend data: '+escapeLobbyText(e.message)+'</p>';}
 }
+
+async function loadIncomingRoomInvites(){
+ if(!authUser)return;
+ const el=document.getElementById("roomInvitesList"),count=document.getElementById("roomInviteCount");
+ try{
+  const snap=await firebase.database().ref("roomInvites/"+authUser.uid).get(),items=Object.entries(snap.val()||{});
+  if(count)count.textContent=items.length?"("+items.length+")":"";
+  if(el)el.innerHTML=items.length?items.map(([id,v])=>'<div class="friend-row"><div><strong>'+escapeLobbyText(v.inviterName||"Friend")+'</strong><small>Invited you to table '+escapeLobbyText(v.roomCode||"")+'</small></div><div><button onclick="acceptRoomInvite(\''+id+'\')">Accept</button> <button onclick="declineRoomInvite(\''+id+'\')">Decline</button></div></div>').join(""):'<p class="friend-empty">No game invitations.</p>';
+ }catch(e){if(el)el.innerHTML='<p class="friend-empty">Could not load invitations: '+escapeLobbyText(e.message)+'</p>';}
+}
+async function renderRoomFriendInvites(friendIds,profiles){
+ const el=document.getElementById("roomFriendInviteList");if(!el)return;
+ if(!roomCode||!isRoomHost||!roomRef){el.innerHTML='<p class="friend-empty">Create a table first to invite friends directly.</p>';return;}
+ try{
+  const lobbySnap=await roomRef.child("lobby").get(),l=lobbySnap.val()||{};
+  if(l.status!=="waiting"){el.innerHTML='<p class="friend-empty">Invitations close when the game starts.</p>';return;}
+  const members=l.players||{};
+  const rows=friendIds.filter(uid=>!members[uid]).map((uid)=>{const profile=profiles[friendIds.indexOf(uid)]||{},label=profile.displayName||profile.username||"Friend";return '<div class="friend-row"><div><strong>'+escapeLobbyText(label)+'</strong><small>@'+escapeLobbyText(profile.username||"player")+'</small></div><button onclick="sendRoomInvite(\''+uid+'\')">Invite</button></div>';});
+  el.innerHTML=rows.length?rows.join(""):'<p class="friend-empty">All your friends are already at this table.</p>';
+ }catch(e){el.innerHTML='<p class="friend-empty">Could not load friends for this table.</p>';}
+}
+async function sendRoomInvite(friendUid){
+ if(!authUser||!roomRef||!roomCode||!isRoomHost||!friendUid||friendUid===authUser.uid)return;
+ try{
+  const [friendSnap,lobbySnap]=await Promise.all([firebase.database().ref("friends/"+authUser.uid+"/"+friendUid).get(),roomRef.child("lobby").get()]);
+  if(!friendSnap.exists()){setLobbyNotice("You can invite only accepted friends.");return;}
+  const lobby=lobbySnap.val()||{};
+  if(lobby.status!=="waiting"||lobby.hostId!==authUser.uid){setLobbyNotice("Only the host can invite friends before the game starts.");return;}
+  if((lobby.players||{})[friendUid]){setLobbyNotice("That friend is already at the table.");return;}
+  if(Object.keys(lobby.players||{}).length>=Number(lobby.maxPlayers||6)){setLobbyNotice("This table is full.");return;}
+  const profileSnap=await firebase.database().ref("users/"+authUser.uid).get(),profile=profileSnap.val()||{};
+  const inviteRef=firebase.database().ref("roomInvites/"+friendUid).push();
+  await inviteRef.set({roomCode,inviterUid:authUser.uid,inviterName:profile.displayName||profile.username||"Your friend",createdAt:firebase.database.ServerValue.TIMESTAMP});
+  setLobbyNotice("Game invitation sent!");
+ }catch(e){setLobbyNotice("Could not send invitation ("+(e.code||"error")+"): "+e.message);}
+}
+async function acceptRoomInvite(inviteId){
+ if(!authUser||!inviteId)return;
+ try{
+  const ref=firebase.database().ref("roomInvites/"+authUser.uid+"/"+inviteId),snap=await ref.get();
+  if(!snap.exists())return;
+  const invite=snap.val(),code=String(invite.roomCode||"").toUpperCase();
+  if(!/^[A-Z0-9]{6}$/.test(code)){setLobbyNotice("This invitation is invalid.");return;}
+  document.getElementById("roomCodeInput").value=code;
+  await ref.remove();
+  await joinRoom();
+ }catch(e){setLobbyNotice("Could not accept invitation: "+e.message);}
+}
+async function declineRoomInvite(inviteId){
+ if(!authUser||!inviteId)return;
+ try{await firebase.database().ref("roomInvites/"+authUser.uid+"/"+inviteId).remove();await loadIncomingRoomInvites();}
+ catch(e){setLobbyNotice("Could not decline invitation: "+e.message);}
+}
+
 async function acceptFriendRequest(senderUid){
  if(!authUser||!senderUid)return;
  try{
@@ -1266,6 +1326,7 @@ function showWaitingRoom(){
  document.getElementById("waitingRoom").classList.remove("hidden");
  document.getElementById("roomCodeLabel").textContent=roomCode;
  document.getElementById("startRoomBtn").classList.toggle("hidden",!isRoomHost);
+ if(isRoomHost)loadFriends().catch(()=>{});
  if(roomListener&&roomRef)roomRef.off("value",roomListener);
  roomListener=snap=>{
   if(!snap.exists()){leaveRoom(false);return;}
