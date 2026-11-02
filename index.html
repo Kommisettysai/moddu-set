@@ -997,6 +997,10 @@ body.app-locked{overflow:hidden}
  .inline-private-table .room-player strong{font-size:12px}
  .inline-private-table .room-actions-row button{font-size:11px;padding:11px 5px}
 }
+
+/* Compact home: put the account card at the top */
+#setup{padding-top:8px!important}
+#setup>.lobby-card{margin-top:0!important}
 </style>
 </head>
 
@@ -1050,13 +1054,7 @@ body.app-locked{overflow:hidden}
 
 <main>
 <section class="lobby-shell" id="setup">
- <div class="lobby-intro">
-<div class="lobby-mark">🃏</div>
-  <div class="lobby-eyebrow">TRADITIONAL TELUGU CARD GAME</div>
-  <h2>Gather your people.</h2>
-  <p>One table. A few friends. Let the cards decide.</p>
- </div>
- <div class="lobby-card">
+  <div class="lobby-card">
   <input id="playerName" type="hidden" maxlength="18" autocomplete="nickname">
   <div class="account-welcome" id="accountWelcome">
    <div class="account-avatar" id="accountAvatar">👤</div>
