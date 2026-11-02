@@ -1231,20 +1231,30 @@ const SAVED_ROOM_KEY="modduSet.activeRoomCode";
 function saveActiveRoom(){try{if(roomCode)localStorage.setItem(SAVED_ROOM_KEY,roomCode);}catch(e){}}
 function clearActiveRoom(){try{localStorage.removeItem(SAVED_ROOM_KEY);}catch(e){}}
 async function restoreSavedRoom(){
- if(roomRestoreStarted||!authUser||!firebaseReady)return;roomRestoreStarted=true;
- let code="";try{code=(localStorage.getItem(SAVED_ROOM_KEY)||"").trim().toUpperCase();}catch(e){}
+ if(roomRestoreStarted||!authUser||!firebaseReady)return;
+ roomRestoreStarted=true;
+ let code="";
+ try{code=(localStorage.getItem(SAVED_ROOM_KEY)||"").trim().toUpperCase();}catch(e){}
  if(!/^[A-Z0-9]{6}$/.test(code))return;
  try{
-  const ref=firebase.database().ref("rooms/"+code),snap=await ref.get();if(!snap.exists()){clearActiveRoom();return;}
-  const room=snap.val(),uid=authUser.uid,l=room.lobby||{},member=(l.players||{})[uid],pub=room.public||{},gamePlayer=(pub.players||[]).find(p=>p.id===uid);
-  if(!member&&!gamePlayer){clearActiveRoom();return;}
+  const ref=firebase.database().ref("rooms/"+code);
+  // The room root is intentionally not readable. Check membership first.
+  const lobbySnap=await ref.child("lobby").get();
+  if(!lobbySnap.exists()){clearActiveRoom();return;}
+  const l=lobbySnap.val()||{},uid=authUser.uid,member=(l.players||{})[uid];
+  if(!member){clearActiveRoom();return;}
   roomCode=code;roomRef=ref;roomPlayerId=uid;isRoomHost=uid===l.hostId;saveActiveRoom();
   if(l.status==="waiting"){showWaitingRoom();setLobbyNotice("Your previous room was restored.");return;}
+  const publicSnap=await ref.child("public").get(),pub=publicSnap.val()||{};
+  const gamePlayer=(pub.players||[]).find(p=>p.id===uid);
   if(gamePlayer&&(gamePlayer.active!==false||gamePlayer.status==="Eliminated")&&["playing","roundComplete","gameComplete"].includes(pub.status)){
    enterOnlineGame(pub);setLobbyNotice("Your previous game was restored.");return;
   }
   clearActiveRoom();
- }catch(e){setLobbyNotice("Could not restore your previous table. Check your connection and try again.");}
+ }catch(e){
+  console.error("Room restore failed:",e);
+  setLobbyNotice("Could not restore your previous table ("+(e.code||"error")+"): "+e.message);
+ }
 }
 function exitCurrentTable(){
  if(!onlineMode){if(!confirm("Return to the lobby? Your current solo game will end."))return;document.getElementById("game").classList.add("hidden");document.getElementById("setup").classList.remove("hidden");return;}
@@ -1965,36 +1975,58 @@ function createRoom(){
  showWaitingRoom();}catch(e){setLobbyNotice("Could not create room: "+e.message);}})();
 }
 async function joinRoom(){
- const name=lobbyName();if(!name)return;if(!firebaseReady||!authUser){setLobbyNotice("Firebase sign-in is still loading.");return;}
- const code=document.getElementById("roomCodeInput").value.trim().toUpperCase();if(!/^[A-Z0-9]{6}$/.test(code)){setLobbyNotice("Enter the six-character room code.");return;}
+ const name=lobbyName();if(!name)return;
+ if(!firebaseReady||!authUser){setLobbyNotice("Firebase sign-in is still loading. Please wait a moment and try again.");return;}
+ const code=document.getElementById("roomCodeInput").value.trim().toUpperCase();
+ if(!/^[A-Z0-9]{6}$/.test(code)){setLobbyNotice("Enter the six-character room code.");return;}
+ const button=document.querySelector('#roomActions button[onclick="joinRoom()"]');
+ if(button){button.disabled=true;button.textContent="Joining…";}
  try{
-  const ref=firebase.database().ref("rooms/"+code),snap=await ref.get();if(!snap.exists()){setLobbyNotice("Room not found.");return;}
-  const room=snap.val(),l=room.lobby||{},members=onlineMembers(l),uid=authUser.uid,existing=members.find(p=>p.id===uid),pub=room.public||{},gamePlayer=(pub.players||[]).find(p=>p.id===uid);
+  const ref=firebase.database().ref("rooms/"+code);
+  // Read only the public lobby node. Reading rooms/{code} is intentionally forbidden
+  // because it would also expose private hands and the deck.
+  const lobbySnap=await ref.child("lobby").get();
+  if(!lobbySnap.exists()){setLobbyNotice("Room not found. Check the six-character code.");return;}
+  const l=lobbySnap.val()||{},members=onlineMembers(l),uid=authUser.uid;
+  const existing=(l.players||{})[uid]||members.find(p=>p.id===uid)||null;
+  let pub=null,gamePlayer=null;
+  // Existing members may read public game state; a new player must not read it
+  // before joining the lobby.
+  if(existing){
+   const publicSnap=await ref.child("public").get();
+   pub=publicSnap.val()||{};
+   gamePlayer=(pub.players||[]).find(p=>p.id===uid)||null;
+  }
   const isRemoved=!!(existing&&existing.removed)||!!(gamePlayer&&gamePlayer.status==="Removed by host"&&gamePlayer.active===false);
-  if(l.status!=="waiting"&&!isRemoved){setLobbyNotice("This game has already started. Only a player removed by the host can rejoin.");return;}
-  if(existing&&!isRemoved){setLobbyNotice("You are already in this room.");return;}
-  if(!existing&&members.length>=l.maxPlayers){setLobbyNotice("This table is full.");return;}
+  if(l.status!=="waiting"&&!isRemoved){
+   setLobbyNotice("This game has already started. New players cannot join now.");return;
+  }
+  if(existing&&!isRemoved){
+   setLobbyNotice("You are already in this room. Return to the waiting table.");return;
+  }
+  if(!existing&&members.length>=Number(l.maxPlayers||6)){
+   setLobbyNotice("This table is full.");return;
+  }
   roomCode=code;roomRef=ref;roomPlayerId=uid;isRoomHost=uid===l.hostId;
-  if(isRemoved&&pub.status==="playing"&&gamePlayer){
-   const hs=await ref.child("private/hands/"+uid).get(),savedHand=hs.val()||[];
-   if(savedHand.length===13){
-    const updated={...pub,players:pub.players.map(p=>p.id===uid?{...p,active:true,status:"Rejoined this round",cardCount:13}:p),message:gamePlayer.name+" rejoined the current round. Their saved hand is restored."};
-    await Promise.all([ref.child("public").set(updated),ref.child("lobby/players/"+uid).set({id:uid,name:gamePlayer.name||name,ready:true,removed:false,joinedAt:existing?.joinedAt||firebase.database.ServerValue.TIMESTAMP})]);
-    enterOnlineGame(updated);setLobbyNotice("You are back in the current round with your saved 13 cards.");return;
-   }
-   const deferred={...pub,players:pub.players.map(p=>p.id===uid?{...p,rejoinNextRound:true,rejoinPenalty:20,status:"Rejoin next round"}:p),message:gamePlayer.name+" can rejoin next round with a 20-point penalty."};
-   await Promise.all([ref.child("public").set(deferred),ref.child("lobby/players/"+uid).set({id:uid,name:gamePlayer.name||name,ready:true,removed:false,pendingRejoin:true,joinedAt:existing?.joinedAt||firebase.database.ServerValue.TIMESTAMP})]);
-   showWaitingRoom();setLobbyNotice("Your old hand cannot safely resume. You are queued for next round with +20 points.");return;
+  if(isRemoved){
+   // Rejoining a running game requires the host to restore the public game state.
+   // Do not let a non-host overwrite the shared public state.
+   setLobbyNotice("You were removed from this game. Ask the host to restore your seat or invite you to the next round.");
+   return;
   }
-  if(isRemoved&&pub.status==="roundComplete"&&gamePlayer){
-   const updated={...pub,players:pub.players.map(p=>p.id===uid?{...p,rejoinNextRound:true,rejoinPenalty:20,status:"Rejoin next round"}:p)};
-   await ref.child("public").set(updated);
-   await ref.child("lobby/players/"+uid).set({id:uid,name:gamePlayer.name||name,ready:true,removed:false,pendingRejoin:true,joinedAt:existing?.joinedAt||firebase.database.ServerValue.TIMESTAMP});
-   showWaitingRoom();setLobbyNotice("You are queued for next round with +20 points.");return;
-  }
-  if(l.status!=="waiting"){setLobbyNotice("This room is not accepting new players.");return;}
-  await ref.child("lobby/players/"+uid).set({id:uid,name,ready:true,joinedAt:firebase.database.ServerValue.TIMESTAMP});showWaitingRoom();
- }catch(e){setLobbyNotice("Could not join room: "+e.message);}
+  await ref.child("lobby/players/"+uid).set({
+   id:uid,name,ready:true,removed:false,
+   joinedAt:firebase.database.ServerValue.TIMESTAMP
+  });
+  saveActiveRoom();
+  showWaitingRoom();
+  setLobbyNotice("Joined room "+code+". Waiting for the host.");
+ }catch(e){
+  console.error("Room join failed:",e);
+  setLobbyNotice("Could not join room ("+(e.code||"error")+"): "+e.message);
+ }finally{
+  if(button){button.disabled=false;button.textContent="Join";}
+ }
 }
 function showWaitingRoom(){
  // Replace the login/setup view with the waiting room so its controls are immediately visible.
