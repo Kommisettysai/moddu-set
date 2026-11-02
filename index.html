@@ -685,6 +685,33 @@ body.app-locked{overflow:hidden}
 .game-communication-compact .game-chat-head{padding:0}
 .game-communication-compact .chat-drawer{max-height:240px;overflow:auto}
 .game-communication-compact .voice-people:empty{display:none}
+
+/* Smaller player profiles and game table: keep the cards visible on phone screens */
+@media(max-width:600px){
+ .player-strip{padding:6px 7px!important;margin-bottom:6px!important}
+ .player-strip .players{gap:4px!important;padding:1px 0!important}
+ .player-strip .player{min-height:76px!important;padding:4px 2px!important;border-radius:8px!important}
+ .player-strip .player-identity{gap:2px!important}
+ .player-strip .avatar-stack{min-width:30px!important;margin-bottom:1px!important}
+ .player-strip .player-avatar{width:29px!important;height:29px!important;min-width:29px!important;flex-basis:29px!important;font-size:17px!important;border-width:1px!important}
+ .player-strip .avatar-count{top:-4px!important;right:-6px!important;min-width:14px!important;height:14px!important;font-size:8px!important;line-height:12px!important;padding:0 3px!important}
+ .player-strip .avatar-turn{margin-top:2px!important;padding:1px 5px!important;font-size:7px!important}
+ .player-strip .player b{max-width:100%!important;font-size:9px!important;line-height:1.15!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+ .player-strip .player-name-wrap{max-width:100%!important;align-items:center!important}
+ .player-strip .player-role{font-size:6px!important}
+ .player-strip .player button,.player-strip .player .remove-player{font-size:8px!important;padding:3px 5px!important;min-height:24px!important;line-height:1.05!important}
+ .player-strip .top-voice-controls{margin:3px 0 5px!important;gap:5px!important}
+ .player-strip .top-voice-controls button{min-height:29px!important;padding:4px 9px!important;font-size:10px!important}
+ #game>.panel:nth-of-type(2){padding:7px 9px!important;margin-bottom:6px!important}
+ #game>.panel:nth-of-type(2) h3{font-size:13px!important;margin:0 0 4px!important}
+ #game>.panel:nth-of-type(2) .piles{margin:4px 0!important;gap:9px!important}
+ #game>.panel:nth-of-type(2) .pile{width:66px!important;height:65px!important;border-width:2px!important;border-radius:9px!important}
+ #game>.panel:nth-of-type(2) .pile strong{font-size:21px!important}
+ #game>.panel:nth-of-type(2) .pile small{font-size:8px!important}
+ #game>.panel:nth-of-type(2) #message{min-height:25px!important;padding:5px 7px!important;margin-top:4px!important;font-size:10px!important}
+ #game>.panel:nth-of-type(2) .action-announcement{font-size:10px!important;padding:6px 8px!important;margin:5px auto 1px!important}
+}
+
 </style>
 </head>
 
