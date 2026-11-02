@@ -1023,10 +1023,10 @@ body:has(#setup:not(.hidden))>header,
 body:has(#roundResults:not(.hidden))>header,
 #roundResults .results-brand{display:none!important}
 
-/* The action feedback belongs inside the discard pile, not below the table. */
-#discardPile.discard-pile{overflow:visible!important}
-#discardPile .open-pick-indicator{top:5px!important;right:5px!important;max-width:calc(100% - 10px);overflow:hidden;text-overflow:ellipsis}
-#discardPile .discard-stack{pointer-events:none}
+/* Each pile owns its own compact pick notification. */
+#discardPile.discard-pile,#drawPile.draw-pile{position:relative!important;overflow:visible!important}
+#discardPile .open-pick-indicator,#drawPile .open-pick-indicator{top:5px!important;right:5px!important;max-width:calc(100% - 10px);overflow:hidden;text-overflow:ellipsis}
+#discardPile .discard-stack,#drawPile .card-stack{pointer-events:none}
 </style>
 </head>
 
@@ -1152,7 +1152,7 @@ body:has(#roundResults:not(.hidden))>header,
 <div class="panel">
 <h3 style="text-align:center">Game Table</h3>
 <div class="piles">
-<div><div class="pile draw-pile" id="drawPile" onclick="drawClosed()" aria-label="Draw deck, face down"><div class="card-stack" aria-hidden="true"><span></span><span></span><span></span></div><small>DRAW DECK</small></div></div>
+<div><div class="pile draw-pile" id="drawPile" onclick="drawClosed()" aria-label="Draw deck, face down"><div class="card-stack" aria-hidden="true"><span></span><span></span><span></span></div><span class="open-pick-indicator hidden" id="drawPickIndicator">DRAW DECK PICKED</span><small>DRAW DECK</small></div></div>
 <div class="discard-pile-with-timer"><div class="pile discard-pile" id="discardPile" onclick="drawOpen()" aria-label="Discard pile, take the latest face-up card"><div class="discard-stack" id="discardStack" aria-hidden="true"></div><span class="open-pick-indicator hidden" id="openPickIndicator">OPEN CARD PICKED</span><small>DISCARD PILE</small></div><div id="discardTimer" class="compact-turn-timer" aria-live="polite" style="display:none"><span class="timer-icon" aria-hidden="true">◷</span><span id="discardTimerSeconds">60</span></div></div>
 </div>
 <div id="message">Your turn. Choose a pile.</div>
@@ -2513,19 +2513,22 @@ let lastSeenSharedActionAt=0;
 function showSharedAction(action){
  if(!action||!action.at||action.at<=lastSeenSharedActionAt)return;
  lastSeenSharedActionAt=action.at;
- const badge=document.getElementById("openPickIndicator");
  const isOpenPick=action.type==="drawOpen";
- if(badge){
-  window.clearTimeout(badge.hideTimer);
-  badge.classList.remove("show");
-  badge.classList.add("hidden");
-  if(isOpenPick){
-   badge.textContent="OPEN CARD PICKED";
-   badge.classList.remove("hidden");
-   void badge.offsetWidth;
-   badge.classList.add("show");
-   badge.hideTimer=window.setTimeout(()=>{badge.classList.remove("show");badge.classList.add("hidden");},3000);
-  }
+ const isDeckPick=action.type==="drawClosed";
+ const badge=document.getElementById(isOpenPick?"openPickIndicator":"drawPickIndicator");
+ ["openPickIndicator","drawPickIndicator"].forEach(id=>{
+  const item=document.getElementById(id);
+  if(!item)return;
+  window.clearTimeout(item.hideTimer);
+  item.classList.remove("show");
+  item.classList.add("hidden");
+ });
+ if(badge&&(isOpenPick||isDeckPick)){
+  badge.textContent=isOpenPick?"OPEN CARD PICKED":"DRAW DECK PICKED";
+  badge.classList.remove("hidden");
+  void badge.offsetWidth;
+  badge.classList.add("show");
+  badge.hideTimer=window.setTimeout(()=>{badge.classList.remove("show");badge.classList.add("hidden");},3000);
  }
  const pile=document.getElementById(action.type==="drawOpen"||action.type==="discard"?"discardPile":"drawPile");
  if(pile){pile.classList.remove("action-pulse");void pile.offsetWidth;pile.classList.add("action-pulse");}
