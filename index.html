@@ -1013,6 +1013,12 @@ body:has(#game:not(.hidden))>header{display:none!important}
 
 /* Drop is a secondary, less frequently used action */
 .drop-round-btn{margin-top:20px!important;margin-bottom:5px!important}
+
+/* Home and round-results screens: let the content start immediately.
+   Keep the single SAI / Moddu Set • Created by Sai signature in the footer. */
+body:has(#setup:not(.hidden))>header,
+body:has(#roundResults:not(.hidden))>header,
+#roundResults .results-brand{display:none!important}
 </style>
 </head>
 
