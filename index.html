@@ -949,6 +949,54 @@ body.app-locked{overflow:hidden}
  #roundResults .results-hands>.results-hand .results-winning-group,
  #roundResults .results-hands>.results-hand .results-breakdown-section.matched{background:#0b3025!important}
 }
+
+/* Unified home and inline private-table layout */
+.sai-brand-copy strong{font-size:21px!important;letter-spacing:4px!important;color:#f4d58d!important;text-shadow:0 1px 8px #eacb7840}
+.sai-brand-copy small{display:none!important}
+#setup{max-width:680px;margin:0 auto;padding:0 12px 24px}
+#setup .lobby-intro{padding:22px 12px 16px}
+#setup .lobby-intro .lobby-brand{margin-bottom:14px}
+#setup .lobby-intro h2{font-size:clamp(27px,7vw,38px);margin:10px 0 5px}
+#setup>.lobby-card{padding:14px 12px 18px;border:1px solid #d5b86c66;border-radius:20px;background:linear-gradient(155deg,#164b39,#0a3025);box-shadow:0 8px 24px #0003}
+#setup .account-welcome{display:flex;align-items:center;gap:10px;margin:0 0 14px;padding:12px;border:1px solid #d9b66b66;border-radius:14px;background:#08291f88}
+#setup .account-welcome>div:nth-child(2){min-width:0;flex:1}
+#setup .account-signout{flex:0 0 auto;margin:0!important;padding:7px 9px!important;font-size:11px!important;white-space:nowrap}
+#roomActions{margin-top:8px}
+#roomActions>.lobby-primary{min-height:54px;font-size:17px;box-shadow:0 4px 0 #8d642b,0 8px 15px #0003}
+#roomJoinControls{margin-top:12px}
+#roomJoinControls .lobby-or{margin:14px 0 10px}
+.inline-private-table{margin:18px 0 0;padding:14px 10px 12px;border:2px solid #e6c66f;border-radius:21px;background:linear-gradient(150deg,#0e4935,#082b21);box-shadow:0 0 0 2px #f2d47a22,0 0 18px #eacb7840}
+.inline-private-table .lobby-wait-head{padding:5px 5px 14px;text-align:center}
+.inline-private-table .lobby-eyebrow{font-size:10px;letter-spacing:3px;color:#f3d78e}
+.inline-private-table .lobby-wait-head h2{font-size:25px;margin:7px 0 4px;color:#ffe2a0}
+.inline-private-table .lobby-wait-head p{font-size:12px;color:#c4d8cb;margin:0}
+.inline-private-table .room-code-display{max-width:100%;margin:13px auto 0;min-height:56px}
+.inline-private-table .room-code-display span{font-size:clamp(21px,6vw,29px);letter-spacing:5px}
+.inline-private-table .private-table-card{padding:12px 8px 8px;border:1px solid #d8bc7b77;border-radius:17px;background:linear-gradient(145deg,#124633,#092d22)}
+.inline-private-table .lobby-section-title{font-size:12px;letter-spacing:1.1px;color:#f2d58c;margin:4px 3px 10px}
+.inline-private-table .room-players{display:grid;gap:6px}
+.inline-private-table .room-player{min-height:54px;padding:7px 9px;border-radius:10px;background:#082b21;border:1px solid #d7b66c66}
+.inline-private-table .room-player .avatar{width:34px;height:34px;flex:0 0 34px;border:1px solid #e4c778;background:#315d45}
+.inline-private-table .room-player strong{font-size:13px}
+.inline-private-table .room-player small{font-size:9px;letter-spacing:.7px}
+.inline-private-table .room-remove-player{width:34px;height:34px;flex:0 0 34px;padding:0;border-radius:9px;background:linear-gradient(145deg,#7b2929,#4a1c1c);border:1px solid #e77c68;color:#ffe5bc;font-size:17px}
+.inline-private-table .lobby-hint{font-size:10px;margin:7px 2px 10px}
+.inline-private-table .lobby-label{display:block;margin:10px 3px 6px;font-size:10px;letter-spacing:1.2px;color:#f1d38a}
+.inline-private-table #roomScoreLimit{width:100%;min-height:48px;background:#08291f;color:#f7e6bd;border:1px solid #d9bd7b;border-radius:11px}
+.inline-private-table .room-actions-row{display:flex;gap:8px;margin:13px 0 9px}
+.inline-private-table .room-actions-row button{min-width:0;flex:1;padding:12px 7px;font-size:12px}
+.inline-private-table #startRoomBtn{width:100%;min-height:54px;margin-top:3px;font-size:17px}
+.inline-private-table .lobby-text-button{margin:10px auto 0}
+#roomActions .lobby-primary:disabled{opacity:.82;filter:saturate(.8);cursor:default}
+@media(max-width:390px){
+ #setup{padding-left:8px;padding-right:8px}
+ #setup>.lobby-card{padding:11px 9px 14px}
+ .inline-private-table{padding:11px 7px 9px}
+ .inline-private-table .private-table-card{padding:10px 6px 7px}
+ .inline-private-table .room-player{gap:7px;padding:6px 7px}
+ .inline-private-table .room-player strong{font-size:12px}
+ .inline-private-table .room-actions-row button{font-size:11px;padding:11px 5px}
+}
 </style>
 </head>
 
@@ -995,7 +1043,7 @@ body.app-locked{overflow:hidden}
 </script>
 
 <header>
-<div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong><small>PERSONAL BRAND</small></span></div>
+<div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong></span></div>
 <h1>🃏 MODDU SET</h1>
 <div class="sub">Traditional Telugu Card Game</div>
 </header>
@@ -1003,7 +1051,7 @@ body.app-locked{overflow:hidden}
 <main>
 <section class="lobby-shell" id="setup">
  <div class="lobby-intro">
-  <div class="lobby-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong><small>PERSONAL BRAND</small></span></div></div>
+  <div class="lobby-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong></span></div></div>
   <div class="lobby-mark">🃏</div>
   <div class="lobby-eyebrow">TRADITIONAL TELUGU CARD GAME</div>
   <h2>Gather your people.</h2>
@@ -1014,6 +1062,7 @@ body.app-locked{overflow:hidden}
   <div class="account-welcome" id="accountWelcome">
    <div class="account-avatar" id="accountAvatar">👤</div>
    <div><strong id="accountDisplayName">Welcome to Moddu Set</strong><span id="accountEmail">Sign in to create your player account.</span></div>
+   <button class="lobby-text-button account-signout hidden" id="accountSignOutBtn" onclick="signOutPlayer()">Sign out</button>
   </div>
   <button class="google-signin" id="googleSignInBtn" onclick="continueWithGoogle()">🌐 Continue with Google</button>
   <button class="google-signin guest-signin" id="guestSignInBtn" onclick="continueAsGuest()">Continue as Guest</button>
@@ -1029,56 +1078,25 @@ body.app-locked{overflow:hidden}
   </div>
   <div id="roomActions" class="hidden">
    <div class="lobby-section-title">PLAY WITH FRIENDS</div>
-   <button class="lobby-primary" onclick="createRoom()">＋ Create a private table</button>
-   <div class="lobby-or"><span></span> OR JOIN YOUR FRIENDS <span></span></div>
+   <button class="lobby-primary" id="createTableBtn" onclick="createRoom()">＋ Create a private table</button>
+   <div id="roomJoinControls">
+   <div class="lobby-or"><span></span> OR JOIN A TABLE <span></span></div>
    <div class="lobby-join-row">
     <input id="roomCodeInput" class="lobby-input lobby-code-input" maxlength="6" placeholder="ROOM CODE" autocapitalize="characters">
     <button class="lobby-join" onclick="joinRoom()">Join</button>
    </div>
-   <p class="lobby-hint">Create a room and share its code. Friends can join from their own phones.</p>
-   <label class="lobby-label" for="soloScoreLimit">MATCH SCORE LIMIT</label>
-   <select id="soloScoreLimit" class="lobby-input" aria-label="Match elimination score limit">
-    <option value="100">100 points</option><option value="150">150 points</option><option value="200" selected>200 points</option><option value="250">250 points</option><option value="300">300 points</option>
-   </select>
-   <button class="lobby-text-button" onclick="signOutPlayer()">Sign out</button>
-  </div>
-  <div id="friendsPanel" class="friends-panel hidden">
-   <div class="lobby-section-title">FIND AND ADD FRIENDS</div>
-   <p class="lobby-hint">Type the first few letters of a username to see matching players.</p>
-   <div class="friend-search-row"><input id="friendSearchInput" class="lobby-input" maxlength="16" placeholder="Type a name, e.g. sa" oninput="suggestPlayers()"><button class="lobby-join" onclick="searchPlayer()">Search</button></div>
-   <div id="friendSearchResult" class="friend-list"></div>
-   <div class="lobby-section-title friend-section-heading">FRIEND REQUESTS <span id="friendRequestCount"></span></div>
-   <div id="friendRequestsList" class="friend-list"><p class="lobby-hint">No pending requests.</p></div>
-   <div class="lobby-section-title friend-section-heading">MY FRIENDS <span id="friendCount"></span></div>
-   <div id="myFriendsList" class="friend-list"><p class="lobby-hint">No friends added yet.</p></div>
-   <div class="lobby-section-title friend-section-heading">GAME INVITATIONS <span id="roomInviteCount"></span></div>
-   <div id="roomInvitesList" class="friend-list"><p class="lobby-hint">No game invitations.</p></div>
-  </div>
-  <div id="gameHistoryPanel" class="friends-panel hidden">
-   <div class="lobby-section-title">GAME HISTORY</div>
-   <div class="history-mode">
-    <h4>🤖 VS BOTS</h4>
-    <div class="history-stats" id="botHistoryStats">Games played: 0 · Won: 0 · Win rate: 0%</div>
-    <div class="history-recent" id="botHistoryRecent">No completed games yet.</div>
-   </div>
-   <div class="history-mode">
-    <h4>🌐 MULTIPLAYER</h4>
-    <div class="history-stats" id="onlineHistoryStats">Games played: 0 · Won: 0 · Win rate: 0%</div>
-    <div class="history-recent" id="onlineHistoryRecent">No completed games yet.</div>
+   <p class="lobby-hint">Enter a room code shared by your friends.</p>
    </div>
   </div>
- <div id="lobbyNotice" class="lobby-notice">Private rooms are being connected. Add your Firebase project settings to enable friends joining live.</div>
-</section>
-
-<section class="lobby-shell hidden" id="waitingRoom">
+<div class="inline-private-table hidden" id="waitingRoom">
  <div class="lobby-wait-head">
-  <div class="lobby-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong><small>PERSONAL BRAND</small></span></div></div>
+  </div>
   <div class="lobby-eyebrow">PRIVATE TABLE</div>
   <h2>Waiting for friends</h2>
   <p>Share this code so your friends can take a seat.</p>
   <div class="room-code-display"><span id="roomCodeLabel">------</span><button onclick="copyRoomCode()">Copy</button></div>
  </div>
- <div class="lobby-card">
+ <div class="private-table-card">
   <div class="lobby-section-title">PLAYERS AT THE TABLE <span id="roomPlayerCount"></span></div>
   <div id="roomPlayers" class="room-players"></div>
   <p class="lobby-hint">You can start when at least 2 players have joined. Maximum 6 players.</p>
@@ -1087,22 +1105,20 @@ body.app-locked{overflow:hidden}
    <option value="100">100 points</option><option value="150">150 points</option><option value="200" selected>200 points</option><option value="250">250 points</option><option value="300">300 points</option>
   </select>
   <p class="lobby-hint" id="scoreLimitHint">Players are eliminated when their total score reaches this limit.</p>
-  <div class="lobby-section-title friend-section-heading">JOIN REQUESTS</div>
-  <div id="joinRequestsList" class="friend-list"><p class="lobby-hint">No pending requests.</p></div>
-  <div class="lobby-section-title friend-section-heading">INVITE YOUR FRIENDS</div>
-  <div id="roomFriendInviteList" class="friend-list"><p class="lobby-hint">Loading your friends…</p></div>
-  <div class="actions">
-   <button class="lobby-secondary" onclick="shareRoomInvite()">Invite friends</button>
+  <div class="actions room-actions-row">
    <button class="lobby-secondary" id="addBotBtn" onclick="addBotToRoom()">＋ Add bot</button>
+   <button class="lobby-secondary" onclick="shareRoomInvite()">Invite friends</button>
   </div>
   <button id="startRoomBtn" class="lobby-primary" onclick="startOnlineRoom()">Start game</button>
   <button class="lobby-text-button" onclick="leaveRoom()">Leave table</button>
  </div>
+</div>
+  <div id="lobbyNotice" class="lobby-notice">Private rooms are being connected. Add your Firebase project settings to enable friends joining live.</div>
 </section>
 
 <section id="game" class="hidden">
 
-<div class="game-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong><small>PERSONAL BRAND</small></span></div><button class="leave-table-top" type="button" onclick="exitCurrentTable()">↗ Leave table</button></div>
+<div class="game-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong></span></div><button class="leave-table-top" type="button" onclick="exitCurrentTable()">↗ Leave table</button></div>
 <div class="panel player-strip">
 <div class="table-status"><span id="roundInfo">Round 1</span></div>
 <div class="player-tools-row"><div id="topVoiceControls" class="top-voice-controls" aria-label="Voice controls"><button type="button" id="voiceMuteBtn" class="voice-secondary" onclick="toggleVoiceControl()">🎙️ Join voice</button><span id="topVoiceCount" class="top-voice-count">0</span></div><button type="button" id="scoresToggle" class="scores-toggle" onclick="togglePlayerScores()" aria-pressed="true">▥ Hide scores</button><span id="turnInfo" class="turn-pill"></span></div>
@@ -1161,7 +1177,7 @@ body.app-locked{overflow:hidden}
 
 <div id="roundResults" class="round-results hidden">
  <div class="results-header">
-  <div class="results-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong><small>PERSONAL BRAND</small></span></div></div>
+  <div class="results-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong></span></div></div>
   <div class="results-kicker">ROUND COMPLETE</div>
   <h2>Show Results</h2>
   <p id="resultsSummary">All players' cards are revealed.</p>
@@ -1176,7 +1192,7 @@ body.app-locked{overflow:hidden}
 </section>
 </main>
 
-<footer><div class="footer-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong><small>PERSONAL BRAND</small></span></div></div><span>Moddu Set • Created by Sai</span></footer>
+<footer><div class="footer-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong></span></div></div><span>Moddu Set • Created by Sai</span></footer>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
@@ -1199,15 +1215,15 @@ function setUsernameNotice(t,isError=false){const el=document.getElementById("us
 function showAccountState(user,profile){
  const btn=document.getElementById("googleSignInBtn"),setup=document.getElementById("usernameSetup"),actions=document.getElementById("roomActions");
  const name=document.getElementById("accountDisplayName"),email=document.getElementById("accountEmail"),avatar=document.getElementById("accountAvatar");
- const friendsPanel=document.getElementById("friendsPanel");
+ const signOutBtn=document.getElementById("accountSignOutBtn");
  const guestBtn=document.getElementById("guestSignInBtn");
- if(!user){if(btn)btn.classList.remove("hidden");if(guestBtn)guestBtn.classList.remove("hidden");if(setup)setup.classList.add("hidden");if(actions)actions.classList.add("hidden");if(friendsPanel)friendsPanel.classList.add("hidden");const historyPanel=document.getElementById("gameHistoryPanel");if(historyPanel)historyPanel.classList.add("hidden");if(name)name.textContent="Welcome to Moddu Set";if(email)email.textContent="Sign in with Google or continue as a guest.";if(avatar)avatar.textContent="👤";return;}
- if(btn)btn.classList.add("hidden");if(guestBtn)guestBtn.classList.add("hidden");
+ if(!user){if(btn)btn.classList.remove("hidden");if(guestBtn)guestBtn.classList.remove("hidden");if(setup)setup.classList.add("hidden");if(actions)actions.classList.add("hidden");if(signOutBtn)signOutBtn.classList.add("hidden");if(name)name.textContent="Welcome to Moddu Set";if(email)email.textContent="Sign in with Google or continue as a guest.";if(avatar)avatar.textContent="👤";return;}
+ if(btn)btn.classList.add("hidden");if(guestBtn)guestBtn.classList.add("hidden");if(signOutBtn)signOutBtn.classList.remove("hidden");
  if(name)name.textContent=user.isAnonymous?"Guest player":(user.displayName||"Welcome, player");
  if(email)email.textContent=user.isAnonymous?"Temporary guest account · This device":(user.email||"Google account connected");
  if(avatar){avatar.textContent="";avatar.style.backgroundImage=user.photoURL?"url('"+user.photoURL.replace(/['()]/g,"")+"')":"";avatar.style.backgroundSize="cover";avatar.style.backgroundPosition="center";}
- if(profile){playerProfile=profile;profileReady=true;const input=document.getElementById("playerName");if(input)input.value=profile.displayName||user.displayName||"Player";if(setup)setup.classList.add("hidden");if(actions)actions.classList.remove("hidden");if(friendsPanel)friendsPanel.classList.remove("hidden");const historyPanel=document.getElementById("gameHistoryPanel");if(historyPanel)historyPanel.classList.remove("hidden");setAuthStatus("Signed in as @"+profile.username);loadFriends();loadGameHistory();}
- else{playerProfile=null;profileReady=false;if(setup)setup.classList.remove("hidden");if(actions)actions.classList.add("hidden");if(friendsPanel)friendsPanel.classList.add("hidden");const input=document.getElementById("usernameInput");if(input&&!input.value){const suggested=(user.displayName||"player").toLowerCase().replace(/[^a-z0-9_]/g,"").slice(0,12);input.value=suggested.length>=3?suggested:"player"+String(user.uid).slice(0,4);}setAuthStatus("Google connected. Choose a username once to finish setting up your player account.");}
+ if(profile){playerProfile=profile;profileReady=true;const input=document.getElementById("playerName");if(input)input.value=profile.displayName||user.displayName||"Player";if(setup)setup.classList.add("hidden");if(actions)actions.classList.remove("hidden");setAuthStatus("Signed in as @"+profile.username);}
+ else{playerProfile=null;profileReady=false;if(setup)setup.classList.remove("hidden");if(actions)actions.classList.add("hidden");if(signOutBtn)signOutBtn.classList.add("hidden");const input=document.getElementById("usernameInput");if(input&&!input.value){const suggested=(user.displayName||"player").toLowerCase().replace(/[^a-z0-9_]/g,"").slice(0,12);input.value=suggested.length>=3?suggested:"player"+String(user.uid).slice(0,4);}setAuthStatus("Google connected. Choose a username once to finish setting up your player account.");}
 }
 function gameHistoryRef(mode){return firebase.database().ref("users/"+authUser.uid+"/gameHistory/"+mode);}
 async function loadGameHistory(){
@@ -1230,7 +1246,6 @@ async function saveCompletedGame(mode,gameId,won,opponents){
  try{
   const record={mode,won:!!won,opponents:(opponents||[]).filter(Boolean).join(", ").slice(0,180),completedAt:firebase.database.ServerValue.TIMESTAMP};
   await ref.transaction(current=>current===null?record:undefined);
-  await loadGameHistory();
  }catch(e){console.warn("Could not save game history:",e);}
 }
 async function loadPlayerProfile(user){
@@ -1701,7 +1716,7 @@ function randomBotName(existingNames=[]){
 
 function startGame(){
  soloMatchId="bots_"+Date.now()+"_"+Math.random().toString(36).slice(2,8);
- scoreLimit=Number(document.getElementById("soloScoreLimit")?.value||200);
+ scoreLimit=200;
  let count=Number(document.getElementById("playerCount").value);
  deck=shuffle(makeDeck(count));
  discard=[];
@@ -2391,21 +2406,47 @@ async function joinRoom(){
  }
 }
 function showWaitingRoom(){
- // Replace the login/setup view with the waiting room so its controls are immediately visible.
- document.getElementById("setup").classList.add("hidden");
- document.getElementById("waitingRoom").classList.remove("hidden");
- document.getElementById("roomCodeLabel").textContent=roomCode;
- document.getElementById("startRoomBtn").classList.toggle("hidden",!isRoomHost);
- document.getElementById("addBotBtn").classList.toggle("hidden",!isRoomHost);
- document.getElementById("waitingRoom").scrollIntoView({behavior:"smooth",block:"start"});
- if(onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);if(rejoinPublicListener)roomRef.child("public").off("value",rejoinPublicListener);
- onlineLobbyListener=snap=>{if(!snap.exists())return;const l=snap.val(),m=onlineMembers(l),limitEl=document.getElementById("roomScoreLimit");if(limitEl){limitEl.value=String(l.scoreLimit||200);limitEl.disabled=!isRoomHost||l.status!=="waiting";}document.getElementById("roomPlayerCount").textContent=m.length+"/"+l.maxPlayers;
- document.getElementById("roomPlayers").innerHTML=m.map((p,i)=>'<div class="room-player"><span class="avatar">'+(p.isBot?"🤖":(["🃏","🌟","🍀","🔥","🎯","👑"][i]||"🃏"))+'</span><strong>'+escapeLobbyText(p.name)+'</strong><small>'+(p.id===l.hostId?"HOST":p.isBot?"BOT":"READY")+'</small></div>').join("");
- document.getElementById("addBotBtn").disabled=m.length>=l.maxPlayers;
- if(l.status==="started")roomRef.child("public").get().then(x=>{if(!x.exists())return;const state=x.val(),me=(state.players||[]).find(p=>p.id===roomPlayerId);if(me&&(me.active!==false||me.status==="Eliminated")&&["playing","roundComplete","gameComplete"].includes(state.status))enterOnlineGame(state);else if(me?.rejoinNextRound)setLobbyNotice("You are queued. You will enter automatically when the host starts the next round.");});};
+ const waiting=document.getElementById("waitingRoom"),createBtn=document.getElementById("createTableBtn"),joinControls=document.getElementById("roomJoinControls");
+ if(waiting)waiting.classList.remove("hidden");
+ if(createBtn){createBtn.disabled=true;createBtn.textContent="✓ Private table created";}
+ if(joinControls)joinControls.classList.add("hidden");
+ const codeLabel=document.getElementById("roomCodeLabel");if(codeLabel)codeLabel.textContent=roomCode;
+ const startBtn=document.getElementById("startRoomBtn"),botBtn=document.getElementById("addBotBtn");
+ if(startBtn)startBtn.classList.toggle("hidden",!isRoomHost);
+ if(botBtn)botBtn.classList.toggle("hidden",!isRoomHost);
+ if(waiting)waiting.scrollIntoView({behavior:"smooth",block:"start"});
+ if(onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
+ if(rejoinPublicListener)roomRef.child("public").off("value",rejoinPublicListener);
+ onlineLobbyListener=snap=>{
+  if(!snap.exists())return;
+  const l=snap.val(),m=onlineMembers(l),limitEl=document.getElementById("roomScoreLimit");
+  if(limitEl){limitEl.value=String(l.scoreLimit||200);limitEl.disabled=!isRoomHost||l.status!=="waiting";}
+  if(!(l.players||{})[roomPlayerId]){setLobbyNotice("You were removed from this table by the host.");leaveRoom(true);return;}
+  const countEl=document.getElementById("roomPlayerCount");if(countEl)countEl.textContent=m.length+"/"+l.maxPlayers;
+  const playersEl=document.getElementById("roomPlayers");
+  if(playersEl)playersEl.innerHTML=m.map((p,i)=>{
+   const avatar=p.isBot?"🤖":(["🃏","🌟","🍀","🔥","🎯","👑"][i]||"🃏"),role=p.id===l.hostId?"HOST":p.isBot?"BOT":"READY";
+   const remove=isRoomHost&&p.id!==l.hostId?'<button type="button" class="room-remove-player" aria-label="Remove '+escapeLobbyText(p.name)+'" title="Remove player" onclick="removeRoomPlayer(\''+escapeLobbyText(p.id)+'\')">🗑</button>':'';
+   return '<div class="room-player"><span class="avatar">'+avatar+'</span><strong>'+escapeLobbyText(p.name)+'</strong><small>'+role+'</small>'+remove+'</div>';
+  }).join("");
+  if(botBtn)botBtn.disabled=m.length>=Number(l.maxPlayers||6);
+  if(startBtn)startBtn.disabled=m.length<2;
+  if(l.status==="started")roomRef.child("public").get().then(x=>{if(!x.exists())return;const state=x.val(),me=(state.players||[]).find(p=>p.id===roomPlayerId);if(me&&(me.active!==false||me.status==="Eliminated")&&["playing","roundComplete","gameComplete"].includes(state.status))enterOnlineGame(state);else if(me?.rejoinNextRound)setLobbyNotice("You are queued. You will enter automatically when the host starts the next round.");});
+ };
  rejoinPublicListener=snap=>{if(!snap.exists())return;const state=snap.val(),me=(state.players||[]).find(p=>p.id===roomPlayerId);if(me&&me.active!==false&&state.status==="playing"&&!onlineMode)enterOnlineGame(state);};
  roomRef.child("public").on("value",rejoinPublicListener);
  roomRef.child("lobby").on("value",onlineLobbyListener);
+}
+async function removeRoomPlayer(playerId){
+ if(!isRoomHost||!roomRef||!authUser||!playerId||playerId===authUser.uid)return;
+ try{
+  const lobbyRef=roomRef.child("lobby"),snap=await lobbyRef.get(),l=snap.val()||{};
+  if(l.hostId!==authUser.uid||l.status!=="waiting"){setLobbyNotice("Only the host can remove players before the game starts.");return;}
+  const player=(l.players||{})[playerId];if(!player){setLobbyNotice("That player is no longer at this table.");return;}
+  if(!confirm("Remove "+String(player.name||"this player")+" from the table?"))return;
+  await lobbyRef.child("players/"+playerId).remove();
+  setLobbyNotice((player.name||"Player")+" was removed from the table.");
+ }catch(e){setLobbyNotice("Could not remove player: "+e.message);}
 }
 
 async function updateRoomScoreLimit(value){
@@ -3042,7 +3083,7 @@ function leaveRoom(showLobby=true){
  leaveVoiceChat();
  if(onlineChatRef&&onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);onlineChatRef=null;onlineChatListener=null;chatIsOpen=false;chatHasOpened=false;chatUnreadCount=0;document.getElementById("gameChat")?.classList.add("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");mutedChatSenders.clear();eliminatedSpectator=false;document.getElementById("game")?.classList.remove("spectator-mode");if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);if(onlineSpecialRef)onlineSpecialRef.off("value");if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
  if(roomRef&&roomPlayerId)roomRef.child("lobby/players/"+roomPlayerId).remove().catch(()=>{});onlineMode=false;onlinePublic=null;clearActiveRoom();onlinePublicRef=onlineHandRef=onlineActionRef=onlineSpecialRef=null;roomRef=null;roomCode=null;roomPlayerId=null;isRoomHost=false;onlineLobbyListener=null;
- document.getElementById("game").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");if(showLobby)document.getElementById("setup").classList.remove("hidden");
+ document.getElementById("game").classList.add("hidden");document.getElementById("waitingRoom")?.classList.add("hidden");const createBtn=document.getElementById("createTableBtn"),joinControls=document.getElementById("roomJoinControls");if(createBtn){createBtn.disabled=false;createBtn.textContent="＋ Create a private table";}if(joinControls)joinControls.classList.remove("hidden");if(showLobby)document.getElementById("setup").classList.remove("hidden");
 }
 </script>
 
