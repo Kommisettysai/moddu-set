@@ -942,9 +942,7 @@ body.app-locked{overflow:hidden}
 <button id="showBtn" onclick="showHand()">SHOW</button>
 </div>
 <button id="dropRoundBtn" class="drop-round-btn" onclick="dropCurrentRound()">DROP 20</button>
-<div class="arrange-tools"><p class="arrange-hint">Your cards arrange automatically. Drag a card onto a set to add it, or use Auto Arrange.</p>
-
-</div>
+<div class="arrange-tools"></div>
 </div>
 
 
@@ -1588,7 +1586,7 @@ function render(){
   if(players[0]){
 document.getElementById("handCount").textContent=players[0].hand.length;const unmatchedEl=document.getElementById("handUnmatched");if(unmatchedEl)unmatchedEl.textContent="In hand: "+bestUnmatchedScore(players[0].hand||[],players[0])+" pts";
    if(playersEl){
-playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+(p.roundDropped?'dropped-player':'')+'">'+playerIdentityMarkup(p,i,"game")+(p.roundDropped?'<span class="player-dropped">DROPPED</span>':'')+'</div>').join('');;
+playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+(p.roundDropped?'dropped-player':'')+'" data-player-id="'+escapeLobbyText(p.id)+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+(Number(p.score)||0)+'</span>'+(p.roundDropped?'<span class="player-dropped">DROPPED</span>':'')+'</div>').join('');
    }
    if(handEl){
     try{handEl.innerHTML=renderHandLayout();}
@@ -1605,7 +1603,7 @@ playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active t
  }catch(error){
   console.error("Game render error:",error);
   if(playersEl&&players.length){
-   playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+p.score+'</span>'+(p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+'</div>').join('');
+   playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+'" data-player-id="'+escapeLobbyText(p.id)+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+(Number(p.score)||0)+'</span>'+(p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+'</div>').join('');
   }
   if(handEl&&players[0]){
    handEl.innerHTML=players[0].hand.map((c,i)=>cardMarkup(c,i)).join('');
@@ -2583,7 +2581,7 @@ async function removeOnlinePlayer(uid){
 }
 function updateDiscardCountdown(){
  const el=document.getElementById("discardTimer");if(!el)return;
- const state=onlineMode&&onlinePublic,deadline=state?state.pickDeadline:null;
+ const state=onlineMode&&onlinePublic,deadline=state?(Number(state.pickDeadline)||Number(state.discardDeadline)||null):null;
  if(!deadline||!state||state.status!=="playing"){el.style.display="none";el.textContent="";return;}
  const seconds=Math.max(0,Math.ceil((deadline-Date.now())/1000));
  el.style.display="block";
