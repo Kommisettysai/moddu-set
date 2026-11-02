@@ -1177,7 +1177,7 @@ async function loadFriends(){
   if(requestsEl)requestsEl.innerHTML=entries.length?entries.map(([uid,r])=>friendRowMarkup(uid,{username:r.username||"player",displayName:r.displayName||r.username||"Player"},'<div><button onclick="acceptFriendRequest(\''+uid+'\')">Accept</button> <button onclick="declineFriendRequest(\''+uid+'\')">Decline</button></div>')).join(""):'<p class="friend-empty">No pending requests.</p>';
   const friendSnap=await db.ref("friends/"+authUser.uid).get(),friendIds=Object.keys(friendSnap.val()||{});
   document.getElementById("friendCount").textContent=friendIds.length?"("+friendIds.length+")":"";
-  if(!friendIds.length){if(friendsEl)friendsEl.innerHTML='<p class="friend-empty">No friends added yet. Search for a username above.</p>';return;}
+  if(!friendIds.length){if(friendsEl)friendsEl.innerHTML='<p class="friend-empty">No friends added yet. Search for a username above.</p>';await renderRoomFriendInvites([],[]);return;}
   const profiles=await Promise.all(friendIds.map(uid=>db.ref("users/"+uid).get()));
   if(friendsEl)friendsEl.innerHTML=profiles.map((snap,i)=>friendRowMarkup(friendIds[i],snap.val()||{username:"player",displayName:"Player"},'<span>Friend ✓</span>')).join("");
   await renderRoomFriendInvites(friendIds,profiles.map(x=>x.val()||{}));
