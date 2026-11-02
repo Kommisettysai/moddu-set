@@ -426,8 +426,8 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 .top-discard-card{width:48px;height:66px;border:2px solid #f0d38f;border-radius:7px;background:linear-gradient(145deg,#fff,#eee8d9);color:#17231d;display:flex;align-items:center;justify-content:center;font:bold 21px Georgia,serif;box-shadow:0 5px 9px #0007}
 /* Three-card discard history: newest card on top, earlier cards remain visible below */
 .discard-pile{position:relative;flex-direction:column;justify-content:flex-start;gap:2px;padding-top:5px;overflow:visible}
-.discard-stack{position:relative;width:58px;height:78px;flex:0 0 78px;margin:0 auto}
-.discard-history-card{position:absolute;top:calc(var(--stack-index)*11px);left:50%;transform:translateX(-50%);width:48px;height:64px;box-sizing:border-box;border:2px solid #e8d9b9;border-radius:7px;background:linear-gradient(145deg,#fff,#eee8d9);color:#17231d;box-shadow:0 3px 7px #0008;display:flex;flex-direction:column;justify-content:space-between;padding:4px;font:bold 13px Georgia,serif;z-index:calc(4 - var(--stack-index));}
+.discard-stack{position:relative;width:58px;height:94px;flex:0 0 94px;margin:0 auto}
+.discard-history-card{position:absolute;top:calc(var(--stack-index)*16px);left:50%;transform:translateX(-50%);width:48px;height:64px;box-sizing:border-box;border:2px solid #e8d9b9;border-radius:7px;background:linear-gradient(145deg,#fff,#eee8d9);color:#17231d;box-shadow:0 3px 7px #0008;display:flex;flex-direction:column;justify-content:space-between;padding:4px;font:bold 13px Georgia,serif;z-index:calc(4 - var(--stack-index));}
 .discard-history-card.red{color:#d32f2f}
 .discard-history-card .discard-history-suit{text-align:center;font-size:16px}
 .discard-history-card .discard-history-corner{text-align:right;font-size:9px;line-height:1}
@@ -453,8 +453,8 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 .player-avatar{width:38px!important;height:38px!important;flex:0 0 38px!important;display:grid;place-items:center;border-radius:50%;font-family:system-ui,sans-serif!important;font-size:23px!important;background:radial-gradient(circle at 35% 25%,#ffe9bd,#b98748)!important;border:2px solid #f5d68f!important;box-shadow:0 2px 7px #0006!important}
 .avatar-count{position:absolute;top:-5px;right:-8px;min-width:17px;height:17px;padding:0 4px;border:1px solid #fff;border-radius:99px;background:#e34b55;color:#fff;font-size:9px;font-weight:900;line-height:15px;text-align:center;box-shadow:0 1px 4px #0008}
 .avatar-turn{margin-top:4px;padding:2px 7px;border-radius:99px;background:#6ce4ef;color:#073747;font-size:8px;font-weight:1000;letter-spacing:.6px;box-shadow:0 1px 5px #0005}
-.player-strip .profile-score{display:none!important}
-body.show-player-scores .player-strip .profile-score{display:block!important;margin-top:3px!important;font-size:9px!important;color:#ffe09a!important}
+.player-strip .profile-score{display:block!important;margin-top:3px!important;font-size:9px!important;font-weight:800!important;color:#ffe09a!important}
+body.hide-player-scores .player-strip .profile-score{display:none!important}
 .profile-status,.profile-count,.player-turn-badge,.player-unmatched{display:none!important}
 .hand-heading{align-items:center!important}
 .hand-heading h3{display:flex;align-items:center;flex-wrap:wrap;gap:7px}
@@ -916,7 +916,7 @@ body.app-locked{overflow:hidden}
 <div class="game-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong><small>PERSONAL BRAND</small></span></div><button class="leave-table-top" type="button" onclick="exitCurrentTable()">↗ Leave table</button></div>
 <div class="panel player-strip">
 <div class="table-status"><span id="roundInfo">Round 1</span></div>
-<div class="player-tools-row"><div id="topVoiceControls" class="top-voice-controls" aria-label="Voice controls"><button type="button" id="voiceMuteBtn" class="voice-secondary" onclick="toggleVoiceControl()">🎙️ Join voice</button><span id="topVoiceCount" class="top-voice-count">0</span></div><button type="button" id="scoresToggle" class="scores-toggle" onclick="togglePlayerScores()" aria-pressed="false">▥ Scores</button><span id="turnInfo" class="turn-pill"></span></div>
+<div class="player-tools-row"><div id="topVoiceControls" class="top-voice-controls" aria-label="Voice controls"><button type="button" id="voiceMuteBtn" class="voice-secondary" onclick="toggleVoiceControl()">🎙️ Join voice</button><span id="topVoiceCount" class="top-voice-count">0</span></div><button type="button" id="scoresToggle" class="scores-toggle" onclick="togglePlayerScores()" aria-pressed="true">▥ Hide scores</button><span id="turnInfo" class="turn-pill"></span></div>
 <div class="players-heading"><h3>Players</h3></div>
 <div class="players" id="players"></div>
 </div>
@@ -957,22 +957,6 @@ body.app-locked{overflow:hidden}
  <div class="voice-people" id="voicePeople"></div>
  <div class="voice-note">Your microphone starts muted. Only players in this game room can join. Voice is not recorded.</div>
 </section>
-<div class="game-chat panel hidden" id="gameChat">
- <div class="game-chat-head">
-  <div><strong>Table chat</strong><small id="chatStatus">Say something to the table</small></div>
-  <button type="button" class="chat-toggle" id="chatToggle" onclick="toggleGameChat()" aria-expanded="false">💬 Chat <span id="chatUnread" class="chat-unread hidden">0</span></button>
- </div>
- <div id="chatDrawer" class="chat-drawer hidden">
-  <div class="chat-feed" id="chatFeed" aria-live="polite"><div class="chat-empty" id="chatEmpty">The table is quiet. Send the first reaction!</div></div>
-  <form class="chat-compose" onsubmit="sendCustomGameChat(event)">
-   <input id="chatInput" type="text" maxlength="100" autocomplete="off" placeholder="Message everyone at the table…" aria-label="Write a chat message">
-   <button type="submit" id="chatSendBtn">Send</button>
-  </form>
-  <div class="chat-footnote">Messages are visible to everyone in this room.</div>
- </div>
-</div>
-</div>
-
 <div class="panel game-actions-panel">
 <details class="game-actions-fold">
 <summary>Game actions</summary>
@@ -2057,7 +2041,7 @@ function playerRoleLabel(player,index,context){
 }
 function playerAvatarFace(player,index){const faces=["👨🏻","👩🏻","🧑🏽","👨🏽","👩🏽","🧑🏻"];return player.isBot?"🤖":faces[index%faces.length];}
  function playerIdentityMarkup(player,index,context){ const avatar=playerAvatarFace(player,index); if(context==="game"){ return '<div class="player-identity"><span class="avatar-stack"><span class="player-avatar" aria-hidden="true">'+avatar+'</span>'+(player.unlocked?'<span class="profile-joker-badge">🃏</span>':'')+'</span><span class="player-name-wrap"><b>'+escapeLobbyText(player.name)+'</b></span><button type="button" class="profile-more" onclick="openPlayerMessage(event)">⋮</button></div>'; } const role=playerRoleLabel(player,index,context); return '<div class="results-identity"><span class="avatar-stack"><span class="player-avatar">'+avatar+'</span></span><span class="results-name"><strong>'+escapeLobbyText(player.name)+'</strong><span class="player-role">'+role+'</span></span></div>'; }
- function togglePlayerScores(){const button=document.getElementById("scoresToggle"),visible=document.body.classList.toggle("show-player-scores");if(button){button.setAttribute("aria-pressed",String(visible));button.textContent=visible?"Hide scores":"Scores";}}
+ function togglePlayerScores(){const button=document.getElementById("scoresToggle"),hidden=document.body.classList.toggle("hide-player-scores");if(button){button.setAttribute("aria-pressed",String(!hidden));button.textContent=hidden?"Scores":"Hide scores";}}
 
 
 function renderResultCard(card){
@@ -2582,11 +2566,13 @@ async function removeOnlinePlayer(uid){
 }
 function updateDiscardCountdown(){
  const el=document.getElementById("discardTimer");if(!el)return;
+ let number=el.querySelector("#discardTimerSeconds");
+ if(!number){el.innerHTML='<span class="timer-icon" aria-hidden="true">◷</span><span id="discardTimerSeconds">60</span>';number=el.querySelector("#discardTimerSeconds");}
  const state=onlineMode&&onlinePublic,deadline=state?(Number(state.pickDeadline)||Number(state.discardDeadline)||null):null;
- if(!deadline||!state||state.status!=="playing"){el.style.display="none";el.textContent="";return;}
+ if(!deadline||!state||state.status!=="playing"){el.style.display="none";return;}
  const seconds=Math.max(0,Math.ceil((deadline-Date.now())/1000));
- el.style.display="block";
- const number=el.querySelector("#discardTimerSeconds");if(number)number.textContent=String(seconds).padStart(2,"0");
+ el.style.display="flex";
+ number.textContent=String(seconds).padStart(2,"0");
 }
 function scheduleHostDiscardTimeout(state){
  if(!isRoomHost||!roomRef)return;
