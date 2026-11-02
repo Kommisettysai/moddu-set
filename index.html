@@ -864,6 +864,61 @@ body.app-locked{overflow:hidden}
  #roundResults .results-winning-group .results-card,
  #roundResults .results-breakdown-section.matched .results-card{width:27px!important;flex-basis:27px!important;height:39px!important}
 }
+
+/* Give every player's result panel its own clear color identity */
+#roundResults .results-hands>.results-hand:nth-child(6n+1){
+ --player-accent:#d58be8;--player-tint:#30223d;--player-panel:#182d32;
+ border:2px solid var(--player-accent)!important;
+ background:linear-gradient(145deg,#30223d 0%,#123b31 78%)!important;
+ box-shadow:0 0 0 1px #d58be822,inset 0 0 22px #d58be811!important
+}
+#roundResults .results-hands>.results-hand:nth-child(6n+2){
+ --player-accent:#a5e94c;--player-tint:#183d24;--player-panel:#103b2c;
+ border:2px solid var(--player-accent)!important;
+ background:linear-gradient(145deg,#183d24 0%,#103b2c 78%)!important;
+ box-shadow:0 0 0 1px #a5e94c22,inset 0 0 22px #a5e94c11!important
+}
+#roundResults .results-hands>.results-hand:nth-child(6n+3){
+ --player-accent:#61c5f5;--player-tint:#18364b;--player-panel:#10352f;
+ border:2px solid var(--player-accent)!important;
+ background:linear-gradient(145deg,#18364b 0%,#10352f 78%)!important;
+ box-shadow:0 0 0 1px #61c5f522,inset 0 0 22px #61c5f511!important
+}
+#roundResults .results-hands>.results-hand:nth-child(6n+4){
+ --player-accent:#f1a36f;--player-tint:#493023;--player-panel:#10372d;
+ border:2px solid var(--player-accent)!important;
+ background:linear-gradient(145deg,#493023 0%,#10372d 78%)!important;
+ box-shadow:0 0 0 1px #f1a36f22,inset 0 0 22px #f1a36f11!important
+}
+#roundResults .results-hands>.results-hand:nth-child(6n+5){
+ --player-accent:#e9ca62;--player-tint:#40391d;--player-panel:#10382e;
+ border:2px solid var(--player-accent)!important;
+ background:linear-gradient(145deg,#40391d 0%,#10382e 78%)!important;
+ box-shadow:0 0 0 1px #e9ca6222,inset 0 0 22px #e9ca6211!important
+}
+#roundResults .results-hands>.results-hand:nth-child(6n){
+ --player-accent:#5dd6c2;--player-tint:#163c3c;--player-panel:#10372e;
+ border:2px solid var(--player-accent)!important;
+ background:linear-gradient(145deg,#163c3c 0%,#10372e 78%)!important;
+ box-shadow:0 0 0 1px #5dd6c222,inset 0 0 22px #5dd6c211!important
+}
+#roundResults .results-hands>.results-hand .results-hand-head{
+ border-bottom-color:color-mix(in srgb,var(--player-accent) 45%,transparent)!important
+}
+#roundResults .results-hands>.results-hand .results-hand-head .player-avatar{
+ border-color:var(--player-accent)!important;
+ box-shadow:0 0 0 2px color-mix(in srgb,var(--player-accent) 22%,transparent),0 2px 7px #0006!important
+}
+#roundResults .results-hands>.results-hand .results-winning-group{
+ border-color:color-mix(in srgb,var(--player-accent) 62%,#d9bd79)!important;
+ background:color-mix(in srgb,var(--player-accent) 9%,#092f23)!important
+}
+#roundResults .results-hands>.results-hand .results-winning-group>span{
+ color:color-mix(in srgb,var(--player-accent) 68%,#fff0c5)!important
+}
+#roundResults .results-hands>.results-hand.winner-hand{
+ box-shadow:0 0 0 2px #ffdf8a44,0 0 14px #ffe06b33,inset 0 0 18px #ffe06b0c!important
+}
 </style>
 </head>
 
