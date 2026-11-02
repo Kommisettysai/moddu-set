@@ -670,6 +670,8 @@ body.app-locked{overflow:hidden}
 .voice-note{font-size:10px;color:#b9cdbf;line-height:1.4;margin-top:8px}
 
 
+/* Keep the live action announcement under the piles; hide the duplicate status paragraph. */
+#game>.panel:nth-of-type(2) #message{display:none!important}
 /* Compact voice controls stay beside the round/turn header while playing. */
 .top-voice-controls{display:flex;align-items:center;justify-content:flex-end;gap:7px;margin:5px 0 8px;padding:0 2px}
 .top-voice-controls.hidden{display:none}
