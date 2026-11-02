@@ -60,6 +60,11 @@
               }
             }
           }
+        },
+        "players": {
+          "$playerId": {
+            ".write": "auth != null && ((auth.uid === $playerId && root.child('rooms').child($roomCode).child('status').val() === 'waiting') || (root.child('rooms').child($roomCode).child('hostId').val() === auth.uid && root.child('rooms').child($roomCode).child('status').val() === 'waiting' && root.child('friends').child(auth.uid).child($playerId).exists()))"
+          }
         }
       }
     },
@@ -98,6 +103,15 @@
         "$inviteId": {
           ".write": "auth != null && ((!data.exists() && newData.exists() && root.child('friends').child(auth.uid).child($recipientUid).exists() && root.child('rooms').child(newData.child('roomCode').val()).child('lobby').child('hostId').val() === auth.uid && root.child('rooms').child(newData.child('roomCode').val()).child('lobby').child('status').val() === 'waiting' && root.child('rooms').child(newData.child('roomCode').val()).child('lobby').child('players').child(auth.uid).exists()) || (auth.uid === $recipientUid && !newData.exists()))",
           ".validate": "!newData.exists() || (newData.hasChildren(['roomCode','inviterUid','inviterName','createdAt']) && newData.child('inviterUid').val() === auth.uid && newData.child('roomCode').isString() && newData.child('inviterName').isString() && newData.child('createdAt').isNumber())"
+        }
+      }
+    },
+    "joinRequests": {
+      "$hostUid": {
+        ".read": "auth != null && auth.uid === $hostUid",
+        "$requestId": {
+          ".write": "auth != null && ((!data.exists() && newData.exists() && root.child('friends').child(auth.uid).child($hostUid).exists() && root.child('users').child($hostUid).child('activeRoom').child('code').val() === newData.child('roomCode').val() && root.child('users').child($hostUid).child('activeRoom').child('status').val() === 'waiting') || (auth.uid === $hostUid && !newData.exists()))",
+          ".validate": "!newData.exists() || (newData.hasChildren(['requesterUid','requesterName','roomCode','createdAt']) && newData.child('requesterUid').val() === auth.uid && newData.child('requesterName').isString() && newData.child('roomCode').isString() && newData.child('createdAt').isNumber())"
         }
       }
     }
