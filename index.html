@@ -919,6 +919,36 @@ body.app-locked{overflow:hidden}
 #roundResults .results-hands>.results-hand.winner-hand{
  box-shadow:0 0 0 2px #ffdf8a44,0 0 14px #ffe06b33,inset 0 0 18px #ffe06b0c!important
 }
+
+/* Results colour system: distinguish each player's section and every card suit */
+#roundResults .results-hands>.results-hand{position:relative;overflow:hidden;border:2px solid var(--result-player-border)!important;background:linear-gradient(145deg,var(--result-player-bg),#0b3025 82%)!important;box-shadow:0 3px 12px var(--result-player-glow)!important}
+#roundResults .results-hands>.results-hand:nth-child(4n+1){--result-player-border:#d9ad55;--result-player-bg:#59451f;--result-player-glow:#d9ad5540}
+#roundResults .results-hands>.results-hand:nth-child(4n+2){--result-player-border:#c77ad9;--result-player-bg:#392847;--result-player-glow:#c77ad940}
+#roundResults .results-hands>.results-hand:nth-child(4n+3){--result-player-border:#9be34d;--result-player-bg:#25451f;--result-player-glow:#9be34d40}
+#roundResults .results-hands>.results-hand:nth-child(4n){--result-player-border:#58b9f0;--result-player-bg:#1e3c55;--result-player-glow:#58b9f040}
+#roundResults .results-hands>.results-hand .results-hand-head{border-bottom:1px solid var(--result-player-border)!important}
+#roundResults .results-hands>.results-hand .results-hand-head .player-avatar{border:2px solid var(--result-player-border)!important;box-shadow:0 0 8px var(--result-player-glow)!important}
+#roundResults .results-hands>.results-hand .results-hand-head .hand-player-name{color:#fff0c8!important}
+#roundResults .results-hands>.results-hand .results-total{border-color:var(--result-player-border)!important;box-shadow:0 0 5px var(--result-player-glow)!important}
+#roundResults .results-hands>.results-hand .results-winning-group,
+#roundResults .results-hands>.results-hand .results-breakdown-section.matched{border-color:var(--result-player-border)!important;background:color-mix(in srgb,var(--result-player-bg) 48%,#092f23)!important}
+#roundResults .results-hands>.results-hand .results-winning-group>span,
+#roundResults .results-hands>.results-hand .results-breakdown-section.matched .results-breakdown-title{color:#f8dfa2!important}
+#roundResults .results-card.suit-heart{border:2px solid #ed8c9b!important;box-shadow:0 1px 4px #ed8c9b55!important;background:linear-gradient(145deg,#fffaf2,#f9e8e8)!important;color:#b52d48!important}
+#roundResults .results-card.suit-diamond{border:2px solid #e8b65e!important;box-shadow:0 1px 4px #e8b65e55!important;background:linear-gradient(145deg,#fffaf0,#f8edcf)!important;color:#a95a24!important}
+#roundResults .results-card.suit-club{border:2px solid #75c9a4!important;box-shadow:0 1px 4px #75c9a455!important;background:linear-gradient(145deg,#fffdf4,#e4f4e9)!important;color:#176346!important}
+#roundResults .results-card.suit-spade{border:2px solid #79bde8!important;box-shadow:0 1px 4px #79bde855!important;background:linear-gradient(145deg,#fffdf7,#e6f0fa)!important;color:#244f79!important}
+#roundResults .results-card.suit-heart .bottom,
+#roundResults .results-card.suit-diamond .bottom,
+#roundResults .results-card.suit-club .bottom,
+#roundResults .results-card.suit-spade .bottom{opacity:.88}
+#roundResults .results-card.joker{border:2px solid #e8c46f!important;box-shadow:0 1px 5px #e8c46f88!important}
+#roundResults .results-breakdown-section.counted{border-color:#ed8b78!important;background:linear-gradient(145deg,#542a25,#3e211f)!important}
+#roundResults .results-breakdown-section.counted .results-breakdown-title{color:#ffb6a5!important}
+@supports not (background:color-mix(in srgb,red,blue)){
+ #roundResults .results-hands>.results-hand .results-winning-group,
+ #roundResults .results-hands>.results-hand .results-breakdown-section.matched{background:#0b3025!important}
+}
 </style>
 </head>
 
@@ -2206,8 +2236,9 @@ function playerAvatarFace(player,index){const faces=["👨🏻","👩🏻","🧑
 
 function renderResultCard(card){
  const red=["♥","♦"].includes(card.suit);
+ const suitTone={"♥":"heart","♦":"diamond","♣":"club","♠":"spade"}[card.suit]||"neutral";
  if(card.joker)return '<div class="results-card joker">★<small>JOKER</small></div>';
- return '<div class="results-card '+(red?'red':'')+'"><span>'+card.rank+card.suit+'</span><span class="bottom">'+card.rank+'</span></div>';
+ return '<div class="results-card suit-'+suitTone+(red?' red':'')+'"><span>'+card.rank+card.suit+'</span><span class="bottom">'+card.rank+'</span></div>';
 }
 function resultOrderedHand(hand,player){
  const plan=findBestArrangement(hand,player),used=new Set(),ordered=[];
