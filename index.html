@@ -720,8 +720,9 @@ body.app-locked{overflow:hidden}
 /* Compact numeric turn countdown beside the discard pile */
 .piles .discard-pile-with-timer{display:flex;align-items:center;gap:7px}
 .piles .discard-pile-with-timer .discard-pile{flex:0 0 auto}
-.compact-turn-timer{width:42px;height:42px;flex:0 0 42px;display:flex;align-items:center;justify-content:center;border:1px solid #e2c17a;border-radius:9px;background:#092a20;color:#ffe5a3;font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;box-shadow:0 2px 0 #a77b35}
-@media(max-width:600px){.compact-turn-timer{width:36px;height:36px;flex-basis:36px;font-size:13px;border-radius:8px}.piles .discard-pile-with-timer{gap:5px}}
+.compact-turn-timer{width:54px;height:64px;flex:0 0 54px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:2px solid #f4d28a;border-radius:13px;background:linear-gradient(145deg,#174b39,#08291f);color:#ffe5a3;font-size:21px;font-weight:900;font-variant-numeric:tabular-nums;box-shadow:0 0 0 2px #f4d28a22,0 0 16px #ffe06b88,inset 0 1px #fff3}
+.compact-turn-timer .timer-icon{font-size:19px;line-height:20px;color:#ffe06b}
+@media(max-width:600px){.compact-turn-timer{width:46px;height:56px;flex-basis:46px;font-size:18px;border-radius:11px}.compact-turn-timer .timer-icon{font-size:17px;line-height:18px}.piles .discard-pile-with-timer{gap:6px}}
 /* Remove both live action-description banners; retain DOM nodes for game logic. */
 #actionAnnouncement,#message{display:none!important}
 /* Voice uses one button: join once, then mute/unmute. Leaving the room disconnects voice. */
@@ -924,7 +925,7 @@ body.app-locked{overflow:hidden}
 <h3 style="text-align:center">Game Table</h3>
 <div class="piles">
 <div><div class="pile draw-pile" id="drawPile" onclick="drawClosed()" aria-label="Draw deck, face down"><div class="card-stack" aria-hidden="true"><span></span><span></span><span></span></div><small>DRAW DECK</small></div></div>
-<div class="discard-pile-with-timer"><div class="pile discard-pile" id="discardPile" onclick="drawOpen()" aria-label="Discard pile, take the latest face-up card"><div class="discard-stack" id="discardStack" aria-hidden="true"></div><span class="open-pick-indicator hidden" id="openPickIndicator">OPEN CARD PICKED</span><small>DISCARD PILE</small></div><div id="discardTimer" class="compact-turn-timer" aria-live="polite" style="display:none"></div></div>
+<div class="discard-pile-with-timer"><div class="pile discard-pile" id="discardPile" onclick="drawOpen()" aria-label="Discard pile, take the latest face-up card"><div class="discard-stack" id="discardStack" aria-hidden="true"></div><span class="open-pick-indicator hidden" id="openPickIndicator">OPEN CARD PICKED</span><small>DISCARD PILE</small></div><div id="discardTimer" class="compact-turn-timer" aria-live="polite" style="display:none"><span class="timer-icon" aria-hidden="true">◷</span><span id="discardTimerSeconds">60</span></div></div>
 </div>
 <div id="actionAnnouncement" class="action-announcement" aria-live="polite"></div>
 <div id="message">Your turn. Choose a pile.</div>
@@ -2585,7 +2586,7 @@ function updateDiscardCountdown(){
  if(!deadline||!state||state.status!=="playing"){el.style.display="none";el.textContent="";return;}
  const seconds=Math.max(0,Math.ceil((deadline-Date.now())/1000));
  el.style.display="block";
- el.textContent=String(seconds).padStart(2,"0");
+ const number=el.querySelector("#discardTimerSeconds");if(number)number.textContent=String(seconds).padStart(2,"0");
 }
 function scheduleHostDiscardTimeout(state){
  if(!isRoomHost||!roomRef)return;
