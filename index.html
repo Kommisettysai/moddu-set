@@ -1019,6 +1019,28 @@ body:has(#game:not(.hidden))>header{display:none!important}
 body:has(#setup:not(.hidden))>header,
 body:has(#roundResults:not(.hidden))>header,
 #roundResults .results-brand{display:none!important}
+
+/* Show the short live draw/discard announcement again.
+   #message stays hidden to avoid duplicate status text. */
+#game #actionAnnouncement.show{
+ display:block!important;
+ visibility:visible!important;
+ opacity:1!important;
+ position:relative!important;
+ z-index:20!important;
+ min-height:16px;
+ margin:8px auto 3px!important;
+ padding:8px 11px!important;
+ border:1px solid #6de4ff99!important;
+ border-radius:11px!important;
+ background:linear-gradient(90deg,#0d4555,#123d4b)!important;
+ color:#e1fbff!important;
+ text-align:center!important;
+ font-size:11px!important;
+ font-weight:900!important;
+ line-height:1.35!important;
+ box-shadow:0 0 14px #42d9ff35!important;
+}
 </style>
 </head>
 
@@ -2515,7 +2537,7 @@ function showSharedAction(action){
  const player=(onlinePublic?.players||[]).find(p=>p.id===action.uid);
  const name=action.name||(player&&player.name)||"A player";
  const text=action.type==="drawOpen"?name+" picked "+(action.cardLabel||"the face-up card")+" from the OPEN DISCARD PILE":action.type==="drawClosed"?name+" drew a face-down card from the DRAW DECK":name+" discarded "+(action.cardLabel||"a card")+" to the DISCARD PILE";
- if(announcement){announcement.textContent=text;announcement.classList.remove("show");void announcement.offsetWidth;announcement.classList.add("show");}
+ if(announcement){announcement.textContent=text;announcement.classList.remove("show");void announcement.offsetWidth;announcement.classList.add("show");window.clearTimeout(announcement.hideTimer);announcement.hideTimer=window.setTimeout(()=>announcement.classList.remove("show"),3000);}
  const pile=document.getElementById(action.type==="drawOpen"||action.type==="discard"?"discardPile":"drawPile");
  if(pile){pile.classList.remove("action-pulse");void pile.offsetWidth;pile.classList.add("action-pulse");}
  const profile=[...document.querySelectorAll("#players .player")].find(el=>el.querySelector("b")?.textContent===name);
