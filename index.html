@@ -1051,8 +1051,7 @@ body.app-locked{overflow:hidden}
 <main>
 <section class="lobby-shell" id="setup">
  <div class="lobby-intro">
-  <div class="lobby-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong></span></div></div>
-  <div class="lobby-mark">🃏</div>
+<div class="lobby-mark">🃏</div>
   <div class="lobby-eyebrow">TRADITIONAL TELUGU CARD GAME</div>
   <h2>Gather your people.</h2>
   <p>One table. A few friends. Let the cards decide.</p>
@@ -1090,7 +1089,6 @@ body.app-locked{overflow:hidden}
   </div>
 <div class="inline-private-table hidden" id="waitingRoom">
  <div class="lobby-wait-head">
-  </div>
   <div class="lobby-eyebrow">PRIVATE TABLE</div>
   <h2>Waiting for friends</h2>
   <p>Share this code so your friends can take a seat.</p>
@@ -1113,7 +1111,8 @@ body.app-locked{overflow:hidden}
   <button class="lobby-text-button" onclick="leaveRoom()">Leave table</button>
  </div>
 </div>
-  <div id="lobbyNotice" class="lobby-notice">Private rooms are being connected. Add your Firebase project settings to enable friends joining live.</div>
+  <div id="lobbyNotice" class="lobby-notice">Create a table or join with a room code.</div>
+ </div>
 </section>
 
 <section id="game" class="hidden">
@@ -2408,7 +2407,7 @@ async function joinRoom(){
 function showWaitingRoom(){
  const waiting=document.getElementById("waitingRoom"),createBtn=document.getElementById("createTableBtn"),joinControls=document.getElementById("roomJoinControls");
  if(waiting)waiting.classList.remove("hidden");
- if(createBtn){createBtn.disabled=true;createBtn.textContent="✓ Private table created";}
+ if(createBtn){createBtn.disabled=true;createBtn.textContent="＋ Create a private table";}
  if(joinControls)joinControls.classList.add("hidden");
  const codeLabel=document.getElementById("roomCodeLabel");if(codeLabel)codeLabel.textContent=roomCode;
  const startBtn=document.getElementById("startRoomBtn"),botBtn=document.getElementById("addBotBtn");
