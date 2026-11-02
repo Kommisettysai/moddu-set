@@ -712,6 +712,10 @@ body.app-locked{overflow:hidden}
  #game>.panel:nth-of-type(2) .action-announcement{font-size:10px!important;padding:6px 8px!important;margin:5px auto 1px!important}
 }
 
+
+/* Keep one live action description under the draw/discard piles.
+   Retain #message in the DOM for game logic, but hide its duplicate display. */
+#game>.panel:nth-of-type(2) #message{display:none!important}
 </style>
 </head>
 
