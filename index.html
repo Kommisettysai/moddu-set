@@ -2049,7 +2049,7 @@ async function startOnlineRoom(){
  }catch(e){setLobbyNotice("Could not start game: "+e.message);}
 }
 function enterOnlineGame(state){
- if(!roomRef||!roomPlayerId)return;onlineMode=true;onlinePublic=state;eliminatedSpectator=false;document.getElementById("setup").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");document.getElementById("game").classList.remove("hidden");
+ if(!roomRef||!roomPlayerId)return;onlineMode=true;onlinePublic=state;eliminatedSpectator=false;document.getElementById("setup").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");document.getElementById("game").classList.remove("hidden");document.getElementById("voicePanel")?.classList.remove("hidden");
  const notice=document.createElement("div");notice.id="spectatorNotice";notice.className="spectator-notice";notice.textContent="👀 You are eliminated. You can watch the game, but cannot play or view anyone’s cards.";document.getElementById("game").prepend(notice);
  onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);chatHasOpened=false;chatUnreadCount=0;chatIsOpen=false;document.getElementById("gameChat")?.classList.remove("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");document.getElementById("chatToggle")?.setAttribute("aria-expanded","false");updateChatUnread();onlineChatRef=roomRef.child("chat");if(onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);const chatRefForLoad=onlineChatRef;chatRefForLoad.limitToLast(60).once("value").then(initial=>{if(!onlineMode||onlineChatRef!==chatRefForLoad)return;const oldKeys=new Set(Object.keys(initial.val()||{}));onlineChatListener=snap=>{const isOld=oldKeys.has(snap.key);oldKeys.delete(snap.key);const shownLocally=locallyShownChatMessages.has(snap.key);locallyShownChatMessages.delete(snap.key);receiveGameChat(snap,!isOld&&!shownLocally);};chatRefForLoad.limitToLast(60).on("child_added",onlineChatListener);}).catch(()=>{});
  if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();scheduleHostDiscardTimeout(onlinePublic);if(isRoomHost)runOnlineBotTurn();}};onlinePublicRef.on("value",onlinePublicListener);
@@ -2249,6 +2249,7 @@ async function joinVoiceChat(){
   voiceParticipantsRef=roomRef.child("voice/participants");
   voiceSignalsRef=roomRef.child("voice/signals");
   await voiceParticipantsRef.child(roomPlayerId).set({id:roomPlayerId,name:players[0]?.name||playerProfile?.displayName||"Player",joined:true,muted:true,joinedAt:firebase.database.ServerValue.TIMESTAMP});
+  await voiceParticipantsRef.child(roomPlayerId).onDisconnect().remove();
   voiceParticipantsListener=snap=>{
    const data=snap.val()||{},list=Object.values(data);
    voiceRenderPeople(list);
@@ -2288,7 +2289,7 @@ async function leaveVoiceChat(){
  if(wasJoined&&voiceParticipantsRef&&roomPlayerId)try{await voiceParticipantsRef.child(roomPlayerId).remove();}catch(e){}
  if(voiceSignalsRef&&roomPlayerId)try{await voiceSignalsRef.child(roomPlayerId).remove();}catch(e){}
  voiceMuted=true;voiceParticipantsRef=null;voiceSignalsRef=null;
- const panel=document.getElementById("voicePanel");if(panel)panel.classList.add("hidden");
+ const panel=document.getElementById("voicePanel");if(panel&&onlineMode)panel.classList.remove("hidden");
  document.getElementById("voiceJoinBtn")?.classList.remove("hidden");
  document.getElementById("voiceMuteBtn")?.classList.add("hidden");
  document.getElementById("voiceLeaveBtn")?.classList.add("hidden");
