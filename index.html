@@ -722,7 +722,13 @@ body.app-locked{overflow:hidden}
 .piles .discard-pile-with-timer .discard-pile{flex:0 0 auto}
 .compact-turn-timer{width:42px;height:42px;flex:0 0 42px;display:flex;align-items:center;justify-content:center;border:1px solid #e2c17a;border-radius:9px;background:#092a20;color:#ffe5a3;font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;box-shadow:0 2px 0 #a77b35}
 @media(max-width:600px){.compact-turn-timer{width:36px;height:36px;flex-basis:36px;font-size:13px;border-radius:8px}.piles .discard-pile-with-timer{gap:5px}}
-</style>
+/* Remove both live action-description banners; retain DOM nodes for game logic. */
+#actionAnnouncement,#message{display:none!important}
+/* Voice uses one button: join once, then mute/unmute. Leaving the room disconnects voice. */
+#voicePanel{display:none!important}
+.top-voice-controls{display:flex;align-items:center;gap:7px;justify-content:flex-end}
+.top-voice-controls #voiceLeaveBtn{display:none!important}
+.top-voice-count{font-size:11px;min-width:20px;text-align:center;opacity:.8}</style>
 </head>
 
 <body class="app-locked">
@@ -880,7 +886,7 @@ body.app-locked{overflow:hidden}
 <div class="game-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong><small>PERSONAL BRAND</small></span></div></div>
 <div class="panel player-strip">
 <div class="table-status"><span id="roundInfo">Round 1</span><span id="turnInfo"></span></div>
-<div id="topVoiceControls" class="top-voice-controls hidden" aria-label="Voice controls"><span class="top-voice-label">🎙️ Voice</span><button type="button" id="voiceMuteBtn" class="voice-secondary" onclick="toggleVoiceMute()" disabled>Unmute mic</button><button type="button" id="voiceLeaveBtn" class="voice-secondary" onclick="leaveVoiceChat()">Leave</button></div>
+<div id="topVoiceControls" class="top-voice-controls" aria-label="Voice controls"><span class="top-voice-label">🎙️ Voice</span><button type="button" id="voiceMuteBtn" class="voice-secondary" onclick="toggleVoiceControl()">Join voice</button><span id="topVoiceCount" class="top-voice-count">0</span></div>
 <div class="players-heading"><h3>Players</h3><button type="button" id="scoresToggle" class="scores-toggle" onclick="togglePlayerScores()" aria-pressed="false">Scores</button></div>
 <div class="players" id="players"></div>
 </div>
@@ -918,7 +924,7 @@ body.app-locked{overflow:hidden}
 <section class="panel voice-panel hidden" id="voicePanel" aria-label="Voice chat">
  <div class="voice-head"><div><h3>🎙️ Table voice</h3><div class="voice-status" id="voiceStatus">Voice is off. Join when you want to talk.</div></div><span id="voiceCount" class="voice-person">0 connected</span></div>
  <div class="voice-controls">
-  <button type="button" id="voiceJoinBtn" onclick="joinVoiceChat()">Join Voice</button>
+  <p class="voice-note">Tap Voice above to connect. Your microphone turns on only when you choose to join.</p>
  </div>
  <div class="voice-people" id="voicePeople"></div>
  <div class="voice-note">Your microphone starts muted. Only players in this game room can join. Voice is not recorded.</div>
@@ -2468,6 +2474,7 @@ async function joinVoiceChat(){
    const data=snap.val()||{},list=Object.values(data);
    voiceRenderPeople(list);
    if(voiceJoined)voiceEnsurePeers(list);
+   voiceUpdateTopControls();
   };
   voiceParticipantsRef.on("value",voiceParticipantsListener);
   const panel=document.getElementById("voicePanel");if(panel)panel.classList.remove("hidden");
@@ -2483,11 +2490,30 @@ async function joinVoiceChat(){
   voiceSetStatus(await voiceMicrophoneErrorMessage(e));
  }finally{if(joinBtn){joinBtn.disabled=false;joinBtn.textContent="Try Again";}}
 }
+async function toggleVoiceControl(){
+ if(!voiceJoined){
+  await joinVoiceChat();
+  if(voiceJoined){
+   voiceMuted=false;
+   voiceStream?.getAudioTracks().forEach(t=>t.enabled=true);
+   try{await voiceParticipantsRef.child(roomPlayerId).update({muted:false});}catch(e){}
+   voiceSetStatus("Your microphone is on. Speak to the table.");
+   voiceUpdateTopControls();
+  }
+  return;
+ }
+ await toggleVoiceMute();
+}
+function voiceUpdateTopControls(){
+ const btn=document.getElementById("voiceMuteBtn"),count=document.getElementById("topVoiceCount");
+ if(btn){btn.disabled=false;btn.textContent=!voiceJoined?"Join voice":(voiceMuted?"Unmute mic":"Mute mic");}
+ if(count)count.textContent=String(voiceJoined?Object.keys(voicePeerConnections).length+1:0);
+}
 async function toggleVoiceMute(){
  if(!voiceJoined||!voiceStream)return;
  voiceMuted=!voiceMuted;
  voiceStream.getAudioTracks().forEach(t=>t.enabled=!voiceMuted);
- const btn=document.getElementById("voiceMuteBtn");if(btn)btn.textContent=voiceMuted?"Unmute mic":"Mute mic";
+ voiceUpdateTopControls();
  try{await voiceParticipantsRef.child(roomPlayerId).update({muted:voiceMuted});}
  catch(e){voiceSetStatus("Microphone state could not sync: "+e.message);}
  voiceSetStatus(voiceMuted?"You are listening. Your microphone is muted.":"Your microphone is on. Speak to the table.");
@@ -2505,10 +2531,7 @@ async function leaveVoiceChat(){
  if(voiceSignalsRef&&roomPlayerId)try{await voiceSignalsRef.child(roomPlayerId).remove();}catch(e){}
  voiceMuted=true;voiceParticipantsRef=null;voiceSignalsRef=null;
  const panel=document.getElementById("voicePanel");if(panel&&onlineMode)panel.classList.remove("hidden");
- document.getElementById("voiceJoinBtn")?.classList.remove("hidden");
- document.getElementById("voiceMuteBtn")?.classList.add("hidden");
- document.getElementById("voiceLeaveBtn")?.classList.add("hidden");
- document.getElementById("topVoiceControls")?.classList.add("hidden");
+ voiceUpdateTopControls();
  voiceRenderPeople([]);
  voiceSetStatus("Voice is off. Join when you want to talk.");
 }
