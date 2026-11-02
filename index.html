@@ -982,6 +982,7 @@ body.app-locked{overflow:hidden}
 <button onclick="startGame()">Restart game</button>
 <button id="newRoundBtn" onclick="startFreshRoundWithScores()">Start new round (keep scores)</button>
 </div>
+<div id="hostPlayerManagement"></div>
 </details>
 </div>
 
@@ -1559,6 +1560,11 @@ function message(t){
 }
 
 function render(){
+ const manage=document.getElementById("hostPlayerManagement");
+ if(manage){
+  const removable=(onlinePublic?.players||[]).filter(p=>isRoomHost&&p.id!==roomPlayerId&&p.active!==false);
+  manage.innerHTML=removable.length?'<p>Remove a player</p>'+removable.map(p=>'<button type="button" class="host-remove-player" data-player-id="'+escapeLobbyText(p.id)+'" onclick="removeOnlinePlayer(this.dataset.playerId)">Remove '+escapeLobbyText(p.name)+'</button>').join(''):'';
+ }
  const roundLabel=document.getElementById("roundInfo");
  if(roundLabel)roundLabel.textContent="Round "+round;
  const newRoundBtn=document.getElementById("newRoundBtn");
