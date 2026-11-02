@@ -8,7 +8,7 @@
           ".write": "auth != null && root.child('rooms').child($roomCode).child('hostId').val() === auth.uid",
           "players": {
             "$playerId": {
-              ".write": "auth != null && auth.uid === $playerId && (root.child('rooms').child($roomCode).child('lobby').child('status').val() === 'waiting' || data.exists())"
+              ".write": "auth != null && auth.uid === $playerId && (root.child('rooms').child($roomCode).child('lobby').child('status').val() === 'waiting' || (data.exists() && !newData.exists()))"
             }
           }
         },
