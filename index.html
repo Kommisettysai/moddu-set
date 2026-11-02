@@ -2089,7 +2089,7 @@ async function writeGameChat(type,text){
  locallyShownChatMessages.add(messageRef.key);
  showPlayerReaction(chatItem);
  try{await messageRef.set({...chatItem,createdAt:firebase.database.ServerValue.TIMESTAMP});}
- catch(e){locallyShownChatMessages.delete(messageRef.key);const ownBubbles=[...document.querySelectorAll(".player-reaction-floating")].filter(el=>el.querySelector(".reaction-sender")?.textContent===chatItem.senderName);const latestBubble=ownBubbles[ownBubbles.length-1];if(latestBubble)latestBubble.remove();lastChatSentAt=0;setLobbyNotice("Chat message could not be sent. Check that the latest database rules are published.");}
+ catch(e){locallyShownChatMessages.delete(messageRef.key);lastChatSentAt=0;setLobbyNotice("Reaction is visible only on your device because it could not sync: "+String(e?.code||e?.message||"Firebase write failed").slice(0,120));}
 }
 
 function applyOnlinePublic(){
