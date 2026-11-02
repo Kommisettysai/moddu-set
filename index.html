@@ -2007,13 +2007,13 @@ async function joinRoom(){
   if(!existing&&members.length>=Number(l.maxPlayers||6)){
    setLobbyNotice("This table is full.");return;
   }
-  roomCode=code;roomRef=ref;roomPlayerId=uid;isRoomHost=uid===l.hostId;
   if(isRemoved){
-   // Rejoining a running game requires the host to restore the public game state.
-   // Do not let a non-host overwrite the shared public state.
-   setLobbyNotice("You were removed from this game. Ask the host to restore your seat or invite you to the next round.");
+   // Rejoining a running game requires a host-controlled public-state update.
+   // Never let a non-host overwrite the shared game state.
+   setLobbyNotice("You were removed from this game. Please ask the host about rejoining.");
    return;
   }
+  roomCode=code;roomRef=ref;roomPlayerId=uid;isRoomHost=uid===l.hostId;
   await ref.child("lobby/players/"+uid).set({
    id:uid,name,ready:true,removed:false,
    joinedAt:firebase.database.ServerValue.TIMESTAMP
