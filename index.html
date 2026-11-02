@@ -431,7 +431,10 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 .discard-history-card.red{color:#d32f2f}
 .discard-history-card .discard-history-suit{text-align:center;font-size:16px}
 .discard-history-card .discard-history-corner{text-align:right;font-size:9px;line-height:1}
-.open-pick-indicator{position:absolute;top:-10px;right:-10px;z-index:8;padding:3px 5px;border-radius:6px;background:#35d4e8;color:#062b30;font-size:7px;font-weight:1000;white-space:nowrap;box-shadow:0 2px 7px #0008}
+.open-pick-indicator{position:absolute;top:5px;right:5px;z-index:12;padding:4px 6px;border:1px solid #b9f8ff;border-radius:7px;background:linear-gradient(180deg,#b9f8ff,#39c9df);color:#073747;font-size:7px;font-weight:1000;letter-spacing:.35px;white-space:nowrap;box-shadow:0 2px 8px #0009;pointer-events:none}
+.open-pick-indicator.show{animation:openPickBadgeIn .22s ease-out,openPickBadgePulse .75s ease-in-out .22s 2}
+@keyframes openPickBadgeIn{from{opacity:0;transform:translateY(5px) scale(.85)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes openPickBadgePulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.35)}}
 .discard-pile>small{position:relative;z-index:5;margin-top:0}
 @media(max-width:450px){.discard-stack{transform:scale(.92);transform-origin:top center;margin-bottom:-6px}.discard-history-card{width:45px;height:60px}}
 
@@ -1020,27 +1023,10 @@ body:has(#setup:not(.hidden))>header,
 body:has(#roundResults:not(.hidden))>header,
 #roundResults .results-brand{display:none!important}
 
-/* Show the short live draw/discard announcement again.
-   #message stays hidden to avoid duplicate status text. */
-#game #actionAnnouncement.show{
- display:block!important;
- visibility:visible!important;
- opacity:1!important;
- position:relative!important;
- z-index:20!important;
- min-height:16px;
- margin:8px auto 3px!important;
- padding:8px 11px!important;
- border:1px solid #6de4ff99!important;
- border-radius:11px!important;
- background:linear-gradient(90deg,#0d4555,#123d4b)!important;
- color:#e1fbff!important;
- text-align:center!important;
- font-size:11px!important;
- font-weight:900!important;
- line-height:1.35!important;
- box-shadow:0 0 14px #42d9ff35!important;
-}
+/* The action feedback belongs inside the discard pile, not below the table. */
+#discardPile.discard-pile{overflow:visible!important}
+#discardPile .open-pick-indicator{top:5px!important;right:5px!important;max-width:calc(100% - 10px);overflow:hidden;text-overflow:ellipsis}
+#discardPile .discard-stack{pointer-events:none}
 </style>
 </head>
 
@@ -1169,7 +1155,6 @@ body:has(#roundResults:not(.hidden))>header,
 <div><div class="pile draw-pile" id="drawPile" onclick="drawClosed()" aria-label="Draw deck, face down"><div class="card-stack" aria-hidden="true"><span></span><span></span><span></span></div><small>DRAW DECK</small></div></div>
 <div class="discard-pile-with-timer"><div class="pile discard-pile" id="discardPile" onclick="drawOpen()" aria-label="Discard pile, take the latest face-up card"><div class="discard-stack" id="discardStack" aria-hidden="true"></div><span class="open-pick-indicator hidden" id="openPickIndicator">OPEN CARD PICKED</span><small>DISCARD PILE</small></div><div id="discardTimer" class="compact-turn-timer" aria-live="polite" style="display:none"><span class="timer-icon" aria-hidden="true">◷</span><span id="discardTimerSeconds">60</span></div></div>
 </div>
-<div id="actionAnnouncement" class="action-announcement" aria-live="polite"></div>
 <div id="message">Your turn. Choose a pile.</div>
 
 </div>
@@ -1851,9 +1836,6 @@ function renderDiscardHistory(){
    '<span class="discard-history-corner">'+escapeLobbyText(label)+'</span></div>';
  }).join("");
  stack.setAttribute("aria-label",recent.length?"Latest discarded card "+cardText(recent[0])+(recent.length>1?", previous "+recent.slice(1).map(cardText).join(", "):""):"No discarded cards");
- const indicator=document.getElementById("openPickIndicator");
- const pickedOpen=onlineMode&&onlinePublic?.lastAction?.type==="drawOpen";
- if(indicator)indicator.classList.toggle("hidden",!pickedOpen);
 }
 function cardText(c){
  if(!c)return "?";
@@ -2531,16 +2513,25 @@ let lastSeenSharedActionAt=0;
 function showSharedAction(action){
  if(!action||!action.at||action.at<=lastSeenSharedActionAt)return;
  lastSeenSharedActionAt=action.at;
- const announcement=document.getElementById("actionAnnouncement");
- const source=action.type==="drawOpen"?"OPEN DISCARD PILE":action.type==="drawClosed"?"DRAW DECK":action.type==="discard"?"DISCARD PILE":null;
- if(!source)return;
- const player=(onlinePublic?.players||[]).find(p=>p.id===action.uid);
- const name=action.name||(player&&player.name)||"A player";
- const text=action.type==="drawOpen"?name+" picked "+(action.cardLabel||"the face-up card")+" from the OPEN DISCARD PILE":action.type==="drawClosed"?name+" drew a face-down card from the DRAW DECK":name+" discarded "+(action.cardLabel||"a card")+" to the DISCARD PILE";
- if(announcement){announcement.textContent=text;announcement.classList.remove("show");void announcement.offsetWidth;announcement.classList.add("show");window.clearTimeout(announcement.hideTimer);announcement.hideTimer=window.setTimeout(()=>announcement.classList.remove("show"),3000);}
+ const badge=document.getElementById("openPickIndicator");
+ const isOpenPick=action.type==="drawOpen";
+ if(badge){
+  window.clearTimeout(badge.hideTimer);
+  badge.classList.remove("show");
+  badge.classList.add("hidden");
+  if(isOpenPick){
+   const player=(onlinePublic?.players||[]).find(p=>p.id===action.uid);
+   const name=action.name||(player&&player.name)||"PLAYER";
+   badge.textContent=name.toUpperCase()+" PICKED OPEN CARD";
+   badge.classList.remove("hidden");
+   void badge.offsetWidth;
+   badge.classList.add("show");
+   badge.hideTimer=window.setTimeout(()=>{badge.classList.remove("show");badge.classList.add("hidden");},3000);
+  }
+ }
  const pile=document.getElementById(action.type==="drawOpen"||action.type==="discard"?"discardPile":"drawPile");
  if(pile){pile.classList.remove("action-pulse");void pile.offsetWidth;pile.classList.add("action-pulse");}
- const profile=[...document.querySelectorAll("#players .player")].find(el=>el.querySelector("b")?.textContent===name);
+ const profile=[...document.querySelectorAll("#players .player")].find(el=>el.querySelector("b")?.textContent===(action.name||""));
  if(profile){profile.classList.remove("action-player");void profile.offsetWidth;profile.classList.add("action-player");}
 }
 
