@@ -42,6 +42,24 @@
             ".write": "auth != null && !data.exists() && root.child('rooms').child($roomCode).child('lobby').child('players').child(auth.uid).exists() && newData.child('senderId').val() === auth.uid",
             ".validate": "newData.hasChildren(['senderId','senderName','type','text','createdAt']) && newData.numChildren() === 5 && newData.child('senderName').val() === root.child('rooms').child($roomCode).child('lobby').child('players').child(auth.uid).child('name').val() && (newData.child('type').val() === 'emoji' || newData.child('type').val() === 'phrase' || newData.child('type').val() === 'text') && newData.child('text').isString() && newData.child('text').val().length <= 100 && newData.child('createdAt').isNumber()"
           }
+        },
+        "voice": {
+          ".read": "auth != null && root.child('rooms').child($roomCode).child('lobby').child('players').child(auth.uid).exists()",
+          "participants": {
+            "$playerId": {
+              ".write": "auth != null && auth.uid === $playerId && root.child('rooms').child($roomCode).child('lobby').child('players').child(auth.uid).exists()"
+            }
+          },
+          "signals": {
+            "$fromUid": {
+              "$toUid": {
+                "$signalId": {
+                  ".read": "auth != null && auth.uid === $toUid && root.child('rooms').child($roomCode).child('lobby').child('players').child(auth.uid).exists()",
+                  ".write": "auth != null && auth.uid === $fromUid && root.child('rooms').child($roomCode).child('lobby').child('players').child(auth.uid).exists()"
+                }
+              }
+            }
+          }
         }
       }
     },
