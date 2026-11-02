@@ -2051,7 +2051,7 @@ function showPlayerReaction(item){
   if(!burst.isConnected)return;
   burst.style.setProperty("opacity","0","important");
   window.setTimeout(()=>burst.remove(),450);
- },10000);
+ },4000);
  return burst;
 }
 function receiveGameChat(snapshot,showReaction=true){
