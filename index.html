@@ -825,6 +825,8 @@ body.app-locked{overflow:hidden}
    <option value="100">100 points</option><option value="150">150 points</option><option value="200" selected>200 points</option><option value="250">250 points</option><option value="300">300 points</option>
   </select>
   <p class="lobby-hint" id="scoreLimitHint">Players are eliminated when their total score reaches this limit.</p>
+  <div class="lobby-section-title friend-section-heading">JOIN REQUESTS</div>
+  <div id="joinRequestsList" class="friend-list"><p class="lobby-hint">No pending requests.</p></div>
   <div class="lobby-section-title friend-section-heading">INVITE YOUR FRIENDS</div>
   <div id="roomFriendInviteList" class="friend-list"><p class="lobby-hint">Loading your friends…</p></div>
   <div class="actions">
@@ -1200,11 +1202,54 @@ async function loadFriends(){
   document.getElementById("friendCount").textContent=friendIds.length?"("+friendIds.length+")":"";
   if(!friendIds.length){if(friendsEl)friendsEl.innerHTML='<p class="friend-empty">No friends added yet. Search for a username above.</p>';await renderRoomFriendInvites([],[]);return;}
   const profiles=await Promise.all(friendIds.map(uid=>db.ref("users/"+uid).get()));
-  if(friendsEl)friendsEl.innerHTML=profiles.map((snap,i)=>friendRowMarkup(friendIds[i],snap.val()||{username:"player",displayName:"Player"},'<span>Friend ✓</span>')).join("");
+  if(friendsEl)friendsEl.innerHTML=profiles.map((snap,i)=>{const profile=snap.val()||{username:"player",displayName:"Player"};return friendRowMarkup(friendIds[i],profile,'<span>Friend ✓</span>'+(profile.activeRoom&&profile.activeRoom.status==="waiting"?' <button onclick="requestToJoinFriend(\\\''+friendIds[i]+'\\\')">Request to join</button>':''));}).join("");
   await renderRoomFriendInvites(friendIds,profiles.map(x=>x.val()||{}));
  }catch(e){if(requestsEl)requestsEl.innerHTML='<p class="friend-empty">Could not load friend data: '+escapeLobbyText(e.message)+'</p>';}
 }
 
+
+async function requestToJoinFriend(friendUid){
+ if(!authUser||!friendUid||friendUid===authUser.uid)return;
+ try{
+  const [friendSnap,profileSnap]=await Promise.all([firebase.database().ref("friends/"+authUser.uid+"/"+friendUid).get(),firebase.database().ref("users/"+friendUid+"/activeRoom").get()]);
+  if(!friendSnap.exists()){setLobbyNotice("You can request a game only from an accepted friend.");return;}
+  const active=profileSnap.val()||{};
+  if(!active.code||active.status!=="waiting"){setLobbyNotice("Your friend is not waiting at a table right now.");await loadFriends();return;}
+  const code=String(active.code).toUpperCase(),roomSnap=await firebase.database().ref("rooms/"+code).get(),room=roomSnap.val()||{};
+  if(room.status!=="waiting"){setLobbyNotice("Your friend's game has already started.");return;}
+  if(Object.keys(room.players||{}).length>=Number(room.maxPlayers||6)){setLobbyNotice("Your friend's table is full.");return;}
+  const profile=playerProfile||{},req=firebase.database().ref("joinRequests/"+friendUid).push();
+  await req.set({requesterUid:authUser.uid,requesterName:profile.displayName||profile.username||"Friend",roomCode:code,createdAt:firebase.database.ServerValue.TIMESTAMP});
+  setLobbyNotice("Join request sent. Your friend can approve it in their waiting room.");
+ }catch(e){setLobbyNotice("Could not send join request: "+(e.code||e.message));}
+}
+async function loadJoinRequests(){
+ if(!authUser||!isRoomHost||!roomCode)return;
+ const el=document.getElementById("joinRequestsList");if(!el)return;
+ try{
+  const snap=await firebase.database().ref("joinRequests/"+authUser.uid).get(),items=Object.entries(snap.val()||{}).filter(([,v])=>v.roomCode===roomCode);
+  el.innerHTML=items.length?items.map(([id,v])=>'<div class="friend-row"><div><strong>'+escapeLobbyText(v.requesterName||"Friend")+'</strong><small>Wants to join your table</small></div><button onclick="approveJoinRequest(\\\''+id+'\\\',\\\''+v.requesterUid+'\\\')">Approve</button> <button onclick="declineJoinRequest(\\\''+id+'\\\')">Decline</button></div>').join(""):'<p class="lobby-hint">No pending requests.</p>';
+ }catch(e){el.textContent="Could not load join requests: "+e.message;}
+}
+async function approveJoinRequest(requestId,requesterUid){
+ if(!authUser||!isRoomHost||!roomRef||!roomCode||!requestId||!requesterUid)return;
+ try{
+  const reqRef=firebase.database().ref("joinRequests/"+authUser.uid+"/"+requestId),snap=await reqRef.get();
+  if(!snap.exists()||snap.val().roomCode!==roomCode){setLobbyNotice("This request is no longer valid.");return;}
+  const [roomSnap,friendSnap,profileSnap]=await Promise.all([roomRef.get(),firebase.database().ref("friends/"+authUser.uid+"/"+requesterUid).get(),firebase.database().ref("users/"+requesterUid).get()]);
+  const room=roomSnap.val()||{},members=room.players||{};
+  if(!friendSnap.exists()){setLobbyNotice("Only accepted friends can join.");return;}
+  if(room.status!=="waiting"||Object.keys(members).length>=Number(room.maxPlayers||6)){setLobbyNotice("The table is full or the game has started.");return;}
+  const p=profileSnap.val()||{};
+  await roomRef.child("players/"+requesterUid).set({id:requesterUid,name:String(p.displayName||p.username||"Friend").slice(0,18),ready:true,joinedAt:firebase.database.ServerValue.TIMESTAMP});
+  await reqRef.remove();setLobbyNotice("Friend added to the table!");await loadJoinRequests();
+ }catch(e){setLobbyNotice("Could not approve request: "+(e.code||e.message));}
+}
+async function declineJoinRequest(requestId){
+ if(!authUser||!requestId)return;
+ try{await firebase.database().ref("joinRequests/"+authUser.uid+"/"+requestId).remove();await loadJoinRequests();}
+ catch(e){setLobbyNotice("Could not decline request: "+e.message);}
+}
 async function loadIncomingRoomInvites(){
  if(!authUser)return;
  const el=document.getElementById("roomInvitesList"),count=document.getElementById("roomInviteCount");
@@ -1285,6 +1330,7 @@ function createRoom(){
    while(snap.exists()){code=makeRoomCode();ref=firebase.database().ref("rooms/"+code);snap=await ref.get();}
    roomCode=code;roomRef=ref;roomPlayerId=user.uid;isRoomHost=true;
    await ref.set({code,hostId:user.uid,status:"waiting",maxPlayers:6,createdAt:firebase.database.ServerValue.TIMESTAMP,players:{[user.uid]:{id:user.uid,name,ready:true,joinedAt:firebase.database.ServerValue.TIMESTAMP}}});
+   await firebase.database().ref("users/"+user.uid+"/activeRoom").set({code,status:"waiting",updatedAt:firebase.database.ServerValue.TIMESTAMP});
    showWaitingRoom();
   }catch(e){setLobbyNotice("Could not create room: "+e.message);}
  },{onlyOnce:true});
@@ -1347,7 +1393,8 @@ function showWaitingRoom(){
  document.getElementById("waitingRoom").classList.remove("hidden");
  document.getElementById("roomCodeLabel").textContent=roomCode;
  document.getElementById("startRoomBtn").classList.toggle("hidden",!isRoomHost);
- if(isRoomHost)loadFriends().catch(()=>{});
+ if(isRoomHost){loadFriends().catch(()=>{});loadJoinRequests().catch(()=>{});}
+ else if(authUser)firebase.database().ref("users/"+authUser.uid+"/activeRoom").set({code:roomCode,status:"waiting",updatedAt:firebase.database.ServerValue.TIMESTAMP}).catch(()=>{});
  if(roomListener&&roomRef)roomRef.off("value",roomListener);
  roomListener=snap=>{
   if(!snap.exists()){leaveRoom(false);return;}
@@ -1365,10 +1412,12 @@ async function startOnlineRoom(){
  const snap=await roomRef.get(),room=snap.val(),members=Object.values(room.players||{});
  if(members.length<2){setLobbyNotice("Invite at least one friend before starting.");return;}
  await roomRef.update({status:"started",startedAt:firebase.database.ServerValue.TIMESTAMP});
+ await firebase.database().ref("users/"+authUser.uid+"/activeRoom").remove().catch(()=>{});
  setLobbyNotice("Room started. Next we connect the shared cards and turns.");
 }
 async function leaveRoom(showLobby=true){
  if(roomRef&&roomPlayerId){try{await roomRef.child("players/"+roomPlayerId).remove();}catch(e){}}
+ if(roomCode&&authUser)await firebase.database().ref("users/"+authUser.uid+"/activeRoom").remove().catch(()=>{});
  if(roomRef&&roomListener)roomRef.off("value",roomListener);
  roomRef=null;roomCode=null;roomListener=null;roomPlayerId=null;isRoomHost=false;
  document.getElementById("waitingRoom").classList.add("hidden");
