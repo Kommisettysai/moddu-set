@@ -720,8 +720,9 @@ body.app-locked{overflow:hidden}
 /* Compact numeric turn countdown beside the discard pile */
 .piles .discard-pile-with-timer{display:flex;align-items:center;gap:7px}
 .piles .discard-pile-with-timer .discard-pile{flex:0 0 auto}
-.compact-turn-timer{width:42px;height:42px;flex:0 0 42px;display:flex;align-items:center;justify-content:center;border:1px solid #e2c17a;border-radius:9px;background:#092a20;color:#ffe5a3;font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;box-shadow:0 2px 0 #a77b35}
-@media(max-width:600px){.compact-turn-timer{width:36px;height:36px;flex-basis:36px;font-size:13px;border-radius:8px}.piles .discard-pile-with-timer{gap:5px}}
+.compact-turn-timer{width:54px;height:64px;flex:0 0 54px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:2px solid #f4d28a;border-radius:13px;background:linear-gradient(145deg,#174b39,#08291f);color:#ffe5a3;font-size:21px;font-weight:900;font-variant-numeric:tabular-nums;box-shadow:0 0 0 2px #f4d28a22,0 0 16px #ffe06b88,inset 0 1px #fff3}
+.compact-turn-timer .timer-icon{font-size:19px;line-height:20px;color:#ffe06b}
+@media(max-width:600px){.compact-turn-timer{width:46px;height:56px;flex-basis:46px;font-size:18px;border-radius:11px}.compact-turn-timer .timer-icon{font-size:17px;line-height:18px}.piles .discard-pile-with-timer{gap:6px}}
 /* Remove both live action-description banners; retain DOM nodes for game logic. */
 #actionAnnouncement,#message{display:none!important}
 /* Voice uses one button: join once, then mute/unmute. Leaving the room disconnects voice. */
@@ -924,7 +925,7 @@ body.app-locked{overflow:hidden}
 <h3 style="text-align:center">Game Table</h3>
 <div class="piles">
 <div><div class="pile draw-pile" id="drawPile" onclick="drawClosed()" aria-label="Draw deck, face down"><div class="card-stack" aria-hidden="true"><span></span><span></span><span></span></div><small>DRAW DECK</small></div></div>
-<div class="discard-pile-with-timer"><div class="pile discard-pile" id="discardPile" onclick="drawOpen()" aria-label="Discard pile, take the latest face-up card"><div class="discard-stack" id="discardStack" aria-hidden="true"></div><span class="open-pick-indicator hidden" id="openPickIndicator">OPEN CARD PICKED</span><small>DISCARD PILE</small></div><div id="discardTimer" class="compact-turn-timer" aria-live="polite" style="display:none"></div></div>
+<div class="discard-pile-with-timer"><div class="pile discard-pile" id="discardPile" onclick="drawOpen()" aria-label="Discard pile, take the latest face-up card"><div class="discard-stack" id="discardStack" aria-hidden="true"></div><span class="open-pick-indicator hidden" id="openPickIndicator">OPEN CARD PICKED</span><small>DISCARD PILE</small></div><div id="discardTimer" class="compact-turn-timer" aria-live="polite" style="display:none"><span class="timer-icon" aria-hidden="true">◷</span><span id="discardTimerSeconds">60</span></div></div>
 </div>
 <div id="actionAnnouncement" class="action-announcement" aria-live="polite"></div>
 <div id="message">Your turn. Choose a pile.</div>
@@ -942,9 +943,7 @@ body.app-locked{overflow:hidden}
 <button id="showBtn" onclick="showHand()">SHOW</button>
 </div>
 <button id="dropRoundBtn" class="drop-round-btn" onclick="dropCurrentRound()">DROP 20</button>
-<div class="arrange-tools"><p class="arrange-hint">Your cards arrange automatically. Drag a card onto a set to add it, or use Auto Arrange.</p>
-
-</div>
+<div class="arrange-tools"></div>
 </div>
 
 
@@ -1588,7 +1587,7 @@ function render(){
   if(players[0]){
 document.getElementById("handCount").textContent=players[0].hand.length;const unmatchedEl=document.getElementById("handUnmatched");if(unmatchedEl)unmatchedEl.textContent="In hand: "+bestUnmatchedScore(players[0].hand||[],players[0])+" pts";
    if(playersEl){
-playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+(p.roundDropped?'dropped-player':'')+'">'+playerIdentityMarkup(p,i,"game")+(p.roundDropped?'<span class="player-dropped">DROPPED</span>':'')+'</div>').join('');;
+playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+(p.roundDropped?'dropped-player':'')+'" data-player-id="'+escapeLobbyText(p.id)+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+(Number(p.score)||0)+'</span>'+(p.roundDropped?'<span class="player-dropped">DROPPED</span>':'')+'</div>').join('');
    }
    if(handEl){
     try{handEl.innerHTML=renderHandLayout();}
@@ -1605,7 +1604,7 @@ playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active t
  }catch(error){
   console.error("Game render error:",error);
   if(playersEl&&players.length){
-   playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+p.score+'</span>'+(p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+'</div>').join('');
+   playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+'" data-player-id="'+escapeLobbyText(p.id)+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+(Number(p.score)||0)+'</span>'+(p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+'</div>').join('');
   }
   if(handEl&&players[0]){
    handEl.innerHTML=players[0].hand.map((c,i)=>cardMarkup(c,i)).join('');
@@ -2583,11 +2582,11 @@ async function removeOnlinePlayer(uid){
 }
 function updateDiscardCountdown(){
  const el=document.getElementById("discardTimer");if(!el)return;
- const state=onlineMode&&onlinePublic,deadline=state?state.pickDeadline:null;
+ const state=onlineMode&&onlinePublic,deadline=state?(Number(state.pickDeadline)||Number(state.discardDeadline)||null):null;
  if(!deadline||!state||state.status!=="playing"){el.style.display="none";el.textContent="";return;}
  const seconds=Math.max(0,Math.ceil((deadline-Date.now())/1000));
  el.style.display="block";
- el.textContent=String(seconds).padStart(2,"0");
+ const number=el.querySelector("#discardTimerSeconds");if(number)number.textContent=String(seconds).padStart(2,"0");
 }
 function scheduleHostDiscardTimeout(state){
  if(!isRoomHost||!roomRef)return;
