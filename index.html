@@ -2234,7 +2234,7 @@ async function shareRoomInvite(){
 async function startOnlineRoom(){
  if(!isRoomHost||!roomRef)return;try{const snap=await roomRef.child("lobby").get(),l=snap.val(),m=onlineMembers(l);if(m.length<2){setLobbyNotice("Invite at least one friend before starting.");return;}
  const d=shuffle(makeDeck(m.length)),hands={};m.forEach(p=>hands[p.id]=d.splice(0,13));const first=d.pop();
- const limit=Math.max(1,Number(l.scoreLimit)||200);const pub={status:"playing",round:1,scoreLimit:limit,turnUid:l.hostId,roundStarterUid:l.hostId,deckCount:d.length,discard:[first],drawnByUid:null,pickDeadline:Date.now()+40000,specialRank:null,players:m.map(p=>({id:p.id,name:p.name,isBot:!!p.isBot,active:true,score:0,cardCount:13,roundDrawCount:0,roundDropped:false,dropPenalty:0,unlocked:false,status:"Ready"})),message:"Cards dealt. Elimination limit: "+limit+" points. "+m[0].name+"'s turn. Draw a card."};
+ const limit=Math.max(1,Number(l.scoreLimit)||200);const pub={status:"playing",round:1,scoreLimit:limit,turnUid:l.hostId,roundStarterUid:l.hostId,deckCount:d.length,discard:[first],drawnByUid:null,pickDeadline:Date.now()+60000,specialRank:null,players:m.map(p=>({id:p.id,name:p.name,isBot:!!p.isBot,active:true,score:0,cardCount:13,roundDrawCount:0,roundDropped:false,dropPenalty:0,unlocked:false,status:"Ready"})),message:"Cards dealt. Elimination limit: "+limit+" points. "+m[0].name+"'s turn. Draw a card."};
  await roomRef.child("private").set({deck:d,hands,specialRank:null,specialRanks:{}});await roomRef.child("public").set(pub);await roomRef.child("lobby/status").set("started");enterOnlineGame(pub);
  }catch(e){setLobbyNotice("Could not start game: "+e.message);}
 }
@@ -2617,7 +2617,7 @@ async function processOnlineAction(uid,a){
   if(p.drawnByUid===uid){p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;}
   p.message=player.name+" dropped this round for "+dropPenalty+" points.";
   const remaining=(p.players||[]).filter(x=>x.active!==false&&!x.roundDropped);
-  if(p.turnUid===uid&&remaining.length){const next=remaining.find(x=>(p.players.indexOf(x))>playerIndex)||remaining[0];p.turnUid=next.id;p.pickDeadline=next.isBot?null:Date.now()+40000;}
+  if(p.turnUid===uid&&remaining.length){const next=remaining.find(x=>(p.players.indexOf(x))>playerIndex)||remaining[0];p.turnUid=next.id;p.pickDeadline=next.isBot?null:Date.now()+60000;}
   if(!remaining.length){
    const penalties={},totals={};
    (p.players||[]).forEach(x=>{penalties[x.id]=x.dropPenalty||0;totals[x.id]=x.score||0;});
@@ -2645,7 +2645,7 @@ async function processOnlineAction(uid,a){
    }
    if(special){syncUnlock();specialRanks[uid]=special;p.specialRank=special;p.message=player.name+" automatically unlocked the special joker.";}
   }
-  const active=(p.players||[]).filter(x=>x.active!==false&&!x.roundDropped),at=active.findIndex(x=>x.id===uid),next=active[(at+1)%active.length];if(!next)return;p.turnUid=next.id;p.pickDeadline=next.isBot?null:Date.now()+40000;p.message=a.automatic?"Time expired. "+player.name+"'s drawn card was discarded automatically.":(p.message||next.name+"'s turn. Draw a card.");
+  const active=(p.players||[]).filter(x=>x.active!==false&&!x.roundDropped),at=active.findIndex(x=>x.id===uid),next=active[(at+1)%active.length];if(!next)return;p.turnUid=next.id;p.pickDeadline=next.isBot?null:Date.now()+60000;p.message=a.automatic?"Time expired. "+player.name+"'s drawn card was discarded automatically.":(p.message||next.name+"'s turn. Draw a card.");
  }else if(a.type==="revealSpecial"){
   if(p.drawnByUid||hand.length!==13||player.unlocked||!hasNaturalFour(hand)){p.message="Reveal blocked: you need 13 cards and four natural cards of the same rank, with no draw pending.";await roomRef.child("public").set(p);return;}
   p.players[playerIndex].eligible=true;
@@ -2726,7 +2726,7 @@ async function startOnlineNextRound(){
   active.forEach(x=>hands[x.id]=d.splice(0,13));
   const first=d.pop(),nextRound=(p.round||1)+1;
   const starter=chooseNextRoundStarter(p.players||[],active,p.roundStarterUid||p.turnUid)||active[0];
-  const next={status:"playing",round:nextRound,scoreLimit:limit,turnUid:starter.id,roundStarterUid:starter.id,deckCount:d.length,discard:[first],drawnByUid:null,pickDeadline:starter.isBot?null:Date.now()+40000,specialRank:null,players:roundPlayers.map(x=>({...x,cardCount:(hands[x.id]||[]).length,roundDrawCount:0,roundDropped:false,dropPenalty:0})),message:"Round "+nextRound+". Elimination limit: "+limit+" points. "+starter.name+"'s turn. Draw a card."};
+  const next={status:"playing",round:nextRound,scoreLimit:limit,turnUid:starter.id,roundStarterUid:starter.id,deckCount:d.length,discard:[first],drawnByUid:null,pickDeadline:starter.isBot?null:Date.now()+60000,specialRank:null,players:roundPlayers.map(x=>({...x,cardCount:(hands[x.id]||[]).length,roundDrawCount:0,roundDropped:false,dropPenalty:0})),message:"Round "+nextRound+". Elimination limit: "+limit+" points. "+starter.name+"'s turn. Draw a card."};
   await roomRef.child("private").set({deck:d,hands,specialRank:null,specialRanks:{}});
   await roomRef.child("public").set(next);
   const screen=document.getElementById("roundResults");if(screen)screen.classList.add("hidden");
@@ -2748,7 +2748,7 @@ async function startFreshRoundWithScores(){
   active.forEach(x=>hands[x.id]=d.splice(0,13));
   const first=d.pop(),nextRound=(Number(p.round)||1)+1;
   const starter=chooseNextRoundStarter(p.players||[],active,p.roundStarterUid||p.turnUid)||active[0];
-  const next={status:"playing",round:nextRound,scoreLimit:limit,turnUid:starter.id,roundStarterUid:starter.id,deckCount:d.length,discard:[first],drawnByUid:null,drawnCardId:null,pickDeadline:starter.isBot?null:Date.now()+40000,discardDeadline:null,specialRank:null,players:roundPlayers.map(x=>({...x,cardCount:(hands[x.id]||[]).length})),message:"Round "+nextRound+" started by the host. Previous scores are preserved. "+starter.name+"'s turn."};
+  const next={status:"playing",round:nextRound,scoreLimit:limit,turnUid:starter.id,roundStarterUid:starter.id,deckCount:d.length,discard:[first],drawnByUid:null,drawnCardId:null,pickDeadline:starter.isBot?null:Date.now()+60000,discardDeadline:null,specialRank:null,players:roundPlayers.map(x=>({...x,cardCount:(hands[x.id]||[]).length})),message:"Round "+nextRound+" started by the host. Previous scores are preserved. "+starter.name+"'s turn."};
   await roomRef.child("private").set({deck:d,hands,specialRank:null,specialRanks:{}});
   await roomRef.child("public").set(next);
   onlinePublic=next;drawn=false;selected=-1;applyOnlinePublic();
