@@ -728,7 +728,36 @@ body.app-locked{overflow:hidden}
 #voicePanel{display:none!important}
 .top-voice-controls{display:flex;align-items:center;gap:7px;justify-content:flex-end}
 .top-voice-controls #voiceLeaveBtn{display:none!important}
-.top-voice-count{font-size:11px;min-width:20px;text-align:center;opacity:.8}</style>
+.top-voice-count{font-size:11px;min-width:20px;text-align:center;opacity:.8}
+#game>.app-nav{display:none!important}
+#game .game-brand{display:flex;align-items:center;justify-content:space-between;position:relative;margin:4px 0 12px;padding:0 4px}
+#game .game-brand .sai-brand{margin:auto}
+#game .leave-table-top{position:absolute;right:8px;top:0;padding:7px 10px;border-radius:22px;background:#57251e;color:#ffe5ad;border:1px solid #d8b15f;font-size:10px}
+#game .player-strip{padding:12px 10px 10px}
+#game .table-status{font-size:14px;margin-bottom:8px}
+#game .player-tools-row{display:grid;grid-template-columns:auto auto minmax(0,1fr);align-items:center;gap:6px;margin:2px 0 12px}
+#game .top-voice-controls{display:flex;align-items:center;gap:3px}
+#game #voiceMuteBtn,#game .player-tools-row .scores-toggle{min-height:34px;padding:6px 9px;border-radius:22px;font-size:10px;white-space:nowrap}
+#game .top-voice-count{font-size:10px;min-width:12px}
+#game .turn-pill{justify-self:end;padding:8px 9px;border:1px solid #ffe56b;border-radius:22px;color:#fff1b6;font-size:10px;font-weight:800;text-align:center;box-shadow:0 0 8px #ffe34f,0 0 17px #ffdc3a88;animation:turnPulse 1.7s ease-in-out infinite}
+@keyframes turnPulse{0%,100%{transform:scale(1);box-shadow:0 0 7px #ffe34f,0 0 15px #ffdc3a66}50%{transform:scale(1.035);box-shadow:0 0 12px #fff17c,0 0 25px #ffdc3acc}}
+#game #turnInfo:not(.own-turn){opacity:.8;box-shadow:none;animation:none;border-color:#a8b9a8}
+#game .players{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;overflow:visible;padding:3px 2px 5px}
+#game .player{position:relative;min-width:0;min-height:84px;flex:initial;display:flex;align-items:center;justify-content:center;padding:8px 4px;border:1px solid #b9c99b77;border-radius:16px;background:linear-gradient(145deg,#07503c,#063426);transition:transform .25s,box-shadow .25s,border-color .25s}
+#game .player-identity{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;width:100%;min-width:0}
+#game .avatar-stack{position:relative;display:inline-flex;align-items:center;justify-content:center;margin:0;min-width:0}
+#game .player-avatar{width:42px;height:42px;min-width:42px;flex-basis:42px;font-size:24px;border:2px solid #f6d88c}
+#game .avatar-count,#game .avatar-turn,#game .player-role,#game .profile-score,#game .joker-seen-badge{display:none!important}
+#game .player-name-wrap{display:block;max-width:100%;min-width:0;text-align:center}
+#game .player b{display:block;max-width:100%;font-size:11px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#game .profile-more{position:absolute;right:0;top:0;width:24px;height:27px;padding:0;border:0;background:transparent;color:#ffe9ae;font-size:22px;line-height:1;box-shadow:none}
+#game .profile-joker-badge{position:absolute;right:-8px;top:-8px;width:22px;height:22px;display:grid;place-items:center;border-radius:50%;background:#f4d47c;border:1px solid #fff0b4;font-size:13px;box-shadow:0 0 8px #ffdc5b}
+#game .player.active.turn-owner{border:2px solid #fff07a;transform:scale(1.035);box-shadow:0 0 8px #fff06a,0 0 22px #ffe23d,0 0 34px #ffd52b88;animation:profileGlow 1.6s ease-in-out infinite;z-index:1}
+@keyframes profileGlow{0%,100%{box-shadow:0 0 7px #fff06a,0 0 18px #ffe23d88}50%{box-shadow:0 0 13px #fff6a3,0 0 30px #ffe23dcc}}
+#game .game-chat .chat-tools{display:none!important}
+#game .chat-compose{margin-top:8px}
+@media(max-width:450px){#game .leave-table-top{right:6px;font-size:9px;padding:6px 7px}#game .player-tools-row{gap:4px}#game #voiceMuteBtn,#game .player-tools-row .scores-toggle{font-size:9px;padding:6px 7px}#game .turn-pill{font-size:9px;padding:7px 6px}#game .players{gap:5px}#game .player{min-height:76px;padding:7px 2px}#game .player-avatar{width:37px;height:37px;min-width:37px;flex-basis:37px;font-size:21px}#game .player b{font-size:10px}}
+</style>
 </head>
 
 <body class="app-locked">
@@ -882,12 +911,12 @@ body.app-locked{overflow:hidden}
 </section>
 
 <section id="game" class="hidden">
-<nav class="app-nav" aria-label="Game navigation"><button class="nav-back" type="button" onclick="exitCurrentTable()">← Exit table</button><div class="nav-steps"><span class="nav-step">HOME</span><span class="nav-step">ROOM</span><span class="nav-step current">GAME</span></div></nav>
-<div class="game-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong><small>PERSONAL BRAND</small></span></div></div>
+
+<div class="game-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong><small>PERSONAL BRAND</small></span></div><button class="leave-table-top" type="button" onclick="exitCurrentTable()">↗ Leave table</button></div>
 <div class="panel player-strip">
-<div class="table-status"><span id="roundInfo">Round 1</span><span id="turnInfo"></span></div>
-<div id="topVoiceControls" class="top-voice-controls" aria-label="Voice controls"><span class="top-voice-label">🎙️ Voice</span><button type="button" id="voiceMuteBtn" class="voice-secondary" onclick="toggleVoiceControl()">Join voice</button><span id="topVoiceCount" class="top-voice-count">0</span></div>
-<div class="players-heading"><h3>Players</h3><button type="button" id="scoresToggle" class="scores-toggle" onclick="togglePlayerScores()" aria-pressed="false">Scores</button></div>
+<div class="table-status"><span id="roundInfo">Round 1</span></div>
+<div class="player-tools-row"><div id="topVoiceControls" class="top-voice-controls" aria-label="Voice controls"><button type="button" id="voiceMuteBtn" class="voice-secondary" onclick="toggleVoiceControl()">🎙️ Join voice</button><span id="topVoiceCount" class="top-voice-count">0</span></div><button type="button" id="scoresToggle" class="scores-toggle" onclick="togglePlayerScores()" aria-pressed="false">▥ Scores</button><span id="turnInfo" class="turn-pill"></span></div>
+<div class="players-heading"><h3>Players</h3></div>
 <div class="players" id="players"></div>
 </div>
 
@@ -936,28 +965,6 @@ body.app-locked{overflow:hidden}
  </div>
  <div id="chatDrawer" class="chat-drawer hidden">
   <div class="chat-feed" id="chatFeed" aria-live="polite"><div class="chat-empty" id="chatEmpty">The table is quiet. Send the first reaction!</div></div>
-  <div class="chat-tools">
-   <div class="chat-tool-label">QUICK REACTIONS</div>
-   <div class="chat-reactions">
-    <button type="button" onclick="sendGameChat('emoji','😂')">😂</button>
-    <button type="button" onclick="sendGameChat('emoji','❤️')">❤️</button>
-    <button type="button" onclick="sendGameChat('emoji','🔥')">🔥</button>
-    <button type="button" onclick="sendGameChat('emoji','👏')">👏</button>
-    <button type="button" onclick="sendGameChat('emoji','😮')">😮</button>
-    <button type="button" onclick="sendGameChat('emoji','🎉')">🎉</button>
-    <button type="button" onclick="sendGameChat('emoji','🙏')">🙏</button>
-    <button type="button" onclick="sendGameChat('emoji','🤝')">🤝</button>
-   </div>
-   <div class="chat-tool-label">QUICK MESSAGES</div>
-   <div class="chat-phrases">
-    <button type="button" onclick="sendGameChat('phrase','Nice set!')">Nice set!</button>
-    <button type="button" onclick="sendGameChat('phrase','Good move!')">Good move!</button>
-    <button type="button" onclick="sendGameChat('phrase','Wait a second')">Wait a second</button>
-    <button type="button" onclick="sendGameChat('phrase','Your turn!')">Your turn!</button>
-    <button type="button" onclick="sendGameChat('phrase','Well played!')">Well played!</button>
-    <button type="button" onclick="sendGameChat('phrase','Let’s go!')">Let’s go!</button>
-   </div>
-  </div>
   <form class="chat-compose" onsubmit="sendCustomGameChat(event)">
    <input id="chatInput" type="text" maxlength="100" autocomplete="off" placeholder="Message everyone at the table…" aria-label="Write a chat message">
    <button type="submit" id="chatSendBtn">Send</button>
@@ -975,6 +982,7 @@ body.app-locked{overflow:hidden}
 <button onclick="startGame()">Restart game</button>
 <button id="newRoundBtn" onclick="startFreshRoundWithScores()">Start new round (keep scores)</button>
 </div>
+<div id="hostPlayerManagement"></div>
 </details>
 </div>
 
@@ -1552,6 +1560,11 @@ function message(t){
 }
 
 function render(){
+ const manage=document.getElementById("hostPlayerManagement");
+ if(manage){
+  const removable=(onlinePublic?.players||[]).filter(p=>isRoomHost&&p.id!==roomPlayerId&&p.active!==false);
+  manage.innerHTML=removable.length?'<p>Remove a player</p>'+removable.map(p=>'<button type="button" class="host-remove-player" data-player-id="'+escapeLobbyText(p.id)+'" onclick="removeOnlinePlayer(this.dataset.playerId)">Remove '+escapeLobbyText(p.name)+'</button>').join(''):'';
+ }
  const roundLabel=document.getElementById("roundInfo");
  if(roundLabel)roundLabel.textContent="Round "+round;
  const newRoundBtn=document.getElementById("newRoundBtn");
@@ -1575,7 +1588,7 @@ function render(){
   if(players[0]){
 document.getElementById("handCount").textContent=players[0].hand.length;const unmatchedEl=document.getElementById("handUnmatched");if(unmatchedEl)unmatchedEl.textContent="In hand: "+bestUnmatchedScore(players[0].hand||[],players[0])+" pts";
    if(playersEl){
-playersEl.innerHTML=players.map((p,i)=>{return '<div data-player-id="'+escapeLobbyText(p.id||"")+'" class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+(p.roundDropped?' dropped-player':'')+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+p.score+'</span>'+(p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+(p.roundDropped?'<span class="player-dropped">⛔ DROPPED · +'+(p.dropPenalty||0)+'</span>':'')+(onlineMode&&isRoomHost&&p.id!==roomPlayerId&&p.active!==false&&onlinePublic?.status==="playing"?'<button class="host-remove-player" onclick="removeOnlinePlayer(\''+p.id+'\')">Remove player</button>':'')+'</div>';}).join('');
+playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+(p.roundDropped?'dropped-player':'')+'">'+playerIdentityMarkup(p,i,"game")+(p.roundDropped?'<span class="player-dropped">DROPPED</span>':'')+'</div>').join('');;
    }
    if(handEl){
     try{handEl.innerHTML=renderHandLayout();}
@@ -2044,10 +2057,7 @@ function playerRoleLabel(player,index,context){
  return context==="results"?"PLAYER":"SEAT "+(index+1);
 }
 function playerAvatarFace(player,index){const faces=["👨🏻","👩🏻","🧑🏽","👨🏽","👩🏽","🧑🏻"];return player.isBot?"🤖":faces[index%faces.length];}
- function playerIdentityMarkup(player,index,context){
-  const role=playerRoleLabel(player,index,context),count=Array.isArray(player.hand)?player.hand.length:(Number(player.cardCount)||0),isTurn=context==="game"&&(onlineMode?player.id===onlinePublic?.turnUid:index===turn)&&!gameOver&&!player.roundDropped;
-  return '<div class="'+(context==="results"?'results-identity':'player-identity')+'"><span class="avatar-stack"><span class="player-avatar" aria-hidden="true">'+playerAvatarFace(player,index)+'</span>'+(context!=="results"?'<span class="avatar-count">'+count+'</span>':'')+(isTurn?'<span class="avatar-turn">TURN</span>':'')+'</span><span class="'+(context==="results"?'results-name':'player-name-wrap')+'">'+(context==="results"?'<strong>':'<b>')+escapeLobbyText(player.name)+(context==="results"?' </strong>':'</b>')+'<span class="player-role">'+role+'</span></span></div>';
- }
+ function playerIdentityMarkup(player,index,context){ const avatar=playerAvatarFace(player,index); if(context==="game"){ return '<div class="player-identity"><span class="avatar-stack"><span class="player-avatar" aria-hidden="true">'+avatar+'</span>'+(player.unlocked?'<span class="profile-joker-badge">🃏</span>':'')+'</span><span class="player-name-wrap"><b>'+escapeLobbyText(player.name)+'</b></span><button type="button" class="profile-more" onclick="openPlayerMessage(event)">⋮</button></div>'; } const role=playerRoleLabel(player,index,context); return '<div class="results-identity"><span class="avatar-stack"><span class="player-avatar">'+avatar+'</span></span><span class="results-name"><strong>'+escapeLobbyText(player.name)+'</strong><span class="player-role">'+role+'</span></span></div>'; }
  function togglePlayerScores(){const button=document.getElementById("scoresToggle"),visible=document.body.classList.toggle("show-player-scores");if(button){button.setAttribute("aria-pressed",String(visible));button.textContent=visible?"Hide scores":"Scores";}}
 
 
@@ -2280,6 +2290,7 @@ function showSharedAction(action){
  if(profile){profile.classList.remove("action-player");void profile.offsetWidth;profile.classList.add("action-player");}
 }
 
+function openPlayerMessage(event){if(event){event.preventDefault();event.stopPropagation();}if(!onlineMode||!roomRef||!roomPlayerId)return;const text=window.prompt("Write a message to the table:");if(text&&text.trim())writeGameChat("text",text.trim().slice(0,100));}
 function toggleGameChat(){
  const drawer=document.getElementById("chatDrawer"),button=document.getElementById("chatToggle");if(!drawer||!button)return;
  chatIsOpen=!chatIsOpen;drawer.classList.toggle("hidden",!chatIsOpen);button.setAttribute("aria-expanded",String(chatIsOpen));
