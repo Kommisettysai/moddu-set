@@ -2520,9 +2520,7 @@ function showSharedAction(action){
   badge.classList.remove("show");
   badge.classList.add("hidden");
   if(isOpenPick){
-   const player=(onlinePublic?.players||[]).find(p=>p.id===action.uid);
-   const name=action.name||(player&&player.name)||"PLAYER";
-   badge.textContent=name.toUpperCase()+" PICKED OPEN CARD";
+   badge.textContent="OPEN CARD PICKED";
    badge.classList.remove("hidden");
    void badge.offsetWidth;
    badge.classList.add("show");
