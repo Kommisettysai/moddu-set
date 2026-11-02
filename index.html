@@ -2413,7 +2413,6 @@ function showWaitingRoom(){
  const startBtn=document.getElementById("startRoomBtn"),botBtn=document.getElementById("addBotBtn");
  if(startBtn)startBtn.classList.toggle("hidden",!isRoomHost);
  if(botBtn)botBtn.classList.toggle("hidden",!isRoomHost);
- if(waiting)waiting.scrollIntoView({behavior:"smooth",block:"start"});
  if(onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
  if(rejoinPublicListener)roomRef.child("public").off("value",rejoinPublicListener);
  onlineLobbyListener=snap=>{
