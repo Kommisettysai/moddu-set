@@ -670,6 +670,12 @@ body.app-locked{overflow:hidden}
 .voice-note{font-size:10px;color:#b9cdbf;line-height:1.4;margin-top:8px}
 
 
+/* Compact voice controls stay beside the round/turn header while playing. */
+.top-voice-controls{display:flex;align-items:center;justify-content:flex-end;gap:7px;margin:5px 0 8px;padding:0 2px}
+.top-voice-controls.hidden{display:none}
+.top-voice-label{font-size:.76rem;font-weight:700;color:var(--gold,#f1d58a);white-space:nowrap}
+.top-voice-controls button{min-height:34px;padding:6px 12px;border-radius:999px;font-size:.78rem;line-height:1.1;white-space:nowrap}
+.top-voice-controls #voiceLeaveBtn{background:rgba(120,45,40,.9);color:#fff;border:1px solid rgba(255,220,170,.35)}
 /* Keep voice and chat below the hand so the cards stay near the top. */
 .game-communication-compact{display:grid;grid-template-columns:1fr;gap:10px;margin:12px 0 18px}
 .game-communication-compact .voice-panel,
@@ -835,6 +841,7 @@ body.app-locked{overflow:hidden}
 <div class="game-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong><small>PERSONAL BRAND</small></span></div></div>
 <div class="panel player-strip">
 <div class="table-status"><span id="roundInfo">Round 1</span><span id="turnInfo"></span></div>
+<div id="topVoiceControls" class="top-voice-controls hidden" aria-label="Voice controls"><span class="top-voice-label">🎙️ Voice</span><button type="button" id="voiceMuteBtn" class="voice-secondary" onclick="toggleVoiceMute()" disabled>Unmute mic</button><button type="button" id="voiceLeaveBtn" class="voice-secondary" onclick="leaveVoiceChat()">Leave</button></div>
 <div class="players-heading"><h3>Players</h3><button type="button" id="scoresToggle" class="scores-toggle" onclick="togglePlayerScores()" aria-pressed="false">Scores</button></div>
 <div class="players" id="players"></div>
 </div>
@@ -873,8 +880,6 @@ body.app-locked{overflow:hidden}
  <div class="voice-head"><div><h3>🎙️ Table voice</h3><div class="voice-status" id="voiceStatus">Voice is off. Join when you want to talk.</div></div><span id="voiceCount" class="voice-person">0 connected</span></div>
  <div class="voice-controls">
   <button type="button" id="voiceJoinBtn" onclick="joinVoiceChat()">Join Voice</button>
-  <button type="button" id="voiceMuteBtn" class="voice-secondary hidden" onclick="toggleVoiceMute()" disabled>Unmute mic</button>
-  <button type="button" id="voiceLeaveBtn" class="voice-secondary hidden" onclick="leaveVoiceChat()">Leave Voice</button>
  </div>
  <div class="voice-people" id="voicePeople"></div>
  <div class="voice-note">Your microphone starts muted. Only players in this game room can join. Voice is not recorded.</div>
@@ -2384,6 +2389,7 @@ async function joinVoiceChat(){
   document.getElementById("voiceMuteBtn")?.classList.remove("hidden");
   document.getElementById("voiceMuteBtn").disabled=false;
   document.getElementById("voiceLeaveBtn")?.classList.remove("hidden");
+  document.getElementById("topVoiceControls")?.classList.remove("hidden");
   voiceSetStatus("Connected to voice. Your microphone is muted.");
  }catch(e){
   voiceJoined=false;
@@ -2416,6 +2422,7 @@ async function leaveVoiceChat(){
  document.getElementById("voiceJoinBtn")?.classList.remove("hidden");
  document.getElementById("voiceMuteBtn")?.classList.add("hidden");
  document.getElementById("voiceLeaveBtn")?.classList.add("hidden");
+ document.getElementById("topVoiceControls")?.classList.add("hidden");
  voiceRenderPeople([]);
  voiceSetStatus("Voice is off. Join when you want to talk.");
 }
