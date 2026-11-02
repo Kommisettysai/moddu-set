@@ -1001,6 +1001,18 @@ body.app-locked{overflow:hidden}
 /* Compact home: put the account card at the top */
 #setup{padding-top:8px!important}
 #setup>.lobby-card{margin-top:0!important}
+
+/* Cleaner in-game viewport */
+body:has(#game:not(.hidden))>header{display:none!important}
+
+/* Keep the discard label inside its framed pile */
+#discardPile.discard-pile{position:relative!important;justify-content:flex-start!important;gap:0!important;padding:3px 0 20px!important;overflow:hidden!important}
+#discardPile .discard-stack{height:80px!important;flex:0 0 80px!important;margin:0 auto!important}
+#discardPile .discard-history-card{width:42px!important;height:54px!important;top:calc(var(--stack-index)*13px)!important}
+#discardPile>small{position:absolute!important;left:2px!important;right:2px!important;bottom:5px!important;margin:0!important;text-align:center!important;font-size:9px!important;line-height:11px!important;letter-spacing:.55px!important;white-space:nowrap!important}
+
+/* Drop is a secondary, less frequently used action */
+.drop-round-btn{margin-top:20px!important;margin-bottom:5px!important}
 </style>
 </head>
 
@@ -2439,7 +2451,6 @@ async function removeRoomPlayer(playerId){
   const lobbyRef=roomRef.child("lobby"),snap=await lobbyRef.get(),l=snap.val()||{};
   if(l.hostId!==authUser.uid||l.status!=="waiting"){setLobbyNotice("Only the host can remove players before the game starts.");return;}
   const player=(l.players||{})[playerId];if(!player){setLobbyNotice("That player is no longer at this table.");return;}
-  if(!confirm("Remove "+String(player.name||"this player")+" from the table?"))return;
   await lobbyRef.child("players/"+playerId).remove();
   setLobbyNotice((player.name||"Player")+" was removed from the table.");
  }catch(e){setLobbyNotice("Could not remove player: "+e.message);}
@@ -2778,7 +2789,6 @@ function applyOnlinePublic(){
 }
 async function removeOnlinePlayer(uid){
  if(!onlineMode||!isRoomHost||!roomRef||!uid||uid===roomPlayerId)return;
- if(!confirm("Remove this player? They can rejoin with the same room code. Their saved 13-card hand can be restored this round; otherwise they return next round with +20 points."))return;
  try{
   const [ps,ds]=await Promise.all([roomRef.child("public").get(),roomRef.child("private").get()]);
   const p=ps.val(),priv=ds.val()||{};if(!p||p.status!=="playing")return;
@@ -2853,12 +2863,10 @@ function dropCurrentRound(){
   const me=(onlinePublic?.players||[]).find(p=>p.id===roomPlayerId);
   if(!me||me.active===false||me.roundDropped){message("You cannot drop this round.");return;}
   const penalty=(Number(me.roundDrawCount)||0)<=1?20:40;
-  if(!confirm("Drop this round for "+penalty+" points? You can play again next round."))return;
   sendOnlineAction({type:"dropRound"});return;
  }
  const me=players[0];if(!me||me.roundDropped){message("You have already dropped this round.");return;}
  const penalty=(Number(me.roundDrawCount)||0)<=1?20:40;
- if(!confirm("Drop this round for "+penalty+" points? You can play again next round."))return;
  me.roundDropped=true;me.dropPenalty=penalty;me.score+=penalty;me.status="Dropped this round";
  message(me.name+" dropped this round for "+penalty+" points. They can return next round.");
  if(turn===0)nextTurn();else render();
