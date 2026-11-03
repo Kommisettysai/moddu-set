@@ -1074,6 +1074,29 @@ body:has(#roundResults:not(.hidden))>header,
  #game .turn-pill{font-size:14px;padding:10px 13px;min-width:112px}
  #game #turnInfo.own-turn{font-size:17px!important;padding:11px 15px!important;min-width:132px;letter-spacing:.8px}
 }
+
+/* Results score chips: make the round penalty and running total easy to scan. */
+#roundResults .results-hand-head .results-total{
+ font-size:14px!important;
+ font-weight:1000!important;
+ padding:7px 11px!important;
+ min-height:34px;
+ letter-spacing:.2px;
+ box-shadow:0 0 0 1px #a9c65a22,0 2px 7px #0003;
+}
+#roundResults .results-hand-head .result-current{
+ font-size:16px!important;
+ font-weight:1000!important;
+ padding:8px 12px!important;
+ min-height:36px;
+ letter-spacing:.2px;
+ border-width:2px!important;
+ box-shadow:0 0 0 2px #d99b6430,0 2px 8px #0004;
+}
+@media(max-width:390px){
+ #roundResults .results-hand-head .results-total{font-size:13px!important;padding:6px 9px!important;min-height:32px}
+ #roundResults .results-hand-head .result-current{font-size:15px!important;padding:7px 10px!important;min-height:34px}
+}
 </style>
 </head>
 
