@@ -1130,6 +1130,72 @@ body:has(#roundResults:not(.hidden))>header,
  letter-spacing:.7px;
  box-shadow:0 1px 5px #0005;
 }
+
+/* Final game result: reveal every player and celebrate the shared champion. */
+#roundResults.game-complete-screen #resultsProfiles{
+ display:grid!important;
+ grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ gap:10px!important;
+ margin:4px 0 18px!important;
+ position:relative;
+ isolation:isolate;
+ overflow:hidden;
+ padding:8px 3px 14px;
+}
+#roundResults.game-complete-screen .champion-celebration{
+ grid-column:1/-1;
+ position:relative;
+ z-index:2;
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ justify-content:center;
+ gap:5px;
+ margin:2px 0 8px;
+ padding:20px 12px 18px;
+ border:2px solid #ffe18b;
+ border-radius:20px;
+ background:radial-gradient(ellipse at 50% 0%,#96712c 0,#315b3b 58%,#123b2d 100%);
+ box-shadow:0 0 0 3px #ffe18b33,0 0 24px #ffdf7855,inset 0 1px #fff7;
+ text-align:center;
+ animation:championEntrance .8s cubic-bezier(.2,.8,.2,1) both,championGlow 2.4s ease-in-out .8s infinite alternate;
+}
+#roundResults.game-complete-screen .champion-crown{font-size:39px;line-height:1.1;filter:drop-shadow(0 3px 5px #0007);animation:crownBob 1.8s ease-in-out infinite}
+#roundResults.game-complete-screen .champion-eyebrow{font-size:10px;font-weight:1000;letter-spacing:2px;color:#ffe7a8}
+#roundResults.game-complete-screen .champion-celebration>strong{font-family:Georgia,serif;font-size:clamp(25px,7vw,36px);color:#fff0bd;text-shadow:0 2px 12px #ffdc7b88}
+#roundResults.game-complete-screen .champion-score{font-size:13px;font-weight:900;color:#fff0c9;padding:6px 12px;border-radius:99px;background:#092d22a8;border:1px solid #f4d28a77}
+#roundResults.game-complete-screen .champion-message{font-size:14px;font-weight:900;color:#ffe4a0;letter-spacing:.5px}
+#roundResults.game-complete-screen .results-profile{
+ position:relative;z-index:2;min-height:122px;
+}
+#roundResults.game-complete-screen .results-profile.show-winner{
+ border:2px solid #ffe17d!important;
+ background:linear-gradient(145deg,#806027,#31563b)!important;
+ box-shadow:0 0 0 2px #ffe17d44,0 0 20px #ffdc6d99!important;
+ animation:championProfilePulse 1.8s ease-in-out infinite alternate;
+}
+#roundResults.game-complete-screen .results-profile.show-winner .player-avatar{box-shadow:0 0 0 3px #ffe18b66,0 0 15px #ffdf7a}
+#roundResults.game-complete-screen .results-profile.show-winner .finish-rank{background:#ffe18b!important;color:#3c2b0d!important;font-weight:1000!important}
+#roundResults.game-complete-screen .results-profile .result-points{font-size:15px!important}
+#roundResults.game-complete-screen .winner-tag{font-size:10px!important;padding:5px 9px!important}
+#roundResults.game-complete-screen .winner-confetti{
+ position:absolute;inset:0 0 auto;height:330px;z-index:1;overflow:hidden;pointer-events:none;
+}
+#roundResults.game-complete-screen .winner-confetti span{
+ position:absolute;left:var(--x);top:-35px;
+ font-size:clamp(17px,5vw,25px);opacity:0;
+ animation:confettiRain 4.8s ease-in var(--delay,0s) 1 both;
+}
+#roundResults.game-complete-screen .winner-confetti span:nth-child(3n){--delay:.25s}
+#roundResults.game-complete-screen .winner-confetti span:nth-child(3n + 1){--delay:.8s}
+#roundResults.game-complete-screen .winner-confetti span:nth-child(3n + 2){--delay:1.25s}
+@keyframes confettiRain{0%{transform:translate3d(0,-20px,0) rotate(0);opacity:0}12%{opacity:1}85%{opacity:.9}100%{transform:translate3d(25px,360px,0) rotate(300deg);opacity:0}}
+@keyframes championEntrance{from{transform:translateY(18px) scale(.94);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+@keyframes championGlow{from{box-shadow:0 0 0 2px #ffe17d22,0 0 13px #ffdc6d55}to{box-shadow:0 0 0 4px #ffe17d55,0 0 27px #ffdc6dcc}}
+@keyframes championProfilePulse{from{filter:brightness(1)}to{filter:brightness(1.16)}}
+@keyframes crownBob{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-5px) rotate(4deg)}}
+@media(max-width:390px){#roundResults.game-complete-screen #resultsProfiles{gap:7px!important}#roundResults.game-complete-screen .results-profile{min-height:112px;padding:8px 4px!important}#roundResults.game-complete-screen .champion-celebration{padding:17px 9px}}
+@media(prefers-reduced-motion:reduce){#roundResults.game-complete-screen .champion-celebration,#roundResults.game-complete-screen .champion-crown,#roundResults.game-complete-screen .results-profile.show-winner,#roundResults.game-complete-screen .winner-confetti span{animation:none!important}}
 </style>
 </head>
 
@@ -2909,7 +2975,7 @@ async function leaveVoiceChat(){
 
 function applyOnlinePublic(){
  if(!onlineMode||!onlinePublic)return;onlineActionPending=false;const st=onlinePublic,prior=players[0]||{},m=st.players||[];specialRank=st.specialRank||null;showSharedAction(st.lastAction);
- if(st.status==="playing"){const resultScreen=document.getElementById("roundResults");if(resultScreen)resultScreen.classList.add("hidden");}
+ if(st.status==="playing"){const resultScreen=document.getElementById("roundResults");if(resultScreen){resultScreen.classList.add("hidden");resultScreen.classList.remove("game-complete-screen");}}
  const ordered=[...m].sort((a,b)=>a.id===roomPlayerId?-1:b.id===roomPlayerId?1:0);
  players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,roundDrawCount:p.roundDrawCount||0,roundDropped:!!p.roundDropped,dropPenalty:p.dropPenalty||0,unlocked:!!p.unlocked,active:p.active!==false,human:p.id===roomPlayerId,cardCount:p.cardCount||0,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
  if(!players.length)return;
@@ -3107,8 +3173,15 @@ function openOnlineRoundResults(result){
 function openOnlineGameComplete(champion){
  const screen=document.getElementById("roundResults"),profiles=document.getElementById("resultsProfiles"),handsEl=document.getElementById("resultsHands");
  if(!screen||!profiles||!handsEl)return;
- document.getElementById("resultsSummary").textContent=champion+" wins Moddu Set!";
- profiles.innerHTML=(onlinePublic.players||[]).map((p,i)=>'<div class="results-profile '+(p.name===champion?'show-winner':'')+'">'+playerIdentityMarkup(p,i,"results")+'<span class="finish-rank">'+(p.name===champion?'🥇 CHAMPION':'FINAL PLAYER')+'</span><span class="result-points">Total: '+(p.score||0)+'</span>'+(p.name===champion?'<span class="winner-tag">🏆 WINNER</span>':'')+'</div>').join('');
+ screen.classList.add("game-complete-screen");
+ const summary=document.getElementById("resultsSummary");
+ if(summary)summary.textContent="The final table is complete. Congratulations, "+champion+"!";
+ const confetti=["🎉","🎊","✨","🎈","🏆","🎉","🎊","✨","🎈","🎉","🎊","✨","🎈","🎉","🎊","✨"];
+ const confettiMarkup='<div class="winner-confetti" aria-hidden="true">'+confetti.map((item,i)=>'<span style="--i:'+i+';--x:'+((i*6.25)+2)+'%">'+item+'</span>').join("")+'</div>';
+ const sorted=[...(onlinePublic.players||[])].sort((a,b)=>Number(a.id===onlinePublic.championUid)-Number(b.id===onlinePublic.championUid)).reverse();
+ const winner=sorted.find(p=>p.id===onlinePublic.championUid)||sorted.find(p=>p.name===champion);
+ const winnerMarkup=winner?'<div class="champion-celebration"><span class="champion-crown">👑</span><span class="champion-eyebrow">MODDU SET CHAMPION</span><strong>'+escapeLobbyText(winner.name)+'</strong><span class="champion-score">🏆 FINAL SCORE: '+(Number(winner.score)||0)+'</span><span class="champion-message">🎉 Congratulations! 🎊</span></div>':'';
+ profiles.innerHTML=confettiMarkup+winnerMarkup+sorted.map((p,i)=>{const isWinner=p.id===onlinePublic.championUid||(!onlinePublic.championUid&&p.name===champion);return '<div class="results-profile '+(isWinner?'show-winner champion-profile':'final-player-profile')+'">'+playerIdentityMarkup(p,i,"results")+'<span class="finish-rank">'+(isWinner?'🏆 CHAMPION':'FINAL PLAYER')+'</span><span class="result-points">Total: '+(Number(p.score)||0)+'</span>'+(isWinner?'<span class="winner-tag">🎊 WINNER 🎊</span>':'')+'</div>';}).join('');
  handsEl.innerHTML="";
  const footer=screen.querySelector(".results-footer");
  if(footer)footer.innerHTML='<button onclick="closeResults()">Back to table</button>';
