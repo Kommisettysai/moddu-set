@@ -1182,7 +1182,7 @@ body:has(#roundResults:not(.hidden))>header,
  position:absolute;inset:0 0 auto;height:330px;z-index:1;overflow:hidden;pointer-events:none;
 }
 #roundResults.game-complete-screen .winner-confetti span{
- position:absolute;left:calc((var(--i)*37 + 4)% 100);top:-35px;
+ position:absolute;left:var(--x);top:-35px;
  font-size:clamp(17px,5vw,25px);opacity:0;
  animation:confettiRain 4.8s ease-in var(--delay,0s) 1 both;
 }
@@ -3177,7 +3177,7 @@ function openOnlineGameComplete(champion){
  const summary=document.getElementById("resultsSummary");
  if(summary)summary.textContent="The final table is complete. Congratulations, "+champion+"!";
  const confetti=["🎉","🎊","✨","🎈","🏆","🎉","🎊","✨","🎈","🎉","🎊","✨","🎈","🎉","🎊","✨"];
- const confettiMarkup='<div class="winner-confetti" aria-hidden="true">'+confetti.map((item,i)=>'<span style="--i:'+i+'">'+item+'</span>').join("")+'</div>';
+ const confettiMarkup='<div class="winner-confetti" aria-hidden="true">'+confetti.map((item,i)=>'<span style="--i:'+i+';--x:'+((i*6.25)+2)+'%">'+item+'</span>').join("")+'</div>';
  const sorted=[...(onlinePublic.players||[])].sort((a,b)=>Number(a.id===onlinePublic.championUid)-Number(b.id===onlinePublic.championUid)).reverse();
  const winner=sorted.find(p=>p.id===onlinePublic.championUid)||sorted.find(p=>p.name===champion);
  const winnerMarkup=winner?'<div class="champion-celebration"><span class="champion-crown">👑</span><span class="champion-eyebrow">MODDU SET CHAMPION</span><strong>'+escapeLobbyText(winner.name)+'</strong><span class="champion-score">🏆 FINAL SCORE: '+(Number(winner.score)||0)+'</span><span class="champion-message">🎉 Congratulations! 🎊</span></div>':'';
