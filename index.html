@@ -2165,7 +2165,7 @@ function isWildForPlayer(card,player){
 }
 function unmatchedCardPoints(card,player={unlocked:false}){
  if(isWildForPlayer(card,player))return 0;
- if(card.rank==="A")return 1;if(card.rank==="Q")return 12;if(card.rank==="K")return 13;
+ if(card.rank==="A")return 1;if(card.rank==="J")return 11;if(card.rank==="Q")return 12;if(card.rank==="K")return 13;
  return Number(card.rank)||0;
 }
 function bestScoringBreakdown(hand,player){
