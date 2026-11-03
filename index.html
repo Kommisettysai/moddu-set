@@ -1097,6 +1097,39 @@ body:has(#roundResults:not(.hidden))>header,
  #roundResults .results-hand-head .results-total{font-size:13px!important;padding:6px 9px!important;min-height:32px}
  #roundResults .results-hand-head .result-current{font-size:15px!important;padding:7px 10px!important;min-height:34px}
 }
+
+/* Keep eliminated players visible, but clearly separate them from active seats. */
+#game .player.eliminated-player{
+ opacity:.62;
+ filter:saturate(.48);
+ border:1px solid #c98b83!important;
+ background:linear-gradient(145deg,#3a3430,#252d28)!important;
+ box-shadow:inset 0 0 0 1px #d58b7b22!important;
+}
+#game .player.eliminated-player.active,
+#game .player.eliminated-player.turn-owner{
+ outline:none!important;
+ box-shadow:inset 0 0 0 1px #d58b7b22!important;
+}
+#game .player.eliminated-player .player-avatar{
+ filter:grayscale(.75);
+}
+#game .player-eliminated{
+ display:inline-flex;
+ align-items:center;
+ justify-content:center;
+ margin-top:5px;
+ padding:3px 7px;
+ border:1px solid #e4a096;
+ border-radius:999px;
+ background:linear-gradient(180deg,#713b36,#512b29);
+ color:#ffe0d8;
+ font-size:9px;
+ line-height:1.1;
+ font-weight:1000;
+ letter-spacing:.7px;
+ box-shadow:0 1px 5px #0005;
+}
 </style>
 </head>
 
@@ -1874,7 +1907,7 @@ function render(){
   if(players[0]){
 document.getElementById("handCount").textContent=players[0].hand.length;const unmatchedEl=document.getElementById("handUnmatched");if(unmatchedEl)unmatchedEl.textContent="In hand: "+bestUnmatchedScore(players[0].hand||[],players[0])+" pts";
    if(playersEl){
-playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+(p.roundDropped?'dropped-player':'')+'" data-player-id="'+escapeLobbyText(p.id)+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+(Number(p.score)||0)+'</span>'+(p.roundDropped?'<span class="player-dropped">DROPPED</span>':'')+'</div>').join('');
+playersEl.innerHTML=players.map((p,i)=>{const eliminated=p.active===false||p.status==="Eliminated";return '<div class="player '+(i===turn&&!eliminated?'active turn-owner ':'')+(p.unlocked?'joker-seen ':'')+(p.roundDropped?'dropped-player ':'')+(eliminated?'eliminated-player':'')+'" data-player-id="'+escapeLobbyText(p.id)+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+(Number(p.score)||0)+'</span>'+(eliminated?'<span class="player-eliminated">ELIMINATED</span>':p.roundDropped?'<span class="player-dropped">DROPPED</span>':'')+'</div>';}).join('');
    }
    if(handEl){
     try{handEl.innerHTML=renderHandLayout();}
@@ -1891,7 +1924,7 @@ playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active t
  }catch(error){
   console.error("Game render error:",error);
   if(playersEl&&players.length){
-   playersEl.innerHTML=players.map((p,i)=>'<div class="player '+(i===turn?'active turn-owner ':'')+(p.unlocked?'joker-seen':'')+'" data-player-id="'+escapeLobbyText(p.id)+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+(Number(p.score)||0)+'</span>'+(p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+'</div>').join('');
+   playersEl.innerHTML=players.map((p,i)=>{const eliminated=p.active===false||p.status==="Eliminated";return '<div class="player '+(i===turn&&!eliminated?'active turn-owner ':'')+(p.unlocked?'joker-seen ':'')+(eliminated?'eliminated-player':'')+'" data-player-id="'+escapeLobbyText(p.id)+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+(Number(p.score)||0)+'</span>'+(eliminated?'<span class="player-eliminated">ELIMINATED</span>':p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+'</div>';}).join('');
   }
   if(handEl&&players[0]){
    handEl.innerHTML=players[0].hand.map((c,i)=>cardMarkup(c,i)).join('');
