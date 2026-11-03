@@ -746,6 +746,11 @@ body.app-locked{overflow:hidden}
 #game .turn-pill{justify-self:end;padding:8px 9px;border:1px solid #ffe56b;border-radius:22px;color:#fff1b6;font-size:10px;font-weight:800;text-align:center;box-shadow:0 0 8px #ffe34f,0 0 17px #ffdc3a88;animation:turnPulse 1.7s ease-in-out infinite}
 @keyframes turnPulse{0%,100%{transform:scale(1);box-shadow:0 0 7px #ffe34f,0 0 15px #ffdc3a66}50%{transform:scale(1.035);box-shadow:0 0 12px #fff17c,0 0 25px #ffdc3acc}}
 #game #turnInfo:not(.own-turn){opacity:.8;box-shadow:none;animation:none;border-color:#a8b9a8}
+#game .turn-pill{font-size:14px;padding:9px 13px;min-width:104px;letter-spacing:.25px;transition:all .2s ease}
+#game #turnInfo.own-turn{opacity:1;background:linear-gradient(135deg,#ffe58a,#f2bd48);border:2px solid #fff0b2;color:#30210a!important;font-size:16px;font-weight:1000!important;text-shadow:none;box-shadow:0 0 0 3px #ffe58a33,0 0 15px #ffe34f,0 0 30px #ffdc3acc;animation:ownTurnGlow .9s ease-in-out infinite alternate}
+@keyframes ownTurnGlow{from{transform:scale(1);box-shadow:0 0 0 2px #ffe58a22,0 0 12px #ffe34f}to{transform:scale(1.055);box-shadow:0 0 0 4px #ffe58a44,0 0 24px #ffdc3acc}}
+@media(max-width:450px){#game .turn-pill{font-size:12px;padding:8px 9px;min-width:92px}#game #turnInfo.own-turn{font-size:14px}}
+
 #game .players{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;overflow:visible;padding:3px 2px 5px}
 #game .player{position:relative;min-width:0;min-height:84px;flex:initial;display:flex;align-items:center;justify-content:center;padding:8px 4px;border:1px solid #b9c99b77;border-radius:16px;background:linear-gradient(145deg,#07503c,#063426);transition:transform .25s,box-shadow .25s,border-color .25s}
 #game .player-identity{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;width:100%;min-width:0}
@@ -1792,9 +1797,13 @@ function render(){
   const turnEl=document.getElementById("turnInfo");
   if(turnEl){
    const activePlayer=players[turn],isMyTurn=!!activePlayer&&(onlineMode?activePlayer.id===roomPlayerId:turn===0);
-   turnEl.textContent=activePlayer?activePlayer.name+"'s turn":"";
-   turnEl.classList.toggle("own-turn",isMyTurn&&!gameOver&&!activePlayer?.roundDropped);
+   turnEl.textContent=activePlayer?(isMyTurn?"YOUR TURN":activePlayer.name+"'s turn"):"";
+   const myTurnNow=isMyTurn&&!gameOver&&!activePlayer?.roundDropped&&!eliminatedSpectator;
+   turnEl.classList.toggle("own-turn",myTurnNow);
    turnEl.setAttribute("aria-label",activePlayer?(isMyTurn?"Your turn":activePlayer.name+"'s turn"):"");
+   const turnAlertKey=activePlayer?String(round)+":"+String(activePlayer.id):"";
+   if(myTurnNow&&turnAlertKey!==lastTurnAlertKey){try{if(typeof navigator!=="undefined"&&typeof navigator.vibrate==="function")navigator.vibrate(2000);}catch(e){}}
+   lastTurnAlertKey=turnAlertKey;
   }
   if(players[0]){
 document.getElementById("handCount").textContent=players[0].hand.length;const unmatchedEl=document.getElementById("handUnmatched");if(unmatchedEl)unmatchedEl.textContent="In hand: "+bestUnmatchedScore(players[0].hand||[],players[0])+" pts";
@@ -2358,6 +2367,7 @@ function showRules(){
 <script>
 /* Multiplayer v1: host-authoritative draw/discard with private hands. */
 let onlineMode=false,onlinePublic=null,onlinePublicRef=null,onlineHandRef=null,onlineActionRef=null,onlineSpecialRef=null;
+let lastTurnAlertKey=null;
 let onlineChatRef=null,onlineChatListener=null,chatIsOpen=false,chatHasOpened=false,chatUnreadCount=0,lastChatSentAt=0,mutedChatSenders=new Set();
 let locallyShownChatMessages=new Set();
 let eliminatedSpectator=false;
