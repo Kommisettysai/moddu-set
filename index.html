@@ -1196,6 +1196,41 @@ body:has(#roundResults:not(.hidden))>header,
 @keyframes crownBob{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-5px) rotate(4deg)}}
 @media(max-width:390px){#roundResults.game-complete-screen #resultsProfiles{gap:7px!important}#roundResults.game-complete-screen .results-profile{min-height:112px;padding:8px 4px!important}#roundResults.game-complete-screen .champion-celebration{padding:17px 9px}}
 @media(prefers-reduced-motion:reduce){#roundResults.game-complete-screen .champion-celebration,#roundResults.game-complete-screen .champion-crown,#roundResults.game-complete-screen .results-profile.show-winner,#roundResults.game-complete-screen .winner-confetti span{animation:none!important}}
+
+/* Eliminated players remain in the round summary, without obsolete scores or hand details. */
+#roundResults .results-hand.eliminated-result-row{
+ min-height:0!important;
+ padding:8px 11px!important;
+ border:1px solid #b97870!important;
+ border-left:4px solid #d88c80!important;
+ border-radius:11px!important;
+ background:linear-gradient(110deg,#3a2928,#20342d)!important;
+ box-shadow:none!important;
+ opacity:.78;
+}
+#roundResults .results-hand.eliminated-result-row .results-hand-head{
+ margin:0!important;
+ padding:0!important;
+ border:0!important;
+ gap:10px!important;
+}
+#roundResults .results-hand.eliminated-result-row .hand-player-name{
+ color:#d8c9b9!important;
+}
+#roundResults .eliminated-result-badge{
+ display:inline-flex;
+ align-items:center;
+ justify-content:center;
+ padding:5px 9px;
+ border:1px solid #d98d82;
+ border-radius:99px;
+ background:#63332f;
+ color:#ffe0d7;
+ font-size:10px;
+ font-weight:1000;
+ letter-spacing:.7px;
+ white-space:nowrap;
+}
 </style>
 </head>
 
@@ -3157,10 +3192,14 @@ function openOnlineRoundResults(result){
  const resultOrder=list.map((p,i)=>({p,i,penalty:result.penalties[p.id]||0})).sort((a,b)=>(a.p.id===winner?-1:b.p.id===winner?1:a.penalty-b.penalty)||a.i-b.i);
  profiles.innerHTML=resultOrder.map(({p})=>{const penalty=result.penalties[p.id]||0,total=Number(result.totals[p.id])||0;const isEliminated=p.active===false||total>=Math.max(1,Number(onlinePublic.scoreLimit)||200);return '<div class="results-profile '+(p.id===winner?'show-winner':'')+'"><div class="results-identity"><span class="player-avatar">'+playerInitials(p.name)+'</span><span class="results-name"><strong>'+escapeLobbyText(p.name)+'</strong></span></div><span class="finish-rank">'+(p.id===winner?'🏆 ROUND WINNER':isEliminated?'ELIMINATED':'ROUND COMPLETE')+'</span><span class="result-points">Total: '+total+'</span><span class="result-count">This round: +'+penalty+'</span></div>';}).join('');
  handsEl.innerHTML=eliminatedSpectator?'<div class="spectator-result-note">👀 You are watching this result. Other players’ cards are hidden.</div>':resultOrder.map(({p})=>{
-  const hand=result.hands[p.id]||[],penalty=result.penalties[p.id]||0;
+  const hand=result.hands[p.id]||[],penalty=result.penalties[p.id]||0,total=Number(result.totals[p.id])||0;
+  const isEliminated=p.active===false||total>=Math.max(1,Number(onlinePublic.scoreLimit)||200);
+  if(isEliminated){
+   return '<div class="results-hand eliminated-result-row"><div class="results-hand-head"><div class="hand-player-identity"><span class="player-avatar">'+playerInitials(p.name)+'</span><strong class="hand-player-name">'+escapeLobbyText(p.name)+'</strong></div><span class="eliminated-result-badge">⛔ ELIMINATED</span></div></div>';
+  }
   const resultPlayer={...p,unlocked:!!p.unlocked,specialRank:(result.specialRanks||{})[p.id]||null};
   const winning=p.roundDropped?'<div class="results-breakdown-section counted"><span class="results-breakdown-title">DROPPED · FIXED +'+penalty+' POINTS</span></div>':p.id===winner?'<div class="results-winning-groups">'+result.groups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':renderScoringBreakdown(hand,resultPlayer,penalty);
-  return '<div class="results-hand '+(p.id===winner?'winner-hand':'')+'"><div class="results-hand-head"><div class="hand-player-identity"><span class="player-avatar">'+playerInitials(p.name)+'</span><strong class="hand-player-name">'+(p.id===winner?'🏆 ':'')+escapeLobbyText(p.name)+'</strong></div><span class="results-total">Total: '+(Number(result.totals[p.id])||0)+'</span><span class="result-current">+'+penalty+'</span></div>'+winning+'</div>';
+  return '<div class="results-hand '+(p.id===winner?'winner-hand':'')+'"><div class="results-hand-head"><div class="hand-player-identity"><span class="player-avatar">'+playerInitials(p.name)+'</span><strong class="hand-player-name">'+(p.id===winner?'🏆 ':'')+escapeLobbyText(p.name)+'</strong></div><span class="results-total">Total: '+total+'</span><span class="result-current">+'+penalty+'</span></div>'+winning+'</div>';
  }).join('');
  const kicker=screen.querySelector(".results-kicker");if(kicker)kicker.textContent="🏆 ROUND "+(onlinePublic.round||1)+" · RESULTS";
  const title=screen.querySelector(".results-header h2");if(title)title.textContent="Round Results";
