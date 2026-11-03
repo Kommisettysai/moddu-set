@@ -1032,6 +1032,23 @@ body:has(#roundResults:not(.hidden))>header,
 #discardPile.discard-pile,#drawPile.draw-pile{position:relative!important;overflow:visible!important}
 #discardPile .open-pick-indicator,#drawPile .open-pick-indicator{top:5px!important;right:5px!important;max-width:calc(100% - 10px);overflow:hidden;text-overflow:ellipsis}
 #discardPile .discard-stack,#drawPile .card-stack{pointer-events:none}
+
+/* Visually tag the card just picked, without adding another instruction bar. */
+.card{position:relative}
+.card.picked-from-deck,.card.picked-from-open{
+ border-width:2px;
+ animation:pickedCardGlow 1.8s ease-in-out infinite alternate;
+}
+.card.picked-from-deck{border-color:#54d9ff;box-shadow:0 0 0 2px #54d9ff55,0 0 13px #38caff99,0 2px 5px #071c16}
+.card.picked-from-open{border-color:#ffcf65;box-shadow:0 0 0 2px #ffcf6555,0 0 13px #ffbd4d99,0 2px 5px #071c16}
+.card.picked-from-deck:after,.card.picked-from-open:after{
+ position:absolute;top:-8px;right:-7px;z-index:2;padding:2px 4px;border-radius:5px;
+ font:800 7px/1.2 Inter,Arial,sans-serif;letter-spacing:.35px;color:#08251d;
+ box-shadow:0 1px 4px #0008;pointer-events:none
+}
+.card.picked-from-deck:after{content:"DECK";background:#78e4ff}
+.card.picked-from-open:after{content:"OPEN";background:#ffdc8b}
+@keyframes pickedCardGlow{from{filter:brightness(1)}to{filter:brightness(1.12)}}
 </style>
 </head>
 
@@ -1701,6 +1718,7 @@ let scoreLimit=200,soloMatchId=null;
 let drawn=false,specialRank=null,round=1,gameOver=false;
 let arrangedGroups=[],winningGroups=[];
 let selectedIndices=[];
+let lastDrawnCardId=null,lastDrawSource=null;
 
 function makeDeck(count){
  let cards=[];
@@ -1802,7 +1820,7 @@ function render(){
    turnEl.classList.toggle("own-turn",myTurnNow);
    turnEl.setAttribute("aria-label",activePlayer?(isMyTurn?"Your turn":activePlayer.name+"'s turn"):"");
    const turnAlertKey=activePlayer?String(round)+":"+String(activePlayer.id):"";
-   if(myTurnNow&&turnAlertKey!==lastTurnAlertKey){try{if(typeof navigator!=="undefined"&&typeof navigator.vibrate==="function")navigator.vibrate(2000);}catch(e){}}
+   if(myTurnNow&&turnAlertKey!==lastTurnAlertKey){try{if(typeof navigator!=="undefined"&&typeof navigator.vibrate==="function")navigator.vibrate([400,120,400,120,400]);}catch(e){}}
    lastTurnAlertKey=turnAlertKey;
   }
   if(players[0]){
@@ -1876,7 +1894,7 @@ function drawClosed(){
  if(turn!==0||drawn)return;
  recycleDeck();
  if(deck.length===0){message("No cards available.");return;}
- players[0].hand.push(deck.pop());
+ const pickedCard=deck.pop();players[0].hand.push(pickedCard);lastDrawnCardId=pickedCard.id;lastDrawSource="deck";
  players[0].roundDrawCount=(players[0].roundDrawCount||0)+1;
  drawn=true;
  selected=-1;
@@ -1888,7 +1906,7 @@ function drawClosed(){
 function drawOpen(){
  if(turn!==0||drawn)return;
  if(discard.length===0)return;
- players[0].hand.push(discard.pop());
+ const pickedCard=discard.pop();players[0].hand.push(pickedCard);lastDrawnCardId=pickedCard.id;lastDrawSource="open";
  players[0].roundDrawCount=(players[0].roundDrawCount||0)+1;
  drawn=true;
  selected=-1;
@@ -1900,7 +1918,7 @@ function drawOpen(){
 function discardSelected(){
  if(turn!==0||!drawn||selected<0)return;
  let card=players[0].hand.splice(selected,1)[0];
- discard.push(card);
+ discard.push(card);lastDrawnCardId=null;lastDrawSource=null;
  drawn=false;selected=-1;arrangedGroups=[];
  checkUnlock(0,true);
  autoArrange(false);
@@ -2006,7 +2024,9 @@ function aiTurn(){
 function cardMarkup(c,i){
  const red=["♥","♦"].includes(c.suit);
  const specialMatch=!!(players[0]?.unlocked&&specialRank&&!c.joker&&c.rank===specialRank);
- return `<div class="card ${red?"red":""} ${specialMatch?"special-rank-card":""} ${(drawn?selected===i:selectedIndices.includes(i))?"selected":""}" draggable="true" ondragstart="dragCard(event,${i})" onclick="selectCard(${i})">
+ const pickedSource=c.id===lastDrawnCardId?lastDrawSource:null;
+ const pickedClass=pickedSource==="deck"?"picked-from-deck":pickedSource==="open"?"picked-from-open":"";
+ return `<div class="card ${red?"red":""} ${specialMatch?"special-rank-card":""} ${pickedClass} ${(drawn?selected===i:selectedIndices.includes(i))?"selected":""}" draggable="true" ondragstart="dragCard(event,${i})" onclick="selectCard(${i})">
  <span>${c.joker?"★":c.rank}</span><span style="text-align:center">${c.suit}</span><span style="text-align:right">${c.joker?"★":c.rank}</span></div>`;
 }
 let draggedCardIndex=null;
@@ -2534,6 +2554,8 @@ function showSharedAction(action){
   item.classList.remove("show");
   item.classList.add("hidden");
  });
+ if((isOpenPick||isDeckPick)&&action.uid===roomPlayerId){lastDrawnCardId=action.cardId||null;lastDrawSource=isDeckPick?"deck":"open";}
+ if(action.type==="discard"&&action.uid===roomPlayerId){lastDrawnCardId=null;lastDrawSource=null;}
  if(badge&&(isOpenPick||isDeckPick)){
   badge.textContent=isOpenPick?"OPEN CARD PICKED":"DRAW DECK PICKED";
   badge.classList.remove("hidden");
@@ -2932,10 +2954,10 @@ async function processOnlineAction(uid,a){
   if(hand.length!==13){p.message="Draw blocked: a player must have exactly 13 cards before drawing. Current count: "+hand.length+". The host should restart this round if the hand is out of sync.";p.players[playerIndex].cardCount=hand.length;await roomRef.child("public").set(p);return;}
   if(a.type==="drawOpen"){if(!pile.length)return;hand.push(pile.pop());}
   else{if(!d.length&&pile.length>1){const top=pile.pop();d=shuffle(pile);pile=[top];}if(!d.length)return;hand.push(d.pop());}
-  h[uid]=hand;p.players[playerIndex].roundDrawCount=(p.players[playerIndex].roundDrawCount||0)+1;p.drawnByUid=uid;p.drawnCardId=hand[hand.length-1].id;p.discardDeadline=null;p.lastAction={type:a.type,uid,name:player.name,cardLabel:a.type==="drawOpen"?cardText(hand[hand.length-1]):null,at:Date.now()};p.message=a.type==="drawOpen"?player.name+" picked "+cardText(hand[hand.length-1])+" from the open discard pile.":player.name+" drew a face-down card from the draw deck.";
+  h[uid]=hand;p.players[playerIndex].roundDrawCount=(p.players[playerIndex].roundDrawCount||0)+1;p.drawnByUid=uid;p.drawnCardId=hand[hand.length-1].id;p.discardDeadline=null;p.lastAction={type:a.type,uid,name:player.name,cardId:hand[hand.length-1].id,cardLabel:a.type==="drawOpen"?cardText(hand[hand.length-1]):null,at:Date.now()};p.message=a.type==="drawOpen"?player.name+" picked "+cardText(hand[hand.length-1])+" from the open discard pile.":player.name+" drew a face-down card from the draw deck.";
  }else if(a.type==="discard"){
   if(p.drawnByUid!==uid||hand.length!==14){p.message="Discard blocked: a drawn hand must contain exactly 14 cards. Current count: "+hand.length+".";p.players[playerIndex].cardCount=hand.length;await roomRef.child("public").set(p);return;}const i=hand.findIndex(c=>c.id===a.cardId);if(i<0)return;
-  const timedOut=!!(p.discardDeadline&&Date.now()>=p.discardDeadline);const discardId=(a.automatic||timedOut)?p.drawnCardId:a.cardId;const discardIndex=hand.findIndex(c=>c.id===discardId);if(discardIndex<0)return;const discarded=hand.splice(discardIndex,1)[0];pile.push(discarded);h[uid]=hand;p.lastAction={type:"discard",uid,name:player.name,cardLabel:cardText(discarded),at:Date.now()};p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;p.pickDeadline=null;a.automatic=!!(a.automatic||timedOut);
+  const timedOut=!!(p.discardDeadline&&Date.now()>=p.discardDeadline);const discardId=(a.automatic||timedOut)?p.drawnCardId:a.cardId;const discardIndex=hand.findIndex(c=>c.id===discardId);if(discardIndex<0)return;const discarded=hand.splice(discardIndex,1)[0];pile.push(discarded);h[uid]=hand;p.lastAction={type:"discard",uid,name:player.name,cardId:discarded.id,cardLabel:cardText(discarded),at:Date.now()};p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;p.pickDeadline=null;a.automatic=!!(a.automatic||timedOut);
   if(hand.length===13&&hasNaturalFour(hand)&&!player.unlocked){
    p.players[playerIndex].eligible=true;
    if(!special){
