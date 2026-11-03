@@ -101,7 +101,7 @@ footer{color:#9bb9a9;padding:20px 12px 28px;letter-spacing:.7px}
 .player-strip{padding:10px 12px;margin-bottom:10px}
 .player-strip h3{font-size:15px;margin:4px 0 8px}
 .table-status{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#f6d99b}
-#roundInfo{font-size:13px}
+#roundInfo{font-size:13px}.target-score-pill{display:inline-flex;align-items:center;padding:4px 9px;border:1px solid #e7c77977;border-radius:999px;background:#092c22;color:#f7d995;font-size:10px;font-weight:800;letter-spacing:.7px;white-space:nowrap}
 #turnInfo{font-size:12px}
 .players{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;padding:2px 2px 7px}
 .player{flex:1 0 22%;min-width:76px;padding:7px 4px;font-size:10px;line-height:1.35}
@@ -1143,7 +1143,7 @@ body:has(#roundResults:not(.hidden))>header,
 
 <div class="game-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong></span></div><button class="leave-table-top" type="button" onclick="exitCurrentTable()">↗ Leave table</button></div>
 <div class="panel player-strip">
-<div class="table-status"><span id="roundInfo">Round 1</span></div>
+<div class="table-status"><span id="roundInfo">Round 1</span><span id="targetScoreInfo" class="target-score-pill">TARGET 200</span></div>
 <div class="player-tools-row"><div id="topVoiceControls" class="top-voice-controls" aria-label="Voice controls"><button type="button" id="voiceMuteBtn" class="voice-secondary" onclick="toggleVoiceControl()">🎙️ Join voice</button><span id="topVoiceCount" class="top-voice-count">0</span></div><button type="button" id="scoresToggle" class="scores-toggle" onclick="togglePlayerScores()" aria-pressed="true">▥ Hide scores</button><span id="turnInfo" class="turn-pill"></span></div>
 <div class="players-heading"><h3>Players</h3></div>
 <div class="players" id="players"></div>
@@ -1777,6 +1777,7 @@ function render(){
  }
  const roundLabel=document.getElementById("roundInfo");
  if(roundLabel)roundLabel.textContent="Round "+round;
+ const targetScoreLabel=document.getElementById("targetScoreInfo");if(targetScoreLabel)targetScoreLabel.textContent="TARGET "+(onlineMode?Math.max(1,Number(onlinePublic?.scoreLimit)||200):Math.max(1,Number(scoreLimit)||200));
  const newRoundBtn=document.getElementById("newRoundBtn");
  if(newRoundBtn)newRoundBtn.style.display=(!onlineMode||isRoomHost)?"":"none";
  const handEl=document.getElementById("hand");
@@ -2964,7 +2965,7 @@ function openOnlineRoundResults(result){
  if(!screen||!profiles||!handsEl)return;
  const list=(onlinePublic.players||[]).map(p=>({...p,cardCount:(result.hands[p.id]||[]).length})),winner=result.winnerUid;
  const resultOrder=list.map((p,i)=>({p,i,penalty:result.penalties[p.id]||0})).sort((a,b)=>(a.p.id===winner?-1:b.p.id===winner?1:a.penalty-b.penalty)||a.i-b.i);
- profiles.innerHTML="";
+ profiles.innerHTML=resultOrder.map(({p})=>{const penalty=result.penalties[p.id]||0,total=Number(result.totals[p.id])||0;const isEliminated=p.active===false||total>=Math.max(1,Number(onlinePublic.scoreLimit)||200);return '<div class="results-profile '+(p.id===winner?'show-winner':'')+'"><div class="results-identity"><span class="player-avatar">'+playerInitials(p.name)+'</span><span class="results-name"><strong>'+escapeLobbyText(p.name)+'</strong></span></div><span class="finish-rank">'+(p.id===winner?'🏆 ROUND WINNER':isEliminated?'ELIMINATED':'ROUND COMPLETE')+'</span><span class="result-points">Total: '+total+'</span><span class="result-count">This round: +'+penalty+'</span></div>';}).join('');
  handsEl.innerHTML=eliminatedSpectator?'<div class="spectator-result-note">👀 You are watching this result. Other players’ cards are hidden.</div>':resultOrder.map(({p})=>{
   const hand=result.hands[p.id]||[],penalty=result.penalties[p.id]||0;
   const resultPlayer={...p,unlocked:!!p.unlocked,specialRank:(result.specialRanks||{})[p.id]||null};
