@@ -1049,6 +1049,31 @@ body:has(#roundResults:not(.hidden))>header,
 .card.picked-from-deck:after{content:"DECK";background:#78e4ff}
 .card.picked-from-open:after{content:"OPEN";background:#ffdc8b}
 @keyframes pickedCardGlow{from{filter:brightness(1)}to{filter:brightness(1.12)}}
+
+/* Make the turn callout the standout yellow element; keep utility buttons calm. */
+#game button:not(#showBtn):not(#dropRoundBtn){
+ background:linear-gradient(180deg,#245b48,#123d30)!important;
+ color:#f8e7bd!important;
+ border:1px solid #b99558!important;
+ box-shadow:0 3px 0 #08271e,0 5px 12px #0003!important;
+}
+#game button:not(#showBtn):not(#dropRoundBtn):disabled{opacity:.42!important;filter:saturate(.55)}
+#game .turn-pill{font-size:16px;padding:11px 16px;min-width:122px;letter-spacing:.7px;font-weight:800}
+#game #turnInfo.own-turn{
+ font-size:19px!important;
+ padding:12px 19px!important;
+ min-width:145px;
+ letter-spacing:1px;
+ font-weight:1000!important;
+ border-width:3px;
+ text-shadow:0 1px 0 #fff5;
+ box-shadow:0 0 0 4px #ffe58a44,0 0 18px #ffe34f,0 0 34px #ffdc3acc,0 0 52px #ffdc3a55;
+ animation:ownTurnGlow 1.15s ease-in-out infinite alternate;
+}
+@media(max-width:450px){
+ #game .turn-pill{font-size:14px;padding:10px 13px;min-width:112px}
+ #game #turnInfo.own-turn{font-size:17px!important;padding:11px 15px!important;min-width:132px;letter-spacing:.8px}
+}
 </style>
 </head>
 
@@ -1820,7 +1845,7 @@ function render(){
    turnEl.classList.toggle("own-turn",myTurnNow);
    turnEl.setAttribute("aria-label",activePlayer?(isMyTurn?"Your turn":activePlayer.name+"'s turn"):"");
    const turnAlertKey=activePlayer?String(round)+":"+String(activePlayer.id):"";
-   if(myTurnNow&&turnAlertKey!==lastTurnAlertKey){try{if(typeof navigator!=="undefined"&&typeof navigator.vibrate==="function")navigator.vibrate([400,120,400,120,400]);}catch(e){}}
+   if(myTurnNow&&turnAlertKey!==lastTurnAlertKey){try{if(typeof navigator!=="undefined"&&typeof navigator.vibrate==="function")navigator.vibrate(1000);}catch(e){}}
    lastTurnAlertKey=turnAlertKey;
   }
   if(players[0]){
