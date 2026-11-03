@@ -2149,14 +2149,14 @@ function findBestArrangement(hand,player){
  const memo=new Map(),full=(1<<n)-1;
  function solve(mask,pureUsed,count){
   const key=mask+"|"+pureUsed+"|"+count;if(memo.has(key))return memo.get(key);
-  if(mask===full)return {groups:[],covered:0,pure:pureUsed,wilds:0,complete:pureUsed&&count===4};
+  if(mask===full)return {groups:[],covered:0,pure:pureUsed,pureRank:-1,wilds:0,complete:pureUsed&&count===4};
   let first=0;while(mask&(1<<first))first++;
   let best=solve(mask|(1<<first),pureUsed,count);
   for(const g of byFirst[first]){
    if(g.mask&mask||count>=4||(g.pure&&pureUsed))continue;
    const tail=solve(mask|g.mask,pureUsed||g.pure,count+1);
-   const c={groups:[g,...tail.groups],covered:g.cards.length+tail.covered,pure:tail.pure,wilds:g.wilds+tail.wilds,complete:tail.complete};
-   if((c.complete&&!best.complete)||(c.complete===best.complete&&(c.covered>best.covered||(c.covered===best.covered&&(c.pure&&!best.pure||(c.pure===best.pure&&c.wilds<best.wilds))))))best=c;
+   const c={groups:[g,...tail.groups],covered:g.cards.length+tail.covered,pure:tail.pure,pureRank:g.pure?rankValue(g.cards[0]):tail.pureRank,wilds:g.wilds+tail.wilds,complete:tail.complete};
+   if((c.complete&&!best.complete)||(c.complete===best.complete&&(c.covered>best.covered||(c.covered===best.covered&&(c.pure&&!best.pure||(c.pure===best.pure&&(c.pureRank>best.pureRank||(c.pureRank===best.pureRank&&c.wilds<best.wilds))))))))best=c;
   }
   memo.set(key,best);return best;
  }
@@ -2952,15 +2952,26 @@ async function processOnlineAction(uid,a){
   if(!special){const skipped=[];let reveal=null;while(d.length&&!reveal){const card=d.pop();if(card.joker)skipped.push(card);else reveal=card;}if(skipped.length)d.push(...skipped);if(reveal)special=reveal.rank;}
   if(!special)return;syncUnlock();specialRanks[uid]=special;p.specialRank=special;p.message=player.name+" unlocked the special joker.";
  }else if(a.type==="show"){
-  if(a.discardCardId){if((p.drawnByUid&&p.drawnByUid!==uid)||hand.length!==14){p.message="SHOW could not sync: expected your 14-card hand and one selected discard. Please try again.";await roomRef.child("public").set(p);return;}const i=hand.findIndex(c=>c.id===a.discardCardId);if(i<0)return;pile.push(hand.splice(i,1)[0]);h[uid]=hand;p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;}
-  else if(p.drawnByUid||hand.length!==13)return;
+  // Build and validate the proposed 13-card hand before changing shared state.
+  // A rejected SHOW must leave the 14-card hand and pending discard untouched.
+  let showHand=hand.slice(),showPile=pile.slice(),showDiscard=null;
+  if(a.discardCardId){
+   if(p.drawnByUid!==uid||hand.length!==14){p.message="SHOW could not sync: your 14-card hand or pending discard is not ready. Your cards have been kept unchanged.";await roomRef.child("public").set(p);return;}
+   const discardIndex=showHand.findIndex(c=>c.id===a.discardCardId);
+   if(discardIndex<0){p.message="SHOW could not find that discard card. Your hand has been kept unchanged.";await roomRef.child("public").set(p);return;}
+   showDiscard=showHand.splice(discardIndex,1)[0];showPile.push(showDiscard);
+  }else if(p.drawnByUid||hand.length!==13){
+   p.message="SHOW needs 13 cards, or 14 cards with one selected discard. Your hand has been kept unchanged.";await roomRef.child("public").set(p);return;
+  }
+  const invalid=validateOnlineShow(showHand,a.groups,player);
+  if(invalid){p.message=invalid+" Your hand and pending discard are unchanged.";await roomRef.child("public").set(p);return;}
+  hand=showHand;pile=showPile;h[uid]=hand;
+  if(showDiscard){p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;}
   if(player.isBot&&!player.unlocked&&hand.length===13&&hasNaturalFour(hand)){
    p.players[playerIndex].eligible=true;
    if(!special){const skipped=[];let reveal=null;while(d.length&&!reveal){const card=d.pop();if(card.joker)skipped.push(card);else reveal=card;}if(skipped.length)d.push(...skipped);if(reveal)special=reveal.rank;}
    if(special){syncUnlock();specialRanks[uid]=special;}
   }
-  const invalid=validateOnlineShow(hand,a.groups,player);
-  if(invalid){p.message=invalid;p.discard=pile;p.deckCount=d.length;await roomRef.child("public").set(p);return;}
   const penalties={},totals={},limit=Math.max(1,Number(p.scoreLimit)||200);(p.players||[]).forEach(x=>{const scorePlayer={...x,specialRank:specialRanks[x.id]||null};const penalty=x.roundDropped?(x.dropPenalty||0):(x.id===uid?0:bestUnmatchedScore(h[x.id]||[],scorePlayer));penalties[x.id]=penalty;totals[x.id]=(x.score||0)+(x.roundDropped?0:penalty);});
   p.players=(p.players||[]).map(x=>{const active=x.active!==false&&totals[x.id]<limit;return {...x,score:totals[x.id],active,status:active?"Ready":"Eliminated",cardCount:(h[x.id]||[]).length};});
   p.status="roundComplete";p.discard=pile;p.deckCount=d.length;p.message=player.name+" showed successfully. All hands are revealed.";
