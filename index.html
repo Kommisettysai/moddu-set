@@ -1231,6 +1231,21 @@ body:has(#roundResults:not(.hidden))>header,
  letter-spacing:.7px;
  white-space:nowrap;
 }
+
+/* Make player names easier to identify at a glance on round results. */
+#roundResults .results-hand-head .hand-player-name{
+ font-size:18px!important;
+ font-weight:1000!important;
+ letter-spacing:.25px!important;
+ line-height:1.2!important;
+}
+@media(max-width:450px){
+ #roundResults .results-hand-head .hand-player-name{
+  font-size:16px!important;
+  font-weight:1000!important;
+  letter-spacing:.2px!important;
+ }
+}
 </style>
 </head>
 
