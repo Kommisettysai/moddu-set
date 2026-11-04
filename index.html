@@ -3216,15 +3216,31 @@ async function processOnlineAction(uid,a){
   p.players[playerIndex]={...p.players[playerIndex],roundDropped:true,dropPenalty,score:(p.players[playerIndex].score||0)+dropPenalty,status:"Dropped this round"};
   if(p.drawnByUid===uid){p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;}
   p.message=player.name+" dropped this round for "+dropPenalty+" points.";
-  const remaining=(p.players||[]).filter(x=>x.active!==false&&!x.roundDropped&&(Number(x.score)||0)<Math.max(1,Number(p.scoreLimit)||200));
-  if(remaining.length===1){const champion=remaining[0];p.status="gameComplete";p.champion=champion.name;p.championUid=champion.id;p.turnUid=champion.id;p.message=champion.name+" wins Moddu Set! The other player dropped this round.";await roomRef.child("public").set(p);return;}
-  if(p.turnUid===uid&&remaining.length>1){const next=remaining.find(x=>(p.players.indexOf(x))>playerIndex)||remaining[0];p.turnUid=next.id;p.pickDeadline=next.isBot?null:Date.now()+60000;}
-  if(!remaining.length){
-   const penalties={},totals={};
-   (p.players||[]).forEach(x=>{penalties[x.id]=x.dropPenalty||0;totals[x.id]=x.score||0;});
-   p.status="roundComplete";p.roundResult={winnerUid:null,winnerName:null,groups:[],penalties,totals,hands:h,specialRanks,specialJokerRank:special||p.specialRank||Object.values(specialRanks).find(Boolean)||null,completedAt:Date.now()};
+  const limit=Math.max(1,Number(p.scoreLimit)||200);
+  const eligible=(p.players||[]).filter(x=>x.active!==false&&(Number(x.score)||0)<limit);
+  const stillPlaying=eligible.filter(x=>!x.roundDropped);
+  // A drop ends the player's participation in this round, not the whole match.
+  // The dropped player remains eligible for the next round while their total is below the limit.
+  (p.players||[]).forEach(x=>{
+   const isEligible=eligible.some(e=>e.id===x.id);
+   x.active=isEligible;
+   if(!isEligible)x.status="Eliminated";
+  });
+  if(eligible.length<=1){
+   const champion=eligible[0]||(p.players||[]).reduce((best,x)=>(Number(x.score)||0)<(Number(best.score)||0)?x:best,p.players[0]);
+   p.status="gameComplete";p.champion=champion?.name||"";p.championUid=champion?.id||null;p.turnUid=champion?.id||null;
+   p.message=(champion?.name||"A player")+" wins Moddu Set! The score limit has been reached.";
    await roomRef.child("public").set(p);return;
   }
+  if(stillPlaying.length<=1){
+   const winner=stillPlaying[0]||null,penalties={},totals={};
+   (p.players||[]).forEach(x=>{penalties[x.id]=x.roundDropped?(Number(x.dropPenalty)||0):0;totals[x.id]=Number(x.score)||0;});
+   p.status="roundComplete";
+   p.roundResult={winnerUid:winner?.id||null,winnerName:winner?.name||null,groups:[],penalties,totals,hands:h,specialRanks,specialJokerRank:special||p.specialRank||Object.values(specialRanks).find(Boolean)||null,completedAt:Date.now()};
+   p.message=winner?winner.name+" wins this round. "+player.name+" dropped and can return next round if below "+limit+" points.":"All players dropped this round.";
+   await roomRef.child("public").set(p);return;
+  }
+  if(p.turnUid===uid&&stillPlaying.length>1){const next=stillPlaying.find(x=>(p.players.indexOf(x))>playerIndex)||stillPlaying[0];p.turnUid=next.id;p.pickDeadline=next.isBot?null:Date.now()+60000;}
   await roomRef.child("public").set(p);return;
  }
  const syncUnlock=()=>{p.players[playerIndex].eligible=true;p.players[playerIndex].unlocked=true;player.eligible=true;player.unlocked=true;player.specialRank=special;};
