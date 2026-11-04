@@ -1254,6 +1254,7 @@ body:has(#roundResults:not(.hidden))>header,
   letter-spacing:.2px!important;
  }
 }
+.game-room-code{display:flex;align-items:center;gap:7px;padding:6px 9px;border:1px solid #d9b66b77;border-radius:11px;background:#082b21;color:#f7dfaa}.game-room-code span{font-size:8px;letter-spacing:1px;color:#b8c9bd}.game-room-code strong{font-size:13px;letter-spacing:2px;color:#ffe2a0}.game-room-code button{padding:5px 8px;font-size:10px;border-radius:7px;box-shadow:none}.game-brand{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 </style>
 </head>
 
@@ -1368,7 +1369,7 @@ body:has(#roundResults:not(.hidden))>header,
 
 <section id="game" class="hidden">
 
-<div class="game-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong></span></div><button class="leave-table-top" type="button" onclick="exitCurrentTable()">↗ Leave table</button></div>
+<div class="game-brand"><div class="game-room-code"><span>GAME CODE</span><strong id="gameRoomCode">------</strong><button type="button" onclick="copyGameRoomCode()">Copy</button></div><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong></span></div><button class="leave-table-top" type="button" onclick="exitCurrentTable()">↗ Leave table</button></div>
 <div class="panel player-strip">
 <div class="table-status"><span id="roundInfo">Round 1</span><span id="targetScoreInfo" class="target-score-pill">TARGET 200</span></div>
 <div class="player-tools-row"><div id="topVoiceControls" class="top-voice-controls" aria-label="Voice controls"><button type="button" id="voiceMuteBtn" class="voice-secondary" onclick="toggleVoiceControl()">🎙️ Join voice</button><span id="topVoiceCount" class="top-voice-count">0</span></div><button type="button" id="scoresToggle" class="scores-toggle" onclick="togglePlayerScores()" aria-pressed="true">▥ Hide scores</button><span id="turnInfo" class="turn-pill"></span></div>
@@ -2602,7 +2603,7 @@ let onlineChatRef=null,onlineChatListener=null,chatIsOpen=false,chatHasOpened=fa
 let locallyShownChatMessages=new Set();
 let eliminatedSpectator=false;
 let discardClockInterval=null,hostDiscardTimeout=null,scheduledDiscardKey=null;
-let onlinePublicListener=null,onlineHandListener=null,onlineActionListener=null,onlineLobbyListener=null,rejoinPublicListener=null,onlineBusy={},onlineBotBusy=false;
+let onlinePublicListener=null,onlineHandListener=null,onlineActionListener=null,onlineLobbyListener=null,rejoinPublicListener=null,onlineRejoinListener=null,onlineBusy={},onlineBotBusy=false;
 function onlineMembers(l){return Object.values(l.players||{}).sort((a,b)=>(a.joinedAt||0)-(b.joinedAt||0));}
 function createRoom(){
  const name=lobbyName();if(!name)return;if(!firebaseReady||!authUser){setLobbyNotice("Firebase sign-in is still loading.");return;}
@@ -2645,9 +2646,14 @@ async function joinRoom(){
    setLobbyNotice("This table is full.");return;
   }
   if(isRemoved){
-   // Rejoining a running game requires a host-controlled public-state update.
-   // Never let a non-host overwrite the shared game state.
-   setLobbyNotice("You were removed from this game. Please ask the host about rejoining.");
+   if(!gamePlayer||gamePlayer.status!=="Removed by host"||gamePlayer.active!==false||l.status!=="started"){
+    setLobbyNotice("This player cannot rejoin this game right now.");
+    return;
+   }
+   roomCode=code;roomRef=ref;roomPlayerId=uid;isRoomHost=uid===l.hostId;saveActiveRoom();
+   await ref.child("rejoinRequests/"+uid).set({uid,name,requestedAt:firebase.database.ServerValue.TIMESTAMP});
+   showWaitingRoom();
+   setLobbyNotice("Rejoin request sent. Waiting for the host to restore your saved hand…");
    return;
   }
   roomCode=code;roomRef=ref;roomPlayerId=uid;isRoomHost=uid===l.hostId;
@@ -2742,12 +2748,19 @@ async function startOnlineRoom(){
  }catch(e){setLobbyNotice("Could not start game: "+e.message);}
 }
 function enterOnlineGame(state){
- if(!roomRef||!roomPlayerId)return;onlineMode=true;onlinePublic=state;eliminatedSpectator=false;document.getElementById("setup").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");document.getElementById("game").classList.remove("hidden");document.getElementById("voicePanel")?.classList.remove("hidden");
+ if(!roomRef||!roomPlayerId)return;onlineMode=true;onlinePublic=state;const gameCodeEl=document.getElementById("gameRoomCode");if(gameCodeEl)gameCodeEl.textContent=roomCode||"------";eliminatedSpectator=false;document.getElementById("setup").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");document.getElementById("game").classList.remove("hidden");document.getElementById("voicePanel")?.classList.remove("hidden");
  const notice=document.createElement("div");notice.id="spectatorNotice";notice.className="spectator-notice";notice.textContent="👀 You are eliminated. You can watch the game, but cannot play or view anyone’s cards.";document.getElementById("game").prepend(notice);
  onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);chatHasOpened=false;chatUnreadCount=0;chatIsOpen=false;document.getElementById("gameChat")?.classList.remove("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");document.getElementById("chatToggle")?.setAttribute("aria-expanded","false");updateChatUnread();onlineChatRef=roomRef.child("chat");if(onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);const chatRefForLoad=onlineChatRef;chatRefForLoad.limitToLast(60).once("value").then(initial=>{if(!onlineMode||onlineChatRef!==chatRefForLoad)return;const oldKeys=new Set(Object.keys(initial.val()||{}));onlineChatListener=snap=>{const isOld=oldKeys.has(snap.key);oldKeys.delete(snap.key);const shownLocally=locallyShownChatMessages.has(snap.key);locallyShownChatMessages.delete(snap.key);receiveGameChat(snap,!isOld&&!shownLocally);};chatRefForLoad.limitToLast(60).on("child_added",onlineChatListener);}).catch(()=>{});
  if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();scheduleHostDiscardTimeout(onlinePublic);if(isRoomHost)runOnlineBotTurn();}};onlinePublicRef.on("value",onlinePublicListener);
  if(onlineSpecialRef){onlineSpecialRef.off("value");onlineSpecialRef.on("value",snap=>{const privateRank=snap.val();if(privateRank)specialRank=privateRank;render();if(specialRank)highlightSpecialJoker();});}if(onlineHandListener)onlineHandRef.off("value",onlineHandListener);onlineHandListener=s=>{if(!s.exists())return;const h=s.val()||[];if(!players.length)players=[{id:roomPlayerId,name:"You",hand:h,score:0,human:true}];else players[0]={...players[0],hand:h};if(onlinePublic?.turnUid===roomPlayerId&&h.length===14)drawn=true;else if(h.length===13)drawn=false;selected=-1;selectedIndices=[];arrangedGroups=[];applyOnlinePublic();autoArrange(false);render();};onlineHandRef.on("value",onlineHandListener);
- if(isRoomHost){if(onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);onlineActionListener=s=>{if(!s.exists())return;const uid=s.key;if(onlineBusy[uid])return;onlineBusy[uid]=true;processOnlineAction(uid,s.val()).catch(e=>setLobbyNotice("Game action failed: "+e.message)).finally(()=>{onlineActionRef.child(uid).remove().catch(()=>{});delete onlineBusy[uid];});};onlineActionRef.on("child_added",onlineActionListener);}
+ if(isRoomHost){
+  if(onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);
+  onlineActionListener=s=>{if(!s.exists())return;const uid=s.key;if(onlineBusy[uid])return;onlineBusy[uid]=true;processOnlineAction(uid,s.val()).catch(e=>setLobbyNotice("Game action failed: "+e.message)).finally(()=>{onlineActionRef.child(uid).remove().catch(()=>{});delete onlineBusy[uid];});};
+  onlineActionRef.on("child_added",onlineActionListener);
+  if(onlineRejoinListener)roomRef.child("rejoinRequests").off("child_added",onlineRejoinListener);
+  onlineRejoinListener=s=>{if(s.exists())processOnlineRejoinRequest(s.key);};
+  roomRef.child("rejoinRequests").on("child_added",onlineRejoinListener);
+ }
  applyOnlinePublic();
 }
 let lastSeenSharedActionAt=0;
@@ -3043,12 +3056,60 @@ function applyOnlinePublic(){
  players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,roundDrawCount:p.roundDrawCount||0,roundDropped:!!p.roundDropped,dropPenalty:p.dropPenalty||0,unlocked:!!p.unlocked,active:p.active!==false,human:p.id===roomPlayerId,cardCount:p.cardCount||0,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
  if(!players.length)return;
  const myPublicPlayer=m.find(p=>p.id===roomPlayerId);
- if(myPublicPlayer&&myPublicPlayer.active===false&&myPublicPlayer.status==="Removed by host"){setLobbyNotice("The host removed you from this game.");leaveRoom(true);return;}eliminatedSpectator=!!(myPublicPlayer&&myPublicPlayer.active===false&&myPublicPlayer.status==="Eliminated");const gameRoot=document.getElementById("game");if(gameRoot){gameRoot.classList.toggle("spectator-mode",eliminatedSpectator);const notice=document.getElementById("spectatorNotice");if(notice)notice.textContent=eliminatedSpectator?"👀 You reached the score limit. Stay and watch the rest of the match. Other players’ cards are hidden.":"";const handPanel=document.getElementById("hand")?.closest(".panel");if(handPanel)handPanel.classList.toggle("spectator-hand-panel",eliminatedSpectator);}if(eliminatedSpectator){players[0].hand=[];drawn=false;selected=-1;selectedIndices=[];arrangedGroups=[];}turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);round=st.round||1;drawn=st.drawnByUid===roomPlayerId;gameOver=st.status==="roundComplete"||st.status==="gameComplete";
+ if(myPublicPlayer&&myPublicPlayer.active===false&&myPublicPlayer.status==="Removed by host"){returnToLobbyForRecovery();return;}eliminatedSpectator=!!(myPublicPlayer&&myPublicPlayer.active===false&&myPublicPlayer.status==="Eliminated");const gameRoot=document.getElementById("game");if(gameRoot){gameRoot.classList.toggle("spectator-mode",eliminatedSpectator);const notice=document.getElementById("spectatorNotice");if(notice)notice.textContent=eliminatedSpectator?"👀 You reached the score limit. Stay and watch the rest of the match. Other players’ cards are hidden.":"";const handPanel=document.getElementById("hand")?.closest(".panel");if(handPanel)handPanel.classList.toggle("spectator-hand-panel",eliminatedSpectator);}if(eliminatedSpectator){players[0].hand=[];drawn=false;selected=-1;selectedIndices=[];arrangedGroups=[];}turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);round=st.round||1;drawn=st.drawnByUid===roomPlayerId;gameOver=st.status==="roundComplete"||st.status==="gameComplete";
  const el=document.getElementById("message");if(el)el.textContent=st.message||"Online game";render();
  if(st.status==="roundComplete"&&st.roundResult)openOnlineRoundResults(st.roundResult);
  if(st.status==="gameComplete"){openOnlineGameComplete(st.champion||"A player");const me=(st.players||[]).find(p=>p.id===roomPlayerId);if(me)saveCompletedGame("multiplayer","room_"+(roomCode||"unknown"),st.championUid===roomPlayerId,(st.players||[]).filter(p=>p.id!==roomPlayerId).map(p=>p.name));}
  if(st.specialRank)highlightSpecialJoker();
  updateDiscardCountdown();
+}
+function returnToLobbyForRecovery(){
+ const code=roomCode;
+ leaveVoiceChat();
+ if(onlineChatRef&&onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);
+ if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);
+ if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);
+ if(onlineSpecialRef)onlineSpecialRef.off("value");
+ if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);
+ if(roomRef&&onlineRejoinListener)roomRef.child("rejoinRequests").off("child_added",onlineRejoinListener);
+ if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
+ if(roomRef&&onlineRejoinListener)roomRef.child("rejoinRequests").off("child_added",onlineRejoinListener);
+ if(roomRef&&rejoinPublicListener)roomRef.child("public").off("value",rejoinPublicListener);
+ onlineMode=false;onlinePublic=null;onlinePublicRef=onlineHandRef=onlineActionRef=onlineSpecialRef=null;
+ onlinePublicListener=onlineHandListener=onlineActionListener=onlineLobbyListener=rejoinPublicListener=onlineRejoinListener=null;
+ document.getElementById("game")?.classList.add("hidden");
+ document.getElementById("waitingRoom")?.classList.add("hidden");
+ document.getElementById("setup")?.classList.remove("hidden");
+ document.getElementById("roomJoinControls")?.classList.remove("hidden");
+ const input=document.getElementById("roomCodeInput");if(input)input.value=code||"";
+ setLobbyNotice("The host removed your session to recover the screen. Enter the same game code and tap Join to continue with your saved hand.");
+}
+async function processOnlineRejoinRequest(uid){
+ if(!isRoomHost||!roomRef||!uid)return;
+ try{
+  const requestRef=roomRef.child("rejoinRequests/"+uid),requestSnap=await requestRef.get();
+  if(!requestSnap.exists())return;
+  const [publicSnap,privateSnap]=await Promise.all([roomRef.child("public").get(),roomRef.child("private").get()]);
+  const p=publicSnap.val(),priv=privateSnap.val()||{};
+  if(!p||p.status!=="playing"){await requestRef.remove();return;}
+  const idx=(p.players||[]).findIndex(x=>x.id===uid);
+  if(idx<0||p.players[idx].status!=="Removed by host"||p.players[idx].active!==false){await requestRef.remove();return;}
+  const hand=(priv.hands||{})[uid]||[];
+  if(hand.length!==13){await requestRef.remove();setLobbyNotice("Could not restore "+(p.players[idx].name||"player")+"'s hand. Host should restart the round.");return;}
+  p.players[idx]={...p.players[idx],active:true,status:"Rejoined",cardCount:hand.length,roundDropped:false,dropPenalty:0};
+  p.message=p.players[idx].name+" rejoined using the game code. Their saved hand has been restored.";
+  await Promise.all([
+   roomRef.child("public").set(p),
+   roomRef.child("lobby/players/"+uid).update({removed:false,ready:true}),
+   requestRef.remove()
+  ]);
+  setLobbyNotice(p.players[idx].name+" rejoined the game.");
+ }catch(e){setLobbyNotice("Could not restore player: "+e.message);}
+}
+function copyGameRoomCode(){
+ if(!roomCode)return;
+ if(navigator.clipboard?.writeText)navigator.clipboard.writeText(roomCode).then(()=>message("Game code copied. Share it to rejoin this match.")).catch(()=>message("Game code: "+roomCode));
+ else message("Game code: "+roomCode);
 }
 async function removeOnlinePlayer(uid){
  if(!onlineMode||!isRoomHost||!roomRef||!uid||uid===roomPlayerId)return;
@@ -3057,6 +3118,12 @@ async function removeOnlinePlayer(uid){
   const p=ps.val(),priv=ds.val()||{};if(!p||p.status!=="playing")return;
   const idx=(p.players||[]).findIndex(x=>x.id===uid);if(idx<0||p.players[idx].active===false)return;
   const removed=p.players[idx],wasTurn=p.turnUid===uid,hands=priv.hands||{},savedHand=hands[uid]||{};
+  if(p.drawnByUid===uid&&savedHand.length===14){
+   const drawnIndex=savedHand.findIndex(c=>c.id===p.drawnCardId);
+   const returned=savedHand.splice(drawnIndex>=0?drawnIndex:savedHand.length-1,1)[0];
+   if(returned)(priv.deck||[]).push(returned);
+   p.deckCount=(priv.deck||[]).length;
+  }
   const specialRanks=priv.specialRanks||{};delete specialRanks[uid];
   p.players[idx]={...removed,active:false,status:"Removed by host",cardCount:savedHand.length,unlocked:false,eligible:false,rejoinNextRound:false};
   if(p.drawnByUid===uid){p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;}
@@ -3065,7 +3132,7 @@ async function removeOnlinePlayer(uid){
    if(!remaining.length){p.status="gameComplete";p.message=removed.name+" was removed. No active players remain.";}
    else{const next=remaining.find(x=>p.players.indexOf(x)>idx)||remaining[0];p.turnUid=next.id;p.message=removed.name+" was removed by the host. "+next.name+"'s turn.";}
   }else p.message=removed.name+" was removed by the host.";
-  await Promise.all([roomRef.child("private/specialRanks").set(specialRanks),roomRef.child("actions/"+uid).remove(),roomRef.child("public").set(p),roomRef.child("lobby/players/"+uid).update({removed:true,ready:false})]);
+  await Promise.all([roomRef.child("private/specialRanks").set(specialRanks),roomRef.child("private/hands/"+uid).set(savedHand),roomRef.child("private/deck").set(priv.deck||[]),roomRef.child("actions/"+uid).remove(),roomRef.child("public").set(p),roomRef.child("lobby/players/"+uid).update({removed:true,ready:false})]);
   setLobbyNotice(removed.name+" was removed. They can rejoin using this room code.");
  }catch(e){setLobbyNotice("Could not remove player: "+e.message);}
 }
@@ -3374,7 +3441,7 @@ function startGame(){if(!onlineMode)return _soloStartGame();message("Leave the o
 function leaveRoom(showLobby=true){
  leaveVoiceChat();
  if(onlineChatRef&&onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);onlineChatRef=null;onlineChatListener=null;chatIsOpen=false;chatHasOpened=false;chatUnreadCount=0;document.getElementById("gameChat")?.classList.add("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");mutedChatSenders.clear();eliminatedSpectator=false;document.getElementById("game")?.classList.remove("spectator-mode");if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);if(onlineSpecialRef)onlineSpecialRef.off("value");if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
- if(roomRef&&roomPlayerId)roomRef.child("lobby/players/"+roomPlayerId).remove().catch(()=>{});onlineMode=false;onlinePublic=null;clearActiveRoom();onlinePublicRef=onlineHandRef=onlineActionRef=onlineSpecialRef=null;roomRef=null;roomCode=null;roomPlayerId=null;isRoomHost=false;onlineLobbyListener=null;
+ if(roomRef&&roomPlayerId)roomRef.child("lobby/players/"+roomPlayerId).remove().catch(()=>{});onlineMode=false;onlinePublic=null;clearActiveRoom();onlinePublicRef=onlineHandRef=onlineActionRef=onlineSpecialRef=null;onlineRejoinListener=null;roomRef=null;roomCode=null;roomPlayerId=null;isRoomHost=false;onlineLobbyListener=null;
  document.getElementById("game").classList.add("hidden");document.getElementById("waitingRoom")?.classList.add("hidden");const createBtn=document.getElementById("createTableBtn"),joinControls=document.getElementById("roomJoinControls");if(createBtn){createBtn.disabled=false;createBtn.textContent="＋ Create a private table";}if(joinControls)joinControls.classList.remove("hidden");if(showLobby)document.getElementById("setup").classList.remove("hidden");
 }
 </script>
