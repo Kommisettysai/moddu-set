@@ -3316,7 +3316,7 @@ function openOnlineRoundResults(result){
  }).join(''));
  const kicker=screen.querySelector(".results-kicker");if(kicker)kicker.textContent="🏆 ROUND "+(onlinePublic.round||1)+" · RESULTS";
  const title=screen.querySelector(".results-header h2");if(title)title.textContent="Round Results";
- document.getElementById("resultsSummary").textContent=result.winnerUid?result.winnerName+" showed successfully. All hands are revealed and scores are updated.":"All players dropped this round. Drop penalties have been added to their scores.";
+ document.getElementById("resultsSummary").textContent=result.winnerUid?(result.groups&&result.groups.length?result.winnerName+" showed successfully. All hands are revealed and scores are updated.":result.winnerName+" wins this round because the other player(s) dropped. Drop penalties have been added; eligible players return next round."):"All players dropped this round. Drop penalties have been added to their scores.";
  const footer=screen.querySelector(".results-footer");
  if(footer)footer.innerHTML=isRoomHost?'<button onclick="startOnlineNextRound()">Start next round →</button>':'<p>Waiting for the host to start the next round…</p><button onclick="closeResults()">Back to table</button>';
  screen.classList.remove("hidden");
