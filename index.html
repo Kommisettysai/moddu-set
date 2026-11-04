@@ -808,6 +808,14 @@ body.app-locked{overflow:hidden}
 #roundResults .results-footer button{width:100%;min-height:54px;padding:13px 16px!important;border-radius:18px!important;font-family:Georgia,serif;font-size:17px!important;font-weight:800}
 @media(max-width:390px){#roundResults .results-profiles{gap:5px!important}#roundResults .results-profile{padding:8px 2px!important}#roundResults .results-profile .result-points{font-size:10px!important}#roundResults .results-profile .result-current{font-size:9px!important;padding:4px 5px!important}#roundResults .results-winning-groups,#roundResults .results-breakdown{grid-template-columns:1fr!important}#roundResults .results-winning-group .results-card{flex-basis:42px!important;width:42px!important;height:61px!important}#roundResults .results-breakdown-section.counted{grid-column:auto}}
 
+.round-joker-reveal{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 10px;padding:10px 14px;border:1px solid #e6c66f99;border-radius:14px;background:linear-gradient(120deg,#654b1d,#174332);box-shadow:0 4px 14px #0003}
+.round-joker-copy{display:flex;flex-direction:column;gap:3px}
+.round-joker-copy>span{font-size:9px;letter-spacing:1.4px;font-weight:900;color:#f5d98f}
+.round-joker-copy strong{font-size:22px;color:#ffe5a5}
+.round-joker-copy small{font-size:10px;color:#e8d9b2}
+.round-joker-card{width:49px;height:68px;flex:0 0 49px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:8px}
+.round-joker-card span{font-size:20px;font-weight:900}
+.round-joker-card small{font-size:7px;font-weight:900}
 /* Results: one complete row per player, no separate profile strip */
 #roundResults #resultsProfiles{display:none!important}
 #roundResults .results-hands{display:flex;flex-direction:column;gap:10px}
@@ -2518,13 +2526,18 @@ function renderResultsProfile(p,position,total,penalty,isWinner,isDropped){
  const rank=isWinner?"🥇 WINNER":isDropped?"⛔ DROPPED":"#"+(position+1)+" PLACE";
  return '<div class="results-profile '+(isWinner?'show-winner':'')+'">'+playerIdentityMarkup(p,position,"results")+'<span class="finish-rank">'+rank+'</span><span class="result-points">Total: '+(Number(total)||0)+'</span><span class="result-current">+'+(Number(penalty)||0)+'</span></div>';
 }
+function renderRoundJokerReveal(rank){
+ if(!rank)return "";
+ const safeRank=escapeLobbyText(rank);
+ return '<div class="round-joker-reveal"><div class="round-joker-copy"><span>ROUND SPECIAL JOKER</span><strong>'+safeRank+' ★</strong><small>This was revealed during this round</small></div><div class="results-card joker round-joker-card"><span>'+safeRank+'★</span><small>SPECIAL JOKER</small></div></div>';
+}
 function openRoundResults(results,winnerIndex=0){
  const screen=document.getElementById("roundResults"),profiles=document.getElementById("resultsProfiles"),hands=document.getElementById("resultsHands");
  if(!screen||!profiles||!hands)return;
  const penalties=players.map((p,i)=>p.roundDropped?(p.dropPenalty||0):(i===0?0:bestUnmatchedScore(p.hand,p)));
  const resultOrder=players.map((p,i)=>({p,i,penalty:penalties[i]})).sort((a,b)=>(a.i===winnerIndex?-1:b.i===winnerIndex?1:a.penalty-b.penalty)||a.i-b.i);
  profiles.innerHTML="";
- hands.innerHTML=resultOrder.map(({p,i,penalty})=>{
+ hands.innerHTML=renderRoundJokerReveal(specialRank)+resultOrder.map(({p,i,penalty})=>{
   const groupsHtml=p.roundDropped?'<div class="results-breakdown-section counted"><span class="results-breakdown-title">DROPPED · FIXED +'+penalty+' POINTS</span></div>':i===winnerIndex&&winningGroups.length?'<div class="results-winning-groups">'+winningGroups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>p.hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':renderScoringBreakdown(p.hand,p,penalty);
   return '<div class="results-hand '+(i===winnerIndex?'winner-hand':'')+'"><div class="results-hand-head"><div class="hand-player-identity"><span class="player-avatar">'+playerInitials(p.name)+'</span><strong class="hand-player-name">'+(i===winnerIndex?'🏆 ':'')+escapeLobbyText(p.name)+'</strong></div><span class="results-total">Total: '+(Number(p.score)||0)+'</span><span class="result-current">+'+penalty+'</span></div>'+groupsHtml+'</div>';
  }).join('');
@@ -3118,6 +3131,8 @@ function dropCurrentRound(){
  const me=players[0];if(!me||me.roundDropped){message("You have already dropped this round.");return;}
  const penalty=(Number(me.roundDrawCount)||0)<=1?20:40;
  me.roundDropped=true;me.dropPenalty=penalty;me.score+=penalty;me.status="Dropped this round";
+ const remaining=players.filter(p=>p.active!==false&&!p.roundDropped&&p.score<scoreLimit);
+ if(remaining.length===1){gameOver=true;const champion=remaining[0];champion.status="🏆 Champion";message(champion.name+" wins the game! "+me.name+" dropped this round.");if(soloMatchId)saveCompletedGame("vsBots",soloMatchId,!!champion.human,players.filter(p=>!p.human).map(p=>p.name));render();return;}
  message(me.name+" dropped this round for "+penalty+" points. They can return next round.");
  if(turn===0)nextTurn();else render();
 }
@@ -3135,12 +3150,13 @@ async function processOnlineAction(uid,a){
   p.players[playerIndex]={...p.players[playerIndex],roundDropped:true,dropPenalty,score:(p.players[playerIndex].score||0)+dropPenalty,status:"Dropped this round"};
   if(p.drawnByUid===uid){p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;}
   p.message=player.name+" dropped this round for "+dropPenalty+" points.";
-  const remaining=(p.players||[]).filter(x=>x.active!==false&&!x.roundDropped);
-  if(p.turnUid===uid&&remaining.length){const next=remaining.find(x=>(p.players.indexOf(x))>playerIndex)||remaining[0];p.turnUid=next.id;p.pickDeadline=next.isBot?null:Date.now()+60000;}
+  const remaining=(p.players||[]).filter(x=>x.active!==false&&!x.roundDropped&&(Number(x.score)||0)<Math.max(1,Number(p.scoreLimit)||200));
+  if(remaining.length===1){const champion=remaining[0];p.status="gameComplete";p.champion=champion.name;p.championUid=champion.id;p.turnUid=champion.id;p.message=champion.name+" wins Moddu Set! The other player dropped this round.";await roomRef.child("public").set(p);return;}
+  if(p.turnUid===uid&&remaining.length>1){const next=remaining.find(x=>(p.players.indexOf(x))>playerIndex)||remaining[0];p.turnUid=next.id;p.pickDeadline=next.isBot?null:Date.now()+60000;}
   if(!remaining.length){
    const penalties={},totals={};
    (p.players||[]).forEach(x=>{penalties[x.id]=x.dropPenalty||0;totals[x.id]=x.score||0;});
-   p.status="roundComplete";p.roundResult={winnerUid:null,winnerName:null,groups:[],penalties,totals,hands:h,specialRanks,completedAt:Date.now()};
+   p.status="roundComplete";p.roundResult={winnerUid:null,winnerName:null,groups:[],penalties,totals,hands:h,specialRanks,specialJokerRank:special||p.specialRank||Object.values(specialRanks).find(Boolean)||null,completedAt:Date.now()};
    await roomRef.child("public").set(p);return;
   }
   await roomRef.child("public").set(p);return;
@@ -3194,7 +3210,7 @@ async function processOnlineAction(uid,a){
   const penalties={},totals={},limit=Math.max(1,Number(p.scoreLimit)||200);(p.players||[]).forEach(x=>{const scorePlayer={...x,specialRank:specialRanks[x.id]||null};const penalty=x.roundDropped?(x.dropPenalty||0):(x.id===uid?0:bestUnmatchedScore(h[x.id]||[],scorePlayer));penalties[x.id]=penalty;totals[x.id]=(x.score||0)+(x.roundDropped?0:penalty);});
   p.players=(p.players||[]).map(x=>{const active=x.active!==false&&totals[x.id]<limit;return {...x,score:totals[x.id],active,status:active?"Ready":"Eliminated",cardCount:(h[x.id]||[]).length};});
   p.status="roundComplete";p.discard=pile;p.deckCount=d.length;p.message=player.name+" showed successfully. All hands are revealed.";
-  p.roundResult={winnerUid:uid,winnerName:player.name,groups:a.groups,penalties,totals,hands:h,specialRanks,completedAt:Date.now()};
+  p.roundResult={winnerUid:uid,winnerName:player.name,groups:a.groups,penalties,totals,hands:h,specialRanks,specialJokerRank:special||p.specialRank||Object.values(specialRanks).find(Boolean)||null,completedAt:Date.now()};
   await Promise.all([roomRef.child("private/deck").set(d),roomRef.child("private/hands").set(h),roomRef.child("private/specialRank").set(special),roomRef.child("private/specialRanks").set(specialRanks),roomRef.child("public").set(p)]);return;
  }
  p.discard=pile;p.deckCount=d.length;p.players=(p.players||[]).map(x=>({...x,cardCount:(h[x.id]||[]).length}));
@@ -3206,7 +3222,7 @@ function openOnlineRoundResults(result){
  const list=(onlinePublic.players||[]).map(p=>({...p,cardCount:(result.hands[p.id]||[]).length})),winner=result.winnerUid;
  const resultOrder=list.map((p,i)=>({p,i,penalty:result.penalties[p.id]||0})).sort((a,b)=>(a.p.id===winner?-1:b.p.id===winner?1:a.penalty-b.penalty)||a.i-b.i);
  profiles.innerHTML=resultOrder.map(({p})=>{const penalty=result.penalties[p.id]||0,total=Number(result.totals[p.id])||0;const isEliminated=p.active===false||total>=Math.max(1,Number(onlinePublic.scoreLimit)||200);return '<div class="results-profile '+(p.id===winner?'show-winner':'')+'"><div class="results-identity"><span class="player-avatar">'+playerInitials(p.name)+'</span><span class="results-name"><strong>'+escapeLobbyText(p.name)+'</strong></span></div><span class="finish-rank">'+(p.id===winner?'🏆 ROUND WINNER':isEliminated?'ELIMINATED':'ROUND COMPLETE')+'</span><span class="result-points">Total: '+total+'</span><span class="result-count">This round: +'+penalty+'</span></div>';}).join('');
- handsEl.innerHTML=eliminatedSpectator?'<div class="spectator-result-note">👀 You are watching this result. Other players’ cards are hidden.</div>':resultOrder.map(({p})=>{
+ handsEl.innerHTML=renderRoundJokerReveal(result.specialJokerRank||result.specialRank||onlinePublic.specialRank||Object.values(result.specialRanks||{}).find(Boolean))+(eliminatedSpectator?'<div class="spectator-result-note">👀 You are watching this result. Other players’ cards are hidden.</div>':resultOrder.map(({p})=>{
   const hand=result.hands[p.id]||[],penalty=result.penalties[p.id]||0,total=Number(result.totals[p.id])||0;
   const isEliminated=p.active===false||total>=Math.max(1,Number(onlinePublic.scoreLimit)||200);
   if(isEliminated){
