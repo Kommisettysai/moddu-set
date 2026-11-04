@@ -2368,7 +2368,7 @@ function findBestArrangement(hand,player){
  }
  for(let i=0;i<n-3;i++)for(let j=i+1;j<n-2;j++)for(let k=j+1;k<n-1;k++)for(let l=k+1;l<n;l++){
   const cards=[hand[i],hand[j],hand[k],hand[l]];
-  if(cards.every(c=>!c.joker&&!isWildForPlayer(c,player)&&c.rank===cards[0].rank))candidates.push({cards,mask:(1<<i)|(1<<j)|(1<<k)|(1<<l),pure:true,wilds:0});
+  if(cards.every(c=>!c.joker&&c.rank===cards[0].rank))candidates.push({cards,mask:(1<<i)|(1<<j)|(1<<k)|(1<<l),pure:true,wilds:0});
  }
  const byFirst=Array.from({length:n},()=>[]);
  candidates.forEach(g=>{for(let i=0;i<n;i++)if(g.mask&(1<<i))byFirst[i].push(g);});
@@ -2463,7 +2463,7 @@ function showHand(){
  const used=groups.flat().map(c=>c.id);
  if(used.length!==13||new Set(used).size!==13){message("Every card must be used exactly once. Arrange again.");return;}
  const pure=groups[0];
- if(pure.length!==4||pure.some(c=>c.joker||isWildForPlayer(c,player))||!pure.every(c=>c.rank===pure[0].rank)){
+ if(pure.length!==4||pure.some(c=>c.joker)||!pure.every(c=>c.rank===pure[0].rank)){
   message("Your first group must be a pure natural four-set.");return;
  }
  if(!groups.slice(1).every(g=>{
@@ -3181,7 +3181,7 @@ function validateOnlineShow(hand,groupIds,player){
  const used=groups.flat().map(c=>c.id);
  if(used.length!==13||new Set(used).size!==13||hand.length!==13)return "All 13 cards must be used exactly once.";
  const pure=groups[0];
- if(pure.some(c=>c.joker||c.rank==="J")||!pure.every(c=>c.rank===pure[0].rank))return "The first group must be a natural four-set of the same rank.";
+ if(pure.some(c=>c.joker)||!pure.every(c=>c.rank===pure[0].rank))return "The first group must be a natural four-set of the same rank.";
  if(!groups.slice(1).every(g=>validThree(g,player)))return "Each three-card set must have the same rank, except for valid jokers.";
  return null;
 }
