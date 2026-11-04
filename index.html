@@ -3231,7 +3231,7 @@ function openOnlineRoundResults(result){
   const resultPlayer={...p,unlocked:!!p.unlocked,specialRank:(result.specialRanks||{})[p.id]||null};
   const winning=p.roundDropped?'<div class="results-breakdown-section counted"><span class="results-breakdown-title">DROPPED · FIXED +'+penalty+' POINTS</span></div>':p.id===winner?'<div class="results-winning-groups">'+result.groups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':renderScoringBreakdown(hand,resultPlayer,penalty);
   return '<div class="results-hand '+(p.id===winner?'winner-hand':'')+'"><div class="results-hand-head"><div class="hand-player-identity"><span class="player-avatar">'+playerInitials(p.name)+'</span><strong class="hand-player-name">'+(p.id===winner?'🏆 ':'')+escapeLobbyText(p.name)+'</strong></div><span class="results-total">Total: '+total+'</span><span class="result-current">+'+penalty+'</span></div>'+winning+'</div>';
- }).join('');
+ }).join(''));
  const kicker=screen.querySelector(".results-kicker");if(kicker)kicker.textContent="🏆 ROUND "+(onlinePublic.round||1)+" · RESULTS";
  const title=screen.querySelector(".results-header h2");if(title)title.textContent="Round Results";
  document.getElementById("resultsSummary").textContent=result.winnerUid?result.winnerName+" showed successfully. All hands are revealed and scores are updated.":"All players dropped this round. Drop penalties have been added to their scores.";
