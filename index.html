@@ -3287,7 +3287,7 @@ async function startFreshRoundWithScores(){
   const limit=Math.max(1,Number(p.scoreLimit)||200);
   const active=p.players.filter(x=>x.active!==false&&(Number(x.score)||0)<limit);
   if(active.length<=1){message("There are not enough active players to start another round.");return;}
-  const roundPlayers=p.players.map(x=>({...x,active:active.some(a=>a.id===x.id),status:active.some(a=>a.id===x.id)?"Ready":"Eliminated",unlocked:false,eligible:false,specialRank:null}));
+  const roundPlayers=p.players.map(x=>({...x,active:active.some(a=>a.id===x.id),status:active.some(a=>a.id===x.id)?"Ready":"Eliminated",roundDrawCount:0,roundDropped:false,dropPenalty:0,unlocked:false,eligible:false,specialRank:null}));
   const d=shuffle(makeDeck(active.length)),hands={};
   active.forEach(x=>hands[x.id]=d.splice(0,13));
   const first=d.pop(),nextRound=(Number(p.round)||1)+1;
