@@ -2690,13 +2690,13 @@ function showWaitingRoom(){
   const countEl=document.getElementById("roomPlayerCount");if(countEl)countEl.textContent=m.length+"/"+l.maxPlayers;
   const playersEl=document.getElementById("roomPlayers");
   if(playersEl)playersEl.innerHTML=m.map((p,i)=>{
-   const avatar=p.isBot?"🤖":(["🃏","🌟","🍀","🔥","🎯","👑"][i]||"🃏"),role=p.id===l.hostId?"HOST":p.isBot?"BOT":"READY";
+   const avatar=p.isBot?"🤖":(["🃏","🌟","🍀","🔥","🎯","👑"][i]||"🃏"),role=p.removed?"REMOVED":p.id===l.hostId?"HOST":p.isBot?"BOT":"READY";
    const remove=isRoomHost&&p.id!==l.hostId?'<button type="button" class="room-remove-player" aria-label="Remove '+escapeLobbyText(p.name)+'" title="Remove player" onclick="removeRoomPlayer(\''+escapeLobbyText(p.id)+'\')">🗑</button>':'';
    return '<div class="room-player"><span class="avatar">'+avatar+'</span><strong>'+escapeLobbyText(p.name)+'</strong><small>'+role+'</small>'+remove+'</div>';
   }).join("");
   if(botBtn)botBtn.disabled=m.length>=Number(l.maxPlayers||6);
   if(startBtn)startBtn.disabled=m.length<2;
-  if(l.status==="started")roomRef.child("public").get().then(x=>{if(!x.exists())return;const state=x.val(),me=(state.players||[]).find(p=>p.id===roomPlayerId);if(me&&(me.active!==false||me.status==="Eliminated")&&["playing","roundComplete","gameComplete"].includes(state.status))enterOnlineGame(state);else if(me?.rejoinNextRound)setLobbyNotice("You are queued. You will enter automatically when the host starts the next round.");});
+  if(l.status==="started")roomRef.child("public").get().then(x=>{if(!x.exists())return;const state=x.val(),me=(state.players||[]).find(p=>p.id===roomPlayerId);if(!onlineMode&&me&&(me.active!==false||me.status==="Eliminated")&&["playing","roundComplete","gameComplete"].includes(state.status))enterOnlineGame(state);else if(me?.rejoinNextRound)setLobbyNotice("You are queued. You will enter automatically when the host starts the next round.");});
  };
  rejoinPublicListener=snap=>{if(!snap.exists())return;const state=snap.val(),me=(state.players||[]).find(p=>p.id===roomPlayerId);if(me&&me.active!==false&&state.status==="playing"&&!onlineMode)enterOnlineGame(state);};
  roomRef.child("public").on("value",rejoinPublicListener);
@@ -3073,7 +3073,6 @@ function returnToLobbyForRecovery(){
  if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);
  if(roomRef&&onlineRejoinListener)roomRef.child("rejoinRequests").off("child_added",onlineRejoinListener);
  if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
- if(roomRef&&onlineRejoinListener)roomRef.child("rejoinRequests").off("child_added",onlineRejoinListener);
  if(roomRef&&rejoinPublicListener)roomRef.child("public").off("value",rejoinPublicListener);
  onlineMode=false;onlinePublic=null;onlinePublicRef=onlineHandRef=onlineActionRef=onlineSpecialRef=null;
  onlinePublicListener=onlineHandListener=onlineActionListener=onlineLobbyListener=rejoinPublicListener=onlineRejoinListener=null;
