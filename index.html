@@ -2999,10 +2999,31 @@ async function joinVoiceChat(){
  if(voiceJoined)return;
  if(!navigator.mediaDevices?.getUserMedia||!window.RTCPeerConnection){voiceSetStatus("This browser does not support voice chat. Try an updated browser over HTTPS.");return;}
  const joinBtn=document.getElementById("voiceJoinBtn");if(joinBtn){joinBtn.disabled=true;joinBtn.textContent="Connecting…";}
+
+ // Stage 1: request the physical microphone. Keep this separate from Firebase
+ // so a database permission error is never incorrectly reported as a mic error.
  try{
-  voiceStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1},video:false});
-  const micTracks=voiceStream.getAudioTracks();if(!micTracks.length)throw new Error("No audio track was returned by the microphone.");
+  try{
+   voiceStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+  }catch(primaryError){
+   // Some Android devices reject one or more advanced constraints. Retry with
+   // the browser's default audio device settings before reporting failure.
+   try{voiceStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});}
+   catch(fallbackError){fallbackError.originalError=primaryError;throw fallbackError;}
+  }
+  const micTracks=voiceStream.getAudioTracks();
+  if(!micTracks.length)throw new Error("No audio track was returned by the microphone.");
   micTracks.forEach(t=>{t.enabled=false;t.onended=()=>voiceSetStatus("Your microphone stopped. Leave voice and join again.");});
+ }catch(e){
+  if(voiceStream){voiceStream.getTracks().forEach(t=>t.stop());voiceStream=null;}
+  voiceJoined=false;
+  voiceSetStatus(await voiceMicrophoneErrorMessage(e));
+  if(joinBtn){joinBtn.disabled=false;joinBtn.textContent="Try Again";}
+  return;
+ }
+
+ // Stage 2: register in Firebase and start WebRTC signalling.
+ try{
   voiceMuted=true;voiceJoined=true;
   voiceParticipantsRef=roomRef.child("voice/participants");
   voiceSignalsRef=roomRef.child("voice/signals");
@@ -3023,12 +3044,22 @@ async function joinVoiceChat(){
   document.getElementById("voiceMuteBtn").disabled=false;
   document.getElementById("voiceLeaveBtn")?.classList.remove("hidden");
   document.getElementById("topVoiceControls")?.classList.remove("hidden");
-  voiceSetStatus("Connected to voice. Your microphone is muted.");
+  voiceSetStatus("Microphone ready. Connecting to other players…");
  }catch(e){
+  console.error("Firebase voice setup failed:",e);
   voiceJoined=false;
+  if(voiceParticipantsRef&&voiceParticipantsListener)voiceParticipantsRef.off("value",voiceParticipantsListener);
+  voiceParticipantsListener=null;
   if(voiceStream){voiceStream.getTracks().forEach(t=>t.stop());voiceStream=null;}
-  voiceSetStatus(await voiceMicrophoneErrorMessage(e));
- }finally{if(joinBtn){joinBtn.disabled=false;joinBtn.textContent="Try Again";}}
+  const code=e&&e.code?String(e.code):"";
+  const detail=code==="PERMISSION_DENIED"||code==="PERMISSION_DENIED: Client doesn't have permission to access the desired data."
+   ?"Firebase denied access to the voice data. Realtime Database rules must allow signed-in room members to read/write their own voice participant and signalling records."
+   :"Microphone works, but Firebase voice setup failed ("+(code||e.name||"error")+"): "+(e.message||"Check Realtime Database access and network.");
+  voiceSetStatus(detail);
+ }finally{
+  if(joinBtn){joinBtn.disabled=false;joinBtn.textContent=voiceJoined?"Join voice":"Try Again";}
+  voiceUpdateTopControls();
+ }
 }
 async function toggleVoiceControl(){
  if(!voiceJoined){
