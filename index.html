@@ -1477,7 +1477,7 @@ function showAccountState(user,profile){
  const signOutBtn=document.getElementById("accountSignOutBtn");
  const guestBtn=document.getElementById("guestSignInBtn");
  if(!user){if(btn)btn.classList.remove("hidden");if(guestBtn)guestBtn.classList.remove("hidden");if(setup)setup.classList.add("hidden");if(actions)actions.classList.add("hidden");if(signOutBtn)signOutBtn.classList.add("hidden");if(name)name.textContent="Welcome to Moddu Set";if(email)email.textContent="Sign in with Google or continue as a guest.";if(avatar)avatar.textContent="👤";return;}
- if(btn)btn.classList.add("hidden");if(guestBtn)guestBtn.classList.add("hidden");if(signOutBtn)signOutBtn.classList.remove("hidden");
+ if(btn)btn.classList.add("hidden");if(guestBtn)guestBtn.classList.add("hidden");if(signOutBtn){signOutBtn.classList.remove("hidden");signOutBtn.disabled=!!user.isAnonymous;signOutBtn.textContent=user.isAnonymous?"Guest account saved":"Sign out";signOutBtn.title=user.isAnonymous?"This guest account stays saved on this device. Close the page to leave.":"";}
  if(name)name.textContent=user.isAnonymous?"Guest player":(user.displayName||"Welcome, player");
  if(email)email.textContent=user.isAnonymous?"Temporary guest account · This device":(user.email||"Google account connected");
  if(avatar){avatar.textContent="";avatar.style.backgroundImage=user.photoURL?"url('"+user.photoURL.replace(/['()]/g,"")+"')":"";avatar.style.backgroundSize="cover";avatar.style.backgroundPosition="center";}
@@ -1527,6 +1527,8 @@ function initFirebase(){
 }
 async function continueAsGuest(){
  if(!firebaseReady){setLobbyNotice("Firebase is still connecting. Please try again in a moment.");return;}
+ const existing=firebase.auth().currentUser;
+ if(existing&&existing.isAnonymous){authUser=existing;await loadPlayerProfile(existing);setLobbyNotice(playerProfile?"Welcome back, @"+playerProfile.username+"! Your guest account was restored.":"Your saved guest account is ready. Choose a username to continue.");return;}
  const btn=document.getElementById("guestSignInBtn");
  if(btn){btn.disabled=true;btn.textContent="Creating guest account…";}
  setAuthStatus("Creating a temporary guest account…");
@@ -1598,36 +1600,7 @@ async function signOutPlayer(){
  const user=firebase.auth().currentUser;
  if(!user){setLobbyNotice("You are already signed out.");return;}
  if(user.isAnonymous){
-  const username=playerProfile&&playerProfile.username;
-  const warning=username
-   ?"Signing out will permanently delete this guest account and release @"+username+". You will not be able to sign back into this guest account. Continue?"
-   :"Signing out will permanently delete this temporary guest account. Continue?";
-  if(!confirm(warning))return;
-  try{
-   const db=firebase.database(),profileRef=db.ref("users/"+user.uid);
-   const profileSnap=await profileRef.get(),savedProfile=profileSnap.exists()?profileSnap.val():null;
-   let releasedUsername=null;
-   if(savedProfile&&savedProfile.username){
-    const usernameRef=db.ref("usernames/"+savedProfile.username);
-    const claim=await usernameRef.transaction(current=>current===user.uid?null:undefined);
-    if(claim.committed)releasedUsername=savedProfile.username;
-   }
-   try{
-    if(savedProfile&&savedProfile.uid===user.uid)await profileRef.remove();
-    await user.delete();
-    window.lockAppAfterSignOut?.();
-    setLobbyNotice("Guest account deleted. @"+(releasedUsername||username||"guest")+" is now available again.");
-   }catch(deleteError){
-    if(savedProfile&&savedProfile.uid===user.uid)await profileRef.set(savedProfile).catch(()=>{});
-    if(releasedUsername)await db.ref("usernames/"+releasedUsername).transaction(current=>current===null?user.uid:undefined).catch(()=>{});
-    throw deleteError;
-   }
-  }catch(e){
-   const messageText=e.code==="auth/requires-recent-login"
-    ?"For safety, this guest session is too old to delete. Refresh the page, then try signing out again."
-    :"Could not delete guest account: "+e.message;
-   setLobbyNotice(messageText);
-  }
+  setLobbyNotice("Your guest account is saved on this device. You do not need to sign out. Simply close the page and return later to continue with the same username, friends and game history.");
   return;
  }
  try{await firebase.auth().signOut();window.lockAppAfterSignOut?.();setLobbyNotice("You have signed out.");}
