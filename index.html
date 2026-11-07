@@ -2881,7 +2881,7 @@ function openPlayerMessage(event){
  overlay.innerHTML='<div class="reaction-picker" role="dialog" aria-modal="true" aria-labelledby="reactionPickerTitle"><div class="reaction-picker-head"><strong id="reactionPickerTitle">Recent reactions</strong><button type="button" class="reaction-picker-close" aria-label="Close" onclick="closePlayerReactionPopup()">×</button></div><div class="reaction-picker-grid" id="reactionPickerGrid"></div><label class="reaction-picker-label" for="reactionPickerText">Or write your own message</label><textarea id="reactionPickerText" maxlength="100" rows="2" placeholder="Type a message…"></textarea><div class="reaction-picker-actions"><button type="button" class="reaction-picker-cancel" onclick="closePlayerReactionPopup()">Cancel</button><button type="button" class="reaction-picker-send" onclick="sendPlayerReactionFromPopup(document.getElementById(\'reactionPickerText\').value,\'text\')">Send</button></div></div>';
  overlay.addEventListener("click",e=>{if(e.target===overlay)closePlayerReactionPopup();});
  document.body.appendChild(overlay);renderPlayerRecentReactions();
- const input=document.getElementById("reactionPickerText");if(input)input.focus();
+ // Keep the popup keyboard-free initially. The keyboard opens only when the player taps the message box.
  loadPlayerRecentReactions().then(()=>{if(document.getElementById("playerReactionPopup"))renderPlayerRecentReactions();});
 }
 function toggleGameChat(){
