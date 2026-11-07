@@ -1276,6 +1276,9 @@ body:has(#roundResults:not(.hidden))>header,
 }
 .game-room-code{display:flex;align-items:center;gap:7px;padding:6px 9px;border:1px solid #d9b66b77;border-radius:11px;background:#082b21;color:#f7dfaa}.game-room-code span{font-size:8px;letter-spacing:1px;color:#b8c9bd}.game-room-code strong{font-size:13px;letter-spacing:2px;color:#ffe2a0}.game-room-code button{padding:5px 8px;font-size:10px;border-radius:7px;box-shadow:none}.game-brand{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 
+/* Keep the SAI brand clear of the floating Leave Table button on phones */
+@media(max-width:600px){#game .game-brand .sai-brand{transform:translateX(-42px)}#game .game-brand .leave-table-top{right:0}}
+
 /* Automatic rematch controls on the final results screen */
 #roundResults .results-footer .rematch-btn{background:linear-gradient(180deg,#ffe8a8,#e8bd61)!important;color:#30230c!important;font-size:16px!important;padding:14px!important}
 #roundResults .results-footer .rematch-btn:disabled{opacity:.8!important;filter:none!important}
