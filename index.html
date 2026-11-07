@@ -3243,35 +3243,68 @@ async function processOnlineAction(uid,a){
  if(a.type==="dropRound"){
   if(player.active===false||player.roundDropped)return;
   const dropPenalty=(Number(player.roundDrawCount)||0)<=1?20:40;
-  p.players[playerIndex]={...p.players[playerIndex],roundDropped:true,dropPenalty,score:(p.players[playerIndex].score||0)+dropPenalty,status:"Dropped this round"};
-  if(p.drawnByUid===uid){p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;}
+  const droppedPlayer={...p.players[playerIndex],roundDropped:true,dropPenalty,
+   score:(Number(p.players[playerIndex].score)||0)+dropPenalty,status:"Dropped this round"};
+  p.players[playerIndex]=droppedPlayer;
+
+  // If the player drops after drawing, put the un-discarded drawn card back.
+  // This keeps their saved hand at 13 cards while the remaining players continue.
+  if(p.drawnByUid===uid){
+   if(p.drawnCardId){
+    const drawnIndex=hand.findIndex(card=>card.id===p.drawnCardId);
+    if(drawnIndex>=0){d.push(hand.splice(drawnIndex,1)[0]);d=shuffle(d);}
+   }
+   h[uid]=hand;
+   p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;
+  }
+
   p.message=player.name+" dropped this round for "+dropPenalty+" points.";
   const limit=Math.max(1,Number(p.scoreLimit)||200);
   const eligible=(p.players||[]).filter(x=>x.active!==false&&(Number(x.score)||0)<limit);
   const stillPlaying=eligible.filter(x=>!x.roundDropped);
-  // A drop ends the player's participation in this round, not the whole match.
-  // The dropped player remains eligible for the next round while their total is below the limit.
+
+  // A drop removes a player from this round only. They remain eligible for
+  // the next round unless their cumulative score reaches the elimination limit.
   (p.players||[]).forEach(x=>{
    const isEligible=eligible.some(e=>e.id===x.id);
    x.active=isEligible;
    if(!isEligible)x.status="Eliminated";
   });
+
   if(eligible.length<=1){
    const champion=eligible[0]||(p.players||[]).reduce((best,x)=>(Number(x.score)||0)<(Number(best.score)||0)?x:best,p.players[0]);
    p.status="gameComplete";p.champion=champion?.name||"";p.championUid=champion?.id||null;p.turnUid=champion?.id||null;
    p.message=(champion?.name||"A player")+" wins Moddu Set! The score limit has been reached.";
-   await roomRef.child("public").set(p);return;
+   await Promise.all([roomRef.child("private/deck").set(d),roomRef.child("private/hands").set(h),roomRef.child("public").set(p)]);
+   return;
   }
+
   if(stillPlaying.length<=1){
    const winner=stillPlaying[0]||null,penalties={},totals={};
-   (p.players||[]).forEach(x=>{penalties[x.id]=x.roundDropped?(Number(x.dropPenalty)||0):0;totals[x.id]=Number(x.score)||0;});
+   (p.players||[]).forEach(x=>{
+    penalties[x.id]=x.roundDropped?(Number(x.dropPenalty)||0):0;
+    totals[x.id]=Number(x.score)||0;
+   });
    p.status="roundComplete";
+   // Make the surviving player the round winner and current turn owner.
+   // The dropped player is not shown as the winner or given a SHOW action.
+   if(winner)p.turnUid=winner.id;
    p.roundResult={winnerUid:winner?.id||null,winnerName:winner?.name||null,groups:[],penalties,totals,hands:h,specialRanks,specialJokerRank:special||p.specialRank||Object.values(specialRanks).find(Boolean)||null,completedAt:Date.now()};
-   p.message=winner?winner.name+" wins this round. "+player.name+" dropped and can return next round if below "+limit+" points.":"All players dropped this round.";
-   await roomRef.child("public").set(p);return;
+   p.message=winner?winner.name+" wins this round because the other player(s) dropped. Drop penalties are counted; eligible dropped players return next round.":"All players dropped this round.";
+   await Promise.all([roomRef.child("private/deck").set(d),roomRef.child("private/hands").set(h),roomRef.child("public").set(p)]);
+   return;
   }
-  if(p.turnUid===uid&&stillPlaying.length>1){const next=stillPlaying.find(x=>(p.players.indexOf(x))>playerIndex)||stillPlaying[0];p.turnUid=next.id;p.pickDeadline=next.isBot?null:Date.now()+60000;}
-  await roomRef.child("public").set(p);return;
+
+  // Continue with the remaining players. If the dropped player owned the
+  // turn, move to the next eligible player, skipping everyone who dropped.
+  const currentTurn=stillPlaying.find(x=>x.id===p.turnUid);
+  if(!currentTurn){
+   const next=stillPlaying.find(x=>p.players.indexOf(x)>playerIndex)||stillPlaying[0];
+   p.turnUid=next.id;
+   p.pickDeadline=next.isBot?null:Date.now()+60000;
+  }
+  await Promise.all([roomRef.child("private/deck").set(d),roomRef.child("private/hands").set(h),roomRef.child("public").set(p)]);
+  return;
  }
  const syncUnlock=()=>{p.players[playerIndex].eligible=true;p.players[playerIndex].unlocked=true;player.eligible=true;player.unlocked=true;player.specialRank=special;};
  if(a.type==="drawClosed"||a.type==="drawOpen"){
