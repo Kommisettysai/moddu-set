@@ -621,6 +621,23 @@ footer .sai-brand-copy small{font-size:6px}
 body.app-locked{overflow:hidden}
 
 
+/* In-game reaction picker */
+.reaction-picker-overlay{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:18px;background:#000a;backdrop-filter:blur(4px)}
+.reaction-picker{width:min(100%,390px);padding:20px;border:1px solid #d7bd72;border-radius:22px;background:linear-gradient(160deg,#123f32,#08271f);color:#f8e8bd;box-shadow:0 18px 60px #0009}
+.reaction-picker-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;font-family:Georgia,serif;font-size:19px;letter-spacing:.3px}
+.reaction-picker-close{border:0;background:transparent;color:#f8e8bd;font-size:27px;line-height:1;padding:0 4px}
+.reaction-picker-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:18px}
+.reaction-emoji-button{min-height:58px;border:1px solid #c6a75d88;border-radius:13px;background:#ffffff0d;font-size:29px;box-shadow:inset 0 1px #ffffff12}
+.reaction-emoji-button:active{transform:scale(.94);background:#e7c87533}
+.reaction-picker-label{display:block;margin:3px 0 8px;color:#e9d9b4;font-size:13px}
+.reaction-picker textarea{box-sizing:border-box;width:100%;resize:none;border:1px solid #bba36b88;border-radius:12px;background:#071f19;color:#fff1cf;padding:11px;font:inherit;font-size:14px;outline:none}
+.reaction-picker textarea:focus{border-color:#f3d889;box-shadow:0 0 0 2px #f3d88922}
+.reaction-picker-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}
+.reaction-picker-actions button{min-width:88px;padding:10px 15px;border-radius:11px;font-weight:700}
+.reaction-picker-cancel{border:1px solid #bba36b88;background:transparent;color:#f8e8bd}
+.reaction-picker-send{border:1px solid #f3d889;background:linear-gradient(135deg,#f6df9a,#d4ad56);color:#26301f}
+@media(max-width:360px){.reaction-picker{padding:16px}.reaction-emoji-button{min-height:52px;font-size:26px}}
+
 /* Live table reactions: everyone sees who sent each reaction */
 .player{position:relative}
 .player-reaction-burst{position:absolute;z-index:30;left:50%;top:-13px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;max-width:calc(100% - 8px);pointer-events:none;animation:playerReactionPop 3.2s ease forwards}
@@ -2802,23 +2819,17 @@ function showSharedAction(action){
  if(profile){profile.classList.remove("action-player");void profile.offsetWidth;profile.classList.add("action-player");}
 }
 
+function closePlayerReactionPopup(){const popup=document.getElementById("playerReactionPopup");if(popup)popup.remove();}
+function sendPlayerReactionFromPopup(value,type){const text=String(value||"").trim().slice(0,100);if(!text)return;closePlayerReactionPopup();writeGameChat(type,text);}
 function openPlayerMessage(event){
  if(event){event.preventDefault();event.stopPropagation();}
  if(!onlineMode||!roomRef||!roomPlayerId)return;
- const quick=[
-  ["😂","emoji"],["🤣","emoji"],["😏","emoji"],["🙄","emoji"],["🤭","emoji"],["😎","emoji"],
-  ["Nice try! 😂","phrase"],["Too easy! 😎","phrase"],["Not so fast! 😏","phrase"],
-  ["Were you even trying? 🤣","phrase"],["Ouch… that was painful 😂","phrase"],["I saw that coming 👀","phrase"]
- ];
- const menu="Send a quick reaction (enter a number), or type your own message:\n\n"+
-  quick.map((item,i)=>(i+1)+". "+item[0]).join("\n")+
-  "\n\nOr type any message:";
- const value=window.prompt(menu);
- if(!value||!value.trim())return;
- const choice=Number(value.trim());
- if(Number.isInteger(choice)&&choice>=1&&choice<=quick.length){
-  const [text,type]=quick[choice-1];writeGameChat(type,text);
- }else writeGameChat("text",value.trim().slice(0,100));
+ closePlayerReactionPopup();
+ const overlay=document.createElement("div");overlay.id="playerReactionPopup";overlay.className="reaction-picker-overlay";
+ overlay.innerHTML='<div class="reaction-picker" role="dialog" aria-modal="true" aria-labelledby="reactionPickerTitle"><div class="reaction-picker-head"><strong id="reactionPickerTitle">Send a reaction</strong><button type="button" class="reaction-picker-close" aria-label="Close" onclick="closePlayerReactionPopup()">×</button></div><div class="reaction-picker-grid">'+["😂","🤣","😏","🙄","🤭","😎","👏","❤️"].map(emoji=>'<button type="button" class="reaction-emoji-button" aria-label="Send '+emoji+'" onclick="sendPlayerReactionFromPopup("'+emoji+'","emoji")">'+emoji+'</button>').join("")+'</div><label class="reaction-picker-label" for="reactionPickerText">Or write your own message</label><textarea id="reactionPickerText" maxlength="100" rows="2" placeholder="Type a message…"></textarea><div class="reaction-picker-actions"><button type="button" class="reaction-picker-cancel" onclick="closePlayerReactionPopup()">Cancel</button><button type="button" class="reaction-picker-send" onclick="sendPlayerReactionFromPopup(document.getElementById(\'reactionPickerText\').value,\'text\')">Send</button></div></div>';
+ overlay.addEventListener("click",e=>{if(e.target===overlay)closePlayerReactionPopup();});
+ document.body.appendChild(overlay);
+ const input=document.getElementById("reactionPickerText");if(input)input.focus();
 }
 function toggleGameChat(){
  const drawer=document.getElementById("chatDrawer"),button=document.getElementById("chatToggle");if(!drawer||!button)return;
