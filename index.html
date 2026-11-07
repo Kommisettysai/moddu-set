@@ -1367,7 +1367,8 @@ body:has(#roundResults:not(.hidden))>header,
    <button class="lobby-secondary" id="addBotBtn" onclick="addBotToRoom()">＋ Add bot</button>
    <button class="lobby-secondary" onclick="shareRoomInvite()">Invite friends</button>
   </div>
-  <button id="startRoomBtn" class="lobby-primary" onclick="startOnlineRoom()">Start game</button>
+  <button id="startRoomBtn" class="lobby-primary hidden" onclick="startOnlineRoom()">Start game</button>
+  <p class="lobby-hint hidden" id="hostStartWaiting">Waiting for the host to start the game…</p>
   <button class="lobby-text-button" onclick="leaveRoom()">Leave table</button>
  </div>
 </div>
@@ -2703,14 +2704,19 @@ function showWaitingRoom(){
  if(createBtn){createBtn.disabled=true;createBtn.textContent="＋ Create a private table";}
  if(joinControls)joinControls.classList.add("hidden");
  const codeLabel=document.getElementById("roomCodeLabel");if(codeLabel)codeLabel.textContent=roomCode;
- const startBtn=document.getElementById("startRoomBtn"),botBtn=document.getElementById("addBotBtn");
+ const startBtn=document.getElementById("startRoomBtn"),botBtn=document.getElementById("addBotBtn"),hostWait=document.getElementById("hostStartWaiting");
  if(startBtn)startBtn.classList.toggle("hidden",!isRoomHost);
  if(botBtn)botBtn.classList.toggle("hidden",!isRoomHost);
+ if(hostWait)hostWait.classList.toggle("hidden",isRoomHost);
  if(onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
  if(rejoinPublicListener)roomRef.child("public").off("value",rejoinPublicListener);
  onlineLobbyListener=snap=>{
   if(!snap.exists())return;
   const l=snap.val(),m=onlineMembers(l),limitEl=document.getElementById("roomScoreLimit");
+  isRoomHost=!!(authUser&&authUser.uid===l.hostId);
+  if(startBtn)startBtn.classList.toggle("hidden",!isRoomHost);
+  if(botBtn)botBtn.classList.toggle("hidden",!isRoomHost);
+  if(hostWait)hostWait.classList.toggle("hidden",isRoomHost);
   if(limitEl){limitEl.value=String(l.scoreLimit||200);limitEl.disabled=!isRoomHost||l.status!=="waiting";}
   if(!(l.players||{})[roomPlayerId]){setLobbyNotice("You were removed from this table by the host.");leaveRoom(true);return;}
   const countEl=document.getElementById("roomPlayerCount");if(countEl)countEl.textContent=m.length+"/"+l.maxPlayers;
