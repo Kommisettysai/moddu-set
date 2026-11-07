@@ -2818,7 +2818,24 @@ function showSharedAction(action){
  if(profile){profile.classList.remove("action-player");void profile.offsetWidth;profile.classList.add("action-player");}
 }
 
-function openPlayerMessage(event){if(event){event.preventDefault();event.stopPropagation();}if(!onlineMode||!roomRef||!roomPlayerId)return;const text=window.prompt("Write a message to the table:");if(text&&text.trim())writeGameChat("text",text.trim().slice(0,100));}
+function openPlayerMessage(event){
+ if(event){event.preventDefault();event.stopPropagation();}
+ if(!onlineMode||!roomRef||!roomPlayerId)return;
+ const quick=[
+  ["😂","emoji"],["🤣","emoji"],["😏","emoji"],["🙄","emoji"],["🤭","emoji"],["😎","emoji"],
+  ["Nice try! 😂","phrase"],["Too easy! 😎","phrase"],["Not so fast! 😏","phrase"],
+  ["Were you even trying? 🤣","phrase"],["Ouch… that was painful 😂","phrase"],["I saw that coming 👀","phrase"]
+ ];
+ const menu="Send a quick reaction (enter a number), or type your own message:\n\n"+
+  quick.map((item,i)=>(i+1)+". "+item[0]).join("\n")+
+  "\n\nOr type any message:";
+ const value=window.prompt(menu);
+ if(!value||!value.trim())return;
+ const choice=Number(value.trim());
+ if(Number.isInteger(choice)&&choice>=1&&choice<=quick.length){
+  const [text,type]=quick[choice-1];writeGameChat(type,text);
+ }else writeGameChat("text",value.trim().slice(0,100));
+}
 function toggleGameChat(){
  const drawer=document.getElementById("chatDrawer"),button=document.getElementById("chatToggle");if(!drawer||!button)return;
  chatIsOpen=!chatIsOpen;drawer.classList.toggle("hidden",!chatIsOpen);button.setAttribute("aria-expanded",String(chatIsOpen));
