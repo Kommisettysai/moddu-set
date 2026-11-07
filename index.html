@@ -2760,7 +2760,7 @@ function enterOnlineGame(state){
   // Watch the vote node directly as well as the full public state. This makes the host react immediately when the second player votes.
   const rematchVotesRef=roomRef.child("public/rematchVotes");
   if(onlineRematchVotesListener)rematchVotesRef.off("value",onlineRematchVotesListener);
-  onlineRematchVotesListener=snap=>{if(!isRoomHost)return;const votes=snap.val()||{};if(Object.values(votes).filter(Boolean).length<2)return;roomRef.child("public").get().then(stateSnap=>{const state=stateSnap.val();if(state&&(state.status==="gameComplete"||state.status==="rematchStarting"))startOnlineRematchIfReady();}).catch(e=>console.error("Rematch vote check failed:",e));};
+  onlineRematchVotesListener=snap=>{const votes=snap.val()||{};if(Object.values(votes).filter(Boolean).length<2||!authUser||!roomRef)return;Promise.all([roomRef.child("hostId").get(),roomRef.child("public").get()]).then(([hostSnap,stateSnap])=>{isRoomHost=hostSnap.val()===authUser.uid;const state=stateSnap.val();if(isRoomHost&&state&&(state.status==="gameComplete"||state.status==="rematchStarting"))startOnlineRematchIfReady();}).catch(e=>{console.error("Rematch vote check failed:",e);setLobbyNotice("Could not check rematch requests: "+e.message);});};
   rematchVotesRef.on("value",onlineRematchVotesListener);
  if(onlineSpecialRef){onlineSpecialRef.off("value");onlineSpecialRef.on("value",snap=>{const privateRank=snap.val();if(privateRank)specialRank=privateRank;render();if(specialRank)highlightSpecialJoker();});}if(onlineHandListener)onlineHandRef.off("value",onlineHandListener);onlineHandListener=s=>{if(!s.exists())return;const h=s.val()||[];if(!players.length)players=[{id:roomPlayerId,name:"You",hand:h,score:0,human:true}];else players[0]={...players[0],hand:h};if(onlinePublic?.turnUid===roomPlayerId&&h.length===14)drawn=true;else if(h.length===13)drawn=false;selected=-1;selectedIndices=[];arrangedGroups=[];applyOnlinePublic();autoArrange(false);render();};onlineHandRef.on("value",onlineHandListener);
  if(isRoomHost){
@@ -3468,7 +3468,10 @@ async function voteOnlineRematch(){
  }catch(e){message("Could not record your rematch request: "+e.message);}
 }
 async function startOnlineRematchIfReady(){
- if(!isRoomHost||!roomRef||onlineRematchStarting)return;
+ if(!roomRef||!authUser||onlineRematchStarting)return;
+ // Do not trust a possibly stale local host flag. Confirm the current host directly from the room before processing votes.
+ try{const hostSnap=await roomRef.child("hostId").get();isRoomHost=hostSnap.val()===authUser.uid;}catch(e){console.error("Could not verify rematch host:",e);return;}
+ if(!isRoomHost)return;
  onlineRematchStarting=true;
  try{
   // Claim a new rematch once. If the host reloads after claiming it, resume from rematchStarting.
