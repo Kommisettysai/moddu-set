@@ -2644,11 +2644,29 @@ async function joinRoom(){
    gamePlayer=(pub.players||[]).find(p=>p.id===uid)||null;
   }
   const isRemoved=!!(existing&&existing.removed)||!!(gamePlayer&&gamePlayer.status==="Removed by host"&&gamePlayer.active===false);
+  // A player who already belongs to this room must be allowed to reconnect
+  // after refreshing, even when the match has started. Only genuinely new
+  // players are blocked from joining an active match.
+  if(existing&&!isRemoved){
+   if(l.status==="started"&&gamePlayer&&
+      (gamePlayer.active!==false||gamePlayer.status==="Eliminated")&&
+      ["playing","roundComplete","gameComplete"].includes(pub.status)){
+    roomCode=code;roomRef=ref;roomPlayerId=uid;isRoomHost=uid===l.hostId;saveActiveRoom();
+    enterOnlineGame(pub);
+    setLobbyNotice("Reconnected to your ongoing game.");
+    return;
+   }
+   if(l.status==="waiting"){
+    roomCode=code;roomRef=ref;roomPlayerId=uid;isRoomHost=uid===l.hostId;saveActiveRoom();
+    showWaitingRoom();
+    setLobbyNotice("You are already in this room. Your room has been restored.");
+    return;
+   }
+   setLobbyNotice("Your player is already in this room, but the game state is not ready to restore. Please ask the host to check the table.");
+   return;
+  }
   if(l.status!=="waiting"&&!isRemoved){
    setLobbyNotice("This game has already started. New players cannot join now.");return;
-  }
-  if(existing&&!isRemoved){
-   setLobbyNotice("You are already in this room. Return to the waiting table.");return;
   }
   if(!existing&&members.length>=Number(l.maxPlayers||6)){
    setLobbyNotice("This table is full.");return;
