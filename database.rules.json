@@ -67,6 +67,12 @@
             }
           }
         },
+        "rejoinRequests": {
+          "$playerId": {
+            ".write": "auth != null && ((auth.uid === $playerId && root.child('rooms').child($roomCode).child('lobby').child('status').val() === 'started' && root.child('rooms').child($roomCode).child('lobby').child('players').child(auth.uid).child('removed').val() === true && root.child('rooms').child($roomCode).child('public').child('players').child(auth.uid).child('status').val() === 'Removed by host') || (auth.uid === root.child('rooms').child($roomCode).child('hostId').val() && !newData.exists()))",
+            ".validate": "!newData.exists() || (newData.hasChildren(['uid','name','requestedAt']) && newData.child('uid').val() === auth.uid && newData.child('name').isString() && newData.child('requestedAt').isNumber())"
+          }
+        },
         "players": {
           "$playerId": {
             ".write": "auth != null && ((auth.uid === $playerId && root.child('rooms').child($roomCode).child('status').val() === 'waiting') || (root.child('rooms').child($roomCode).child('hostId').val() === auth.uid && root.child('rooms').child($roomCode).child('status').val() === 'waiting' && root.child('friends').child(auth.uid).child($playerId).exists()))"
