@@ -2038,7 +2038,7 @@ function render(){
  const manage=document.getElementById("hostPlayerManagement");
  if(manage){
   const removable=(onlinePublic?.players||[]).filter(p=>isRoomHost&&p.id!==roomPlayerId&&p.active!==false);
-  manage.innerHTML=removable.length?'<p>Remove a player</p>'+removable.map(p=>'<button type="button" class="host-remove-player" data-player-id="'+escapeLobbyText(p.id)+'" onclick="removeOnlinePlayer(this.dataset.playerId)">Remove '+escapeLobbyText(p.name)+'</button>').join(''):'';
+  manage.innerHTML=removable.length?'<p>Remove a player</p>'+removable.map(p=>'<button type="button" class="host-remove-player" data-player-id="'+escapeLobbyText(p.id)+'" onclick="requestRemoveOnlinePlayer(this.dataset.playerId)">Remove '+escapeLobbyText(p.name)+'</button>').join(''):'';
  }
  const roundLabel=document.getElementById("roundInfo");
  if(roundLabel)roundLabel.textContent="Round "+round;
@@ -3271,6 +3271,12 @@ function copyGameRoomCode(){
  if(!roomCode)return;
  if(navigator.clipboard?.writeText)navigator.clipboard.writeText(roomCode).then(()=>message("Game code copied. Share it to rejoin this match.")).catch(()=>message("Game code: "+roomCode));
  else message("Game code: "+roomCode);
+}
+async function requestRemoveOnlinePlayer(uid){
+ if(!onlineMode||!isRoomHost||!roomRef||!uid||uid===roomPlayerId)return;
+ const player=(onlinePublic?.players||[]).find(p=>p.id===uid);
+ if(!player||player.active===false)return;
+ showGameConfirm("Remove player","Remove "+player.name+" from this game? They will be marked as removed, and the remaining players can continue.",()=>removeOnlinePlayer(uid),"Remove player");
 }
 async function removeOnlinePlayer(uid){
  if(!onlineMode||!isRoomHost||!roomRef||!uid||uid===roomPlayerId)return;
