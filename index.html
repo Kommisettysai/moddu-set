@@ -1281,6 +1281,11 @@ body:has(#roundResults:not(.hidden))>header,
 #roundResults .results-footer .rematch-btn:disabled{opacity:.8!important;filter:none!important}
 #roundResults .results-footer .rematch-status{margin:8px 0;color:#f4dca8;text-align:center;font-size:12px;line-height:1.4}
 #roundResults .results-footer .rematch-back-btn{margin-top:5px;background:linear-gradient(180deg,#245b48,#123d30)!important;color:#f8e7bd!important}
+
+/* Game rules modal */
+.rules-modal{position:fixed;inset:0;z-index:99990;display:flex;align-items:center;justify-content:center;padding:16px;background:#000b;backdrop-filter:blur(5px)}
+.rules-modal.hidden{display:none!important}.rules-modal-card{width:min(100%,520px);max-height:min(86dvh,760px);display:flex;flex-direction:column;border:1px solid #d9bd72;border-radius:22px;background:linear-gradient(155deg,#164b39,#08271f);color:#f8e8bd;box-shadow:0 22px 70px #000a;overflow:hidden}.rules-modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 12px;border-bottom:1px solid #d9bd7244}.rules-kicker{font-size:10px;letter-spacing:3px;color:#d8bc75}.rules-modal-head h2{margin:4px 0 0;font:26px Georgia,serif}.rules-close{border:0;background:transparent;color:#f8e8bd;font-size:30px;line-height:1;padding:0 4px}.rules-modal-body{overflow:auto;padding:6px 20px 14px}.rules-modal-body section{padding:12px 0;border-bottom:1px solid #d9bd7230}.rules-modal-body h3{margin:0 0 6px;font:600 16px Georgia,serif;color:#f5d98e}.rules-modal-body p{margin:0;color:#f0e3c5;font-size:14px;line-height:1.5}.rules-modal-body .rules-note{margin-top:13px;color:#cbbd9b;font-size:12px;line-height:1.45}.rules-done{margin:0 20px 18px;padding:13px;border:1px solid #f1d78f;border-radius:12px;background:linear-gradient(180deg,#f8e5a7,#d3a94e);color:#263326;font-weight:800;font-size:15px}
+
 </style>
 </head>
 
@@ -1445,13 +1450,24 @@ body:has(#roundResults:not(.hidden))>header,
 <summary>Game actions</summary>
 <div class="actions">
 <button onclick="showRules()">Game rules</button>
-<button onclick="startGame()">Restart game</button>
+<button id="restartGameBtn" class="hidden" onclick="restartCurrentGame()">Restart game</button>
 <button id="newRoundBtn" onclick="startFreshRoundWithScores()">Start new round (keep scores)</button>
 </div>
 <div id="hostPlayerManagement"></div>
 </details>
 </div>
 
+<div id="gameRulesModal" class="rules-modal hidden" role="dialog" aria-modal="true" aria-labelledby="gameRulesTitle" onclick="if(event.target===this)closeRules()">
+ <div class="rules-modal-card"><div class="rules-modal-head"><div><span class="rules-kicker">MODDU SET</span><h2 id="gameRulesTitle">Game Rules</h2></div><button class="rules-close" onclick="closeRules()" aria-label="Close">×</button></div>
+ <div class="rules-modal-body">
+  <section><h3>🎴 Starting the game</h3><p>Each player receives 13 cards. The remaining cards form the draw pile, and one card starts the discard pile.</p></section>
+  <section><h3>🔄 Your turn</h3><p>Draw one card from either the closed deck or the top of the discard pile. Then discard one card. You should finish your turn with 13 cards.</p></section>
+  <section><h3>🏆 Making a show</h3><p>A winning hand needs one pure four-card set and three valid three-card sets. Arrange your cards into valid groups before selecting Show.</p></section>
+  <section><h3>🃏 Jokers</h3><p>A natural four-card set unlocks special joker eligibility. Printed jokers and eligible special jokers can help complete sets. Unmatched eligible jokers score zero.</p></section>
+  <section><h3>📊 Scores and elimination</h3><p>Round points are added to each player's total. A player who reaches the room's target score is eliminated. The last eligible player becomes champion.</p></section>
+  <p class="rules-note">Follow the score and turn messages shown on the table. Some rule checks and score calculations may still be under development.</p>
+ </div><button class="rules-done" onclick="closeRules()">Got it</button></div>
+</div>
 <div id="roundResults" class="round-results hidden">
  <div class="results-header">
   <div class="results-brand"><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong></span></div></div>
@@ -2007,8 +2023,9 @@ function render(){
  const roundLabel=document.getElementById("roundInfo");
  if(roundLabel)roundLabel.textContent="Round "+round;
  const targetScoreLabel=document.getElementById("targetScoreInfo");if(targetScoreLabel)targetScoreLabel.textContent="TARGET "+(onlineMode?Math.max(1,Number(onlinePublic?.scoreLimit)||200):Math.max(1,Number(scoreLimit)||200));
- const newRoundBtn=document.getElementById("newRoundBtn");
+ const newRoundBtn=document.getElementById("newRoundBtn"),restartBtn=document.getElementById("restartGameBtn");
  if(newRoundBtn)newRoundBtn.style.display=(!onlineMode||isRoomHost)?"":"none";
+ if(restartBtn)restartBtn.classList.toggle("hidden",onlineMode&&!isRoomHost);
  const handEl=document.getElementById("hand");
  const playersEl=document.getElementById("players");
  try{
@@ -2582,16 +2599,24 @@ function startNextRound(){
  message("Round "+round+". Scores carried forward. Your turn: draw from either pile.");
  render();
 }
-function showRules(){
- alert(
- "MODDU SET RULES\\n\\n"+
- "13 cards per player. Draw one card and discard one card.\\n"+
- "Winning hand: one pure four-card set and three valid three-card sets.\\n"+
- "A natural four-set unlocks special joker eligibility.\\n"+
- "Printed jokers and special joker ranks score zero when unmatched.\\n"+
- "Cumulative score of "+scoreLimit+" eliminates a player.\\n\\n"+
- "This prototype does not yet validate winning hands or calculate final scores."
- );
+function showRules(){const modal=document.getElementById("gameRulesModal");if(modal)modal.classList.remove("hidden");}
+function closeRules(){document.getElementById("gameRulesModal")?.classList.add("hidden");}
+async function restartCurrentGame(){
+ if(!onlineMode){if(!confirm("Restart your game with new cards and scores reset?"))return;startGame();return;}
+ if(!isRoomHost||!roomRef){message("Only the host can restart the online game.");return;}
+ if(!confirm("Restart the entire game for everyone at this table? All scores and cards will reset."))return;
+ try{
+  const snap=await roomRef.child("public").get(),p=snap.val();if(!p||!Array.isArray(p.players))throw new Error("Could not read the current players.");
+  const participants=p.players;
+  if(participants.length<2)throw new Error("At least two players are required.");
+  const d=shuffle(makeDeck(participants.length)),hands={};participants.forEach(x=>hands[x.id]=d.splice(0,13));
+  const first=d.pop(),starter=participants[Math.floor(Math.random()*participants.length)];
+  const freshPlayers=participants.map(x=>({...x,score:0,active:true,status:"Ready",cardCount:13,roundDrawCount:0,roundDropped:false,dropPenalty:0,unlocked:false,eligible:false,rejoinNextRound:false,rejoinPenalty:0,specialRank:null}));
+  const next={status:"playing",gameNumber:(Number(p.gameNumber)||1)+1,round:1,scoreLimit:Math.max(1,Number(p.scoreLimit)||200),turnUid:starter.id,roundStarterUid:starter.id,deckCount:d.length,discard:[first],drawnByUid:null,drawnCardId:null,pickDeadline:starter.isBot?null:Date.now()+60000,discardDeadline:null,specialRank:null,rematchVotes:{},players:freshPlayers,message:"The host restarted the game. Everyone's scores are reset. "+starter.name+"'s turn."};
+  await roomRef.child("private").set({deck:d,hands,specialRank:null,specialRanks:{}});
+  const actionSnap=await roomRef.child("actions").get();await Promise.all(Object.keys(actionSnap.val()||{}).map(uid=>roomRef.child("actions/"+uid).remove()));
+  await roomRef.child("public").set(next);onlinePublic=next;drawn=false;selected=-1;selectedIndices=[];applyOnlinePublic();
+ }catch(e){message("Could not restart the game: "+e.message);}
 }
 </script>
 
