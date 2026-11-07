@@ -3546,8 +3546,15 @@ async function startOnlineRematchIfReady(){
     if(count<2)return;
     return {...state,status:"rematchStarting",rematchStartedAt:Date.now(),message:"Rematch accepted. Preparing a fresh game…"};
    });
-   if(!claim.committed)return;
-   previous=claim.snapshot.val();
+   if(claim.committed){
+    previous=claim.snapshot.val();
+   }else{
+    // Another host callback may have claimed the transition first. Re-read and resume it instead of silently stopping.
+    const retrySnap=await roomRef.child("public").get();
+    const retryState=retrySnap.val();
+    if(retryState&&retryState.status==="rematchStarting")previous=retryState;
+    else return;
+   }
   }else if(current.status==="rematchStarting"){
    previous=current;
   }else return;
@@ -3583,6 +3590,7 @@ async function startOnlineRematchIfReady(){
   await roomRef.child("public/status").set("gameComplete").catch(()=>{});
   await roomRef.child("public/message").set("Rematch setup failed: "+detail).catch(()=>{});
   const status=document.querySelector("#roundResults .rematch-status");if(status)status.textContent="Rematch setup failed: "+detail+". Please refresh and request again.";
+  const retryButton=document.querySelector("#roundResults .rematch-btn");if(retryButton){retryButton.disabled=false;retryButton.textContent="↻ RETRY REMATCH";}
  }finally{onlineRematchStarting=false;}
 }
 function chooseNextRoundStarter(allPlayers,activePlayers,previousStarterUid){
