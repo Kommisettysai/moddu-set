@@ -3258,6 +3258,7 @@ async function processOnlineAction(uid,a){
    p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;
   }
 
+  p.deckCount=d.length;
   p.message=player.name+" dropped this round for "+dropPenalty+" points.";
   const limit=Math.max(1,Number(p.scoreLimit)||200);
   const eligible=(p.players||[]).filter(x=>x.active!==false&&(Number(x.score)||0)<limit);
