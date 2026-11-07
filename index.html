@@ -1293,6 +1293,11 @@ body:has(#roundResults:not(.hidden))>header,
 .rules-modal{position:fixed;inset:0;z-index:99990;display:flex;align-items:center;justify-content:center;padding:16px;background:#000b;backdrop-filter:blur(5px)}
 .rules-modal.hidden{display:none!important}.rules-modal-card{width:min(100%,520px);max-height:min(86dvh,760px);display:flex;flex-direction:column;border:1px solid #d9bd72;border-radius:22px;background:linear-gradient(155deg,#164b39,#08271f);color:#f8e8bd;box-shadow:0 22px 70px #000a;overflow:hidden}.rules-modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 12px;border-bottom:1px solid #d9bd7244}.rules-kicker{font-size:10px;letter-spacing:3px;color:#d8bc75}.rules-modal-head h2{margin:4px 0 0;font:26px Georgia,serif}.rules-close{border:0;background:transparent;color:#f8e8bd;font-size:30px;line-height:1;padding:0 4px}.rules-modal-body{overflow:auto;padding:6px 20px 14px}.rules-modal-body section{padding:12px 0;border-bottom:1px solid #d9bd7230}.rules-modal-body h3{margin:0 0 6px;font:600 16px Georgia,serif;color:#f5d98e}.rules-modal-body p{margin:0;color:#f0e3c5;font-size:14px;line-height:1.5}.rules-modal-body .rules-note{margin-top:13px;color:#cbbd9b;font-size:12px;line-height:1.45}.rules-done{margin:0 20px 18px;padding:13px;border:1px solid #f1d78f;border-radius:12px;background:linear-gradient(180deg,#f8e5a7,#d3a94e);color:#263326;font-weight:800;font-size:15px}
 
+/* Small one-second game feedback toast */
+#gameInfoToast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 74px);z-index:99999;transform:translate(-50%,12px);max-width:min(88vw,420px);padding:10px 16px;border:1px solid #d9bd78;border-radius:14px;background:linear-gradient(145deg,#164b3b,#092d25);color:#fff0c4;font:600 13px/1.35 system-ui,sans-serif;text-align:center;box-shadow:0 8px 28px #0008;opacity:0;pointer-events:none;transition:opacity .16s ease,transform .16s ease}
+#gameInfoToast.show{opacity:1;transform:translate(-50%,0)}
+.player-card-count{position:absolute;left:-10px;top:2px;min-width:21px;height:21px;padding:0 5px;display:grid;place-items:center;border:1.5px solid #ffe6a1;border-radius:50%;background:#0b4638;color:#fff0b5;font:900 10px/1 system-ui,sans-serif;box-shadow:0 2px 6px #0008}
+
 </style>
 </head>
 
@@ -1464,6 +1469,7 @@ body:has(#roundResults:not(.hidden))>header,
 </details>
 </div>
 
+<div id="gameInfoToast" role="status" aria-live="polite"></div>
 <div id="gameConfirmModal" class="rules-modal hidden" role="dialog" aria-modal="true" aria-labelledby="gameConfirmTitle"><div class="rules-modal-card"><div class="rules-modal-head"><div><span class="rules-kicker">MODDU SET</span><h2 id="gameConfirmTitle">Please confirm</h2></div><button class="rules-close" type="button" onclick="closeGameConfirm()" aria-label="Close">×</button></div><div class="rules-modal-body"><p id="gameConfirmMessage"></p></div><div class="game-confirm-actions"><button type="button" class="rules-cancel" onclick="closeGameConfirm()">Cancel</button><button type="button" class="rules-done" id="gameConfirmAction" onclick="runGameConfirm()">Confirm</button></div></div></div>
 <div id="hostRestartPrompt" class="rules-modal hidden" role="dialog" aria-modal="true" aria-labelledby="hostRestartTitle"><div class="rules-modal-card"><div class="rules-modal-head"><div><span class="rules-kicker">MODDU SET</span><h2 id="hostRestartTitle">New game requested</h2></div></div><div class="rules-modal-body"><p>At least two players requested a new game. Everyone is now back at the game table. As host, use <strong>Restart New Game</strong> in Game Actions to deal fresh cards and reset scores.</p></div><button class="rules-done" onclick="closeHostRestartPrompt()">Got it</button></div></div>
 <div id="gameRulesModal" class="rules-modal hidden" role="dialog" aria-modal="true" aria-labelledby="gameRulesTitle" onclick="if(event.target===this)closeRules()">
@@ -2019,7 +2025,13 @@ function startGame(){
 }
 
 function message(t){
- document.getElementById("message").textContent=t;
+ const el=document.getElementById("message");if(el)el.textContent=t;
+}
+let gameInfoToastTimer=null,lastInfoToastMessage="";
+function infoToast(text){
+ const toast=document.getElementById("gameInfoToast");if(!toast)return;
+ toast.textContent=String(text||"Please check your cards.");toast.classList.add("show");
+ clearTimeout(gameInfoToastTimer);gameInfoToastTimer=setTimeout(()=>toast.classList.remove("show"),1000);
 }
 
 function render(){
@@ -2465,15 +2477,15 @@ function renderScoringBreakdown(hand,player,penalty){
  return '<div class="results-breakdown">'+(sets||'<div class="results-breakdown-section matched"><span class="results-breakdown-title">MATCHED SETS</span><span class="empty-breakdown">No valid sets found.</span></div>')+counted+'</div>';
 }
 function showHand(){
- if(!players.length||turn!==0||gameOver){message("You cannot show right now.");return;}
+ if(!players.length||turn!==0||gameOver){infoToast("You cannot show right now.");return;}
  let hand=[...players[0].hand],showDiscard=null;
  if(drawn){
-  if(selected<0||selected>=hand.length){message("Select the extra card to discard before SHOW.");return;}
+  if(selected<0||selected>=hand.length){infoToast("Select the extra card to discard before SHOW.");return;}
   showDiscard=hand.splice(selected,1)[0];
  }else if(hand.length!==13){
-  message("You must have 13 cards to show, or select your 14th card as the discard.");return;
+  infoToast("You must have 13 cards to show, or select your 14th card as the discard.");return;
  }
- if(hand.length!==13){message("A valid SHOW needs exactly 13 cards after the discard.");return;}
+ if(hand.length!==13){infoToast("A valid SHOW needs exactly 13 cards after the discard.");return;}
  if(showDiscard){
   players[0].hand=hand;
   discard.push(showDiscard);
@@ -2483,19 +2495,19 @@ function showHand(){
  const byId=new Map(players[0].hand.map(c=>[c.id,c]));
  const groups=arrangedGroups.map(ids=>ids.map(id=>byId.get(id)).filter(Boolean));
  if(groups.length!==4||groups.some((g,i)=>g.length!==(i===0?4:3))){
-  message("Your 13 cards must form one pure four-set and three three-card sets. Try Auto arrange.");return;
+  infoToast("Your 13 cards must form one pure four-set and three three-card sets. Try Auto arrange.");return;
  }
  const used=groups.flat().map(c=>c.id);
- if(used.length!==13||new Set(used).size!==13){message("Every card must be used exactly once. Arrange again.");return;}
+ if(used.length!==13||new Set(used).size!==13){infoToast("Every card must be used exactly once. Arrange again.");return;}
  const pure=groups[0];
  if(pure.length!==4||pure.some(c=>c.joker)||!pure.every(c=>c.rank===pure[0].rank)){
-  message("Your first group must be a pure natural four-set.");return;
+  infoToast("Your first group must be a pure natural four-set.");return;
  }
  if(!groups.slice(1).every(g=>{
   const natural=g.filter(c=>!isWildForPlayer(c,players[0]));
   return !natural.length||natural.every(c=>c.rank===natural[0].rank);
  })){
-  message("One or more three-card sets are invalid. Check your joker use.");return;
+  infoToast("One or more three-card sets are invalid. Check your joker use.");return;
  }
  arrangedGroups=groups.map(g=>g.map(c=>c.id));
  winningGroups=arrangedGroups.map(g=>g.slice());
@@ -2524,8 +2536,8 @@ function playerRoleLabel(player,index,context){
  if(context==="game"&&onlineMode&&player.id===onlinePublic?.hostId)return "HOST";
  return context==="results"?"PLAYER":"SEAT "+(index+1);
 }
-function playerAvatarFace(player,index){const faces=["👨🏻","👩🏻","🧑🏽","👨🏽","👩🏽","🧑🏻"];return player.isBot?"🤖":faces[index%faces.length];}
- function playerIdentityMarkup(player,index,context){ const avatar=playerAvatarFace(player,index); if(context==="game"){ return '<div class="player-identity"><span class="avatar-stack"><span class="player-avatar" aria-hidden="true">'+avatar+'</span>'+(player.unlocked?'<span class="profile-joker-badge">🃏</span>':'')+'</span><span class="player-name-wrap"><b>'+escapeLobbyText(player.name)+'</b></span><button type="button" class="profile-more" onclick="openPlayerMessage(event)">⋮</button></div>'; } const role=playerRoleLabel(player,index,context); return '<div class="results-identity"><span class="avatar-stack"><span class="player-avatar">'+avatar+'</span></span><span class="results-name"><strong>'+escapeLobbyText(player.name)+'</strong><span class="player-role">'+role+'</span></span></div>'; }
+function playerAvatarFace(player,index){return player.isBot?"🤖":"👨🏻";}
+ function playerIdentityMarkup(player,index,context){ const avatar=playerAvatarFace(player,index); if(context==="game"){ const count=onlineMode?Number((onlinePublic?.players||[]).find(p=>p.id===player.id)?.cardCount??player.cardCount??player.hand?.length??13):Number(player.hand?.length??13); return '<div class="player-identity"><span class="avatar-stack"><span class="player-card-count" aria-label="'+count+' cards">'+count+'</span><span class="player-avatar" aria-hidden="true">'+avatar+'</span>'+(player.unlocked?'<span class="profile-joker-badge">🃏</span>':'')+'</span><span class="player-name-wrap"><b>'+escapeLobbyText(player.name)+'</b></span><button type="button" class="profile-more" onclick="openPlayerMessage(event)">⋮</button></div>'; } const role=playerRoleLabel(player,index,context); return '<div class="results-identity"><span class="avatar-stack"><span class="player-avatar">'+avatar+'</span></span><span class="results-name"><strong>'+escapeLobbyText(player.name)+'</strong><span class="player-role">'+role+'</span></span></div>'; }
  function togglePlayerScores(){const button=document.getElementById("scoresToggle"),hidden=document.body.classList.toggle("hide-player-scores");if(button){button.setAttribute("aria-pressed",String(!hidden));button.textContent=hidden?"Scores":"Hide scores";}}
 
 
@@ -3207,7 +3219,7 @@ function applyOnlinePublic(){
  if(!players.length)return;
  const myPublicPlayer=m.find(p=>p.id===roomPlayerId);
  if(myPublicPlayer&&myPublicPlayer.active===false&&myPublicPlayer.status==="Removed by host"){returnToLobbyForRecovery();return;}eliminatedSpectator=!!(myPublicPlayer&&myPublicPlayer.active===false&&myPublicPlayer.status==="Eliminated");const gameRoot=document.getElementById("game");if(gameRoot){gameRoot.classList.toggle("spectator-mode",eliminatedSpectator);const notice=document.getElementById("spectatorNotice");if(notice)notice.textContent=eliminatedSpectator?"👀 You reached the score limit. Stay and watch the rest of the match. Other players’ cards are hidden.":"";const handPanel=document.getElementById("hand")?.closest(".panel");if(handPanel)handPanel.classList.toggle("spectator-hand-panel",eliminatedSpectator);}if(eliminatedSpectator){players[0].hand=[];drawn=false;selected=-1;selectedIndices=[];arrangedGroups=[];}turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);round=st.round||1;drawn=st.drawnByUid===roomPlayerId;gameOver=st.status==="roundComplete"||st.status==="gameComplete";
- const el=document.getElementById("message");if(el)el.textContent=st.message||"Online game";render();
+ const el=document.getElementById("message");if(el)el.textContent=st.message||"Online game";if(st.message&&st.message!==lastInfoToastMessage&&/SHOW|invalid|must have|needs 13|select one|every card/i.test(st.message)){lastInfoToastMessage=st.message;infoToast(st.message);}render();
  if(st.status==="roundComplete"&&st.roundResult)openOnlineRoundResults(st.roundResult);
  if(st.status==="gameComplete"){openOnlineGameComplete(st.champion||"A player");const me=(st.players||[]).find(p=>p.id===roomPlayerId);if(me)saveCompletedGame("multiplayer","room_"+(roomCode||"unknown"),st.championUid===roomPlayerId,(st.players||[]).filter(p=>p.id!==roomPlayerId).map(p=>p.name));}
  if(st.specialRank)highlightSpecialJoker();
@@ -3450,10 +3462,10 @@ async function processOnlineAction(uid,a){
   if(hand.length!==13){p.message="Draw blocked: a player must have exactly 13 cards before drawing. Current count: "+hand.length+". The host should restart this round if the hand is out of sync.";p.players[playerIndex].cardCount=hand.length;await roomRef.child("public").set(p);return;}
   if(a.type==="drawOpen"){if(!pile.length)return;hand.push(pile.pop());}
   else{if(!d.length&&pile.length>1){const top=pile.pop();d=shuffle(pile);pile=[top];}if(!d.length)return;hand.push(d.pop());}
-  h[uid]=hand;p.players[playerIndex].roundDrawCount=(p.players[playerIndex].roundDrawCount||0)+1;p.drawnByUid=uid;p.drawnCardId=hand[hand.length-1].id;p.discardDeadline=null;p.lastAction={type:a.type,uid,name:player.name,cardId:hand[hand.length-1].id,cardLabel:a.type==="drawOpen"?cardText(hand[hand.length-1]):null,at:Date.now()};p.message=a.type==="drawOpen"?player.name+" picked "+cardText(hand[hand.length-1])+" from the open discard pile.":player.name+" drew a face-down card from the draw deck.";
+  h[uid]=hand;p.players[playerIndex].cardCount=hand.length;p.players[playerIndex].roundDrawCount=(p.players[playerIndex].roundDrawCount||0)+1;p.drawnByUid=uid;p.drawnCardId=hand[hand.length-1].id;p.discardDeadline=null;p.lastAction={type:a.type,uid,name:player.name,cardId:hand[hand.length-1].id,cardLabel:a.type==="drawOpen"?cardText(hand[hand.length-1]):null,at:Date.now()};p.message=a.type==="drawOpen"?player.name+" picked "+cardText(hand[hand.length-1])+" from the open discard pile.":player.name+" drew a face-down card from the draw deck.";
  }else if(a.type==="discard"){
   if(p.drawnByUid!==uid||hand.length!==14){p.message="Discard blocked: a drawn hand must contain exactly 14 cards. Current count: "+hand.length+".";p.players[playerIndex].cardCount=hand.length;await roomRef.child("public").set(p);return;}const i=hand.findIndex(c=>c.id===a.cardId);if(i<0)return;
-  const timedOut=!!(p.discardDeadline&&Date.now()>=p.discardDeadline);const discardId=(a.automatic||timedOut)?p.drawnCardId:a.cardId;const discardIndex=hand.findIndex(c=>c.id===discardId);if(discardIndex<0)return;const discarded=hand.splice(discardIndex,1)[0];pile.push(discarded);h[uid]=hand;p.lastAction={type:"discard",uid,name:player.name,cardId:discarded.id,cardLabel:cardText(discarded),at:Date.now()};p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;p.pickDeadline=null;a.automatic=!!(a.automatic||timedOut);
+  const timedOut=!!(p.discardDeadline&&Date.now()>=p.discardDeadline);const discardId=(a.automatic||timedOut)?p.drawnCardId:a.cardId;const discardIndex=hand.findIndex(c=>c.id===discardId);if(discardIndex<0)return;const discarded=hand.splice(discardIndex,1)[0];pile.push(discarded);h[uid]=hand;p.players[playerIndex].cardCount=hand.length;p.lastAction={type:"discard",uid,name:player.name,cardId:discarded.id,cardLabel:cardText(discarded),at:Date.now()};p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;p.pickDeadline=null;a.automatic=!!(a.automatic||timedOut);
   if(hand.length===13&&hasNaturalFour(hand)&&!player.unlocked){
    p.players[playerIndex].eligible=true;
    if(!special){
