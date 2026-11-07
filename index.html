@@ -3546,13 +3546,18 @@ async function startOnlineRematchIfReady(){
    pickDeadline:starter.isBot?null:Date.now()+60000,discardDeadline:null,specialRank:null,rematchVotes:{},
    players:nextPlayers,message:"Rematch started! Scores reset to 0. Target: "+target+". "+starter.name+"'s turn."};
   await roomRef.child("private").set({deck,hands,specialRank:null,specialRanks:{}});
-  await roomRef.child("actions").remove();
+  // Firebase rules permit the host to remove individual action entries, not the entire actions parent.
+  const actionsSnap=await roomRef.child("actions").get();
+  const actionIds=Object.keys(actionsSnap.val()||{});
+  await Promise.all(actionIds.map(uid=>roomRef.child("actions/"+uid).remove()));
   await roomRef.child("public").set(next);
   onlinePublic=next;applyOnlinePublic();
  }catch(e){
   console.error("Automatic rematch failed:",e);
+  const detail=String(e?.code||e?.message||"Unknown Firebase error").slice(0,140);
   await roomRef.child("public/status").set("gameComplete").catch(()=>{});
-  await roomRef.child("public/message").set("Rematch setup failed. Please request again.").catch(()=>{});
+  await roomRef.child("public/message").set("Rematch setup failed: "+detail).catch(()=>{});
+  const status=document.querySelector("#roundResults .rematch-status");if(status)status.textContent="Rematch setup failed: "+detail+". Please refresh and request again.";
  }finally{onlineRematchStarting=false;}
 }
 function chooseNextRoundStarter(allPlayers,activePlayers,previousStarterUid){
