@@ -1285,6 +1285,10 @@ body:has(#roundResults:not(.hidden))>header,
 #roundResults .results-footer .rematch-status{margin:8px 0;color:#f4dca8;text-align:center;font-size:12px;line-height:1.4}
 #roundResults .results-footer .rematch-back-btn{margin-top:5px;background:linear-gradient(180deg,#245b48,#123d30)!important;color:#f8e7bd!important}
 
+/* Branded confirmation actions */
+.game-confirm-actions{display:flex;justify-content:flex-end;align-items:center;gap:10px;padding:0 20px 18px}
+.game-confirm-actions .rules-done{margin:0;min-width:120px}
+.rules-cancel{min-width:100px;padding:12px 15px;border:1px solid #d9bd7288;border-radius:12px;background:transparent;color:#f8e8bd;font-weight:700}
 /* Game rules modal */
 .rules-modal{position:fixed;inset:0;z-index:99990;display:flex;align-items:center;justify-content:center;padding:16px;background:#000b;backdrop-filter:blur(5px)}
 .rules-modal.hidden{display:none!important}.rules-modal-card{width:min(100%,520px);max-height:min(86dvh,760px);display:flex;flex-direction:column;border:1px solid #d9bd72;border-radius:22px;background:linear-gradient(155deg,#164b39,#08271f);color:#f8e8bd;box-shadow:0 22px 70px #000a;overflow:hidden}.rules-modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 12px;border-bottom:1px solid #d9bd7244}.rules-kicker{font-size:10px;letter-spacing:3px;color:#d8bc75}.rules-modal-head h2{margin:4px 0 0;font:26px Georgia,serif}.rules-close{border:0;background:transparent;color:#f8e8bd;font-size:30px;line-height:1;padding:0 4px}.rules-modal-body{overflow:auto;padding:6px 20px 14px}.rules-modal-body section{padding:12px 0;border-bottom:1px solid #d9bd7230}.rules-modal-body h3{margin:0 0 6px;font:600 16px Georgia,serif;color:#f5d98e}.rules-modal-body p{margin:0;color:#f0e3c5;font-size:14px;line-height:1.5}.rules-modal-body .rules-note{margin-top:13px;color:#cbbd9b;font-size:12px;line-height:1.45}.rules-done{margin:0 20px 18px;padding:13px;border:1px solid #f1d78f;border-radius:12px;background:linear-gradient(180deg,#f8e5a7,#d3a94e);color:#263326;font-weight:800;font-size:15px}
@@ -1453,13 +1457,14 @@ body:has(#roundResults:not(.hidden))>header,
 <summary>Game actions</summary>
 <div class="actions">
 <button onclick="showRules()">Game rules</button>
-<button id="restartGameBtn" class="hidden" onclick="restartCurrentGame()">Restart New Game</button>
+<button id="restartGameBtn" class="hidden" onclick="requestRestartCurrentGame()">Restart New Game</button>
 <button id="newRoundBtn" onclick="startFreshRoundWithScores()">Start new round (keep scores)</button>
 </div>
 <div id="hostPlayerManagement"></div>
 </details>
 </div>
 
+<div id="gameConfirmModal" class="rules-modal hidden" role="dialog" aria-modal="true" aria-labelledby="gameConfirmTitle"><div class="rules-modal-card"><div class="rules-modal-head"><div><span class="rules-kicker">MODDU SET</span><h2 id="gameConfirmTitle">Please confirm</h2></div><button class="rules-close" type="button" onclick="closeGameConfirm()" aria-label="Close">×</button></div><div class="rules-modal-body"><p id="gameConfirmMessage"></p></div><div class="game-confirm-actions"><button type="button" class="rules-cancel" onclick="closeGameConfirm()">Cancel</button><button type="button" class="rules-done" id="gameConfirmAction" onclick="runGameConfirm()">Confirm</button></div></div></div>
 <div id="hostRestartPrompt" class="rules-modal hidden" role="dialog" aria-modal="true" aria-labelledby="hostRestartTitle"><div class="rules-modal-card"><div class="rules-modal-head"><div><span class="rules-kicker">MODDU SET</span><h2 id="hostRestartTitle">New game requested</h2></div></div><div class="rules-modal-body"><p>At least two players requested a new game. Everyone is now back at the game table. As host, use <strong>Restart New Game</strong> in Game Actions to deal fresh cards and reset scores.</p></div><button class="rules-done" onclick="closeHostRestartPrompt()">Got it</button></div></div>
 <div id="gameRulesModal" class="rules-modal hidden" role="dialog" aria-modal="true" aria-labelledby="gameRulesTitle" onclick="if(event.target===this)closeRules()">
  <div class="rules-modal-card"><div class="rules-modal-head"><div><span class="rules-kicker">MODDU SET</span><h2 id="gameRulesTitle">Game Rules</h2></div><button class="rules-close" onclick="closeRules()" aria-label="Close">×</button></div>
@@ -1893,9 +1898,8 @@ async function restoreSavedRoom(){
  }
 }
 function exitCurrentTable(){
- if(!onlineMode){if(!confirm("Return to the lobby? Your current solo game will end."))return;document.getElementById("game").classList.add("hidden");document.getElementById("setup").classList.remove("hidden");return;}
- if(!confirm("Leave this table and return to the lobby? You will leave the current match."))return;
- leaveRoom(true);
+ if(!onlineMode){showGameConfirm("Leave game","Return to the lobby? Your current solo game will end.",()=>{document.getElementById("game").classList.add("hidden");document.getElementById("setup").classList.remove("hidden");},"Leave game");return;}
+ showGameConfirm("Leave table","Leave this table and return to the lobby? You will leave the current match.",()=>leaveRoom(true),"Leave table");
 }
 function showWaitingRoom(){
  document.getElementById("setup").classList.add("hidden");
@@ -2603,12 +2607,26 @@ function startNextRound(){
  message("Round "+round+". Scores carried forward. Your turn: draw from either pile.");
  render();
 }
+let pendingGameConfirmAction=null;
+function showGameConfirm(title,body,action,confirmLabel="Confirm"){
+ const modal=document.getElementById("gameConfirmModal");if(!modal)return;
+ document.getElementById("gameConfirmTitle").textContent=title;
+ document.getElementById("gameConfirmMessage").textContent=body;
+ document.getElementById("gameConfirmAction").textContent=confirmLabel;
+ pendingGameConfirmAction=action;modal.classList.remove("hidden");
+}
+function closeGameConfirm(){document.getElementById("gameConfirmModal")?.classList.add("hidden");pendingGameConfirmAction=null;}
+function runGameConfirm(){const action=pendingGameConfirmAction;closeGameConfirm();if(typeof action==="function")action();}
 function showRules(){const modal=document.getElementById("gameRulesModal");if(modal)modal.classList.remove("hidden");}
 function closeRules(){document.getElementById("gameRulesModal")?.classList.add("hidden");}
-async function restartCurrentGame(){
- if(!onlineMode){if(!confirm("Restart your game with new cards and scores reset?"))return;startGame();return;}
+function requestRestartCurrentGame(){
+ if(onlineMode&&(!isRoomHost||!roomRef)){message("Only the host can restart the online game.");return;}
+ showGameConfirm("Restart new game","Start a fresh game for everyone at this table? All cards and scores will reset.",()=>restartCurrentGame(true),"Restart game");
+}
+async function restartCurrentGame(confirmed=false){
+ if(!confirmed){requestRestartCurrentGame();return;}
+ if(!onlineMode){startGame();return;}
  if(!isRoomHost||!roomRef){message("Only the host can restart the online game.");return;}
- if(!confirm("Restart the entire game for everyone at this table? All scores and cards will reset."))return;
  try{
   const snap=await roomRef.child("public").get(),p=snap.val();if(!p||!Array.isArray(p.players))throw new Error("Could not read the current players.");
   const participants=p.players;
@@ -2619,7 +2637,13 @@ async function restartCurrentGame(){
   const next={status:"playing",gameNumber:(Number(p.gameNumber)||1)+1,round:1,scoreLimit:Math.max(1,Number(p.scoreLimit)||200),turnUid:starter.id,roundStarterUid:starter.id,deckCount:d.length,discard:[first],drawnByUid:null,drawnCardId:null,pickDeadline:starter.isBot?null:Date.now()+60000,discardDeadline:null,specialRank:null,rematchVotes:{},players:freshPlayers,message:"The host restarted the game. Everyone's scores are reset. "+starter.name+"'s turn."};
   await roomRef.child("private").set({deck:d,hands,specialRank:null,specialRanks:{}});
   const actionSnap=await roomRef.child("actions").get();await Promise.all(Object.keys(actionSnap.val()||{}).map(uid=>roomRef.child("actions/"+uid).remove()));
-  await roomRef.child("public").set(next);onlinePublic=next;drawn=false;selected=-1;selectedIndices=[];closeHostRestartPrompt();applyOnlinePublic();
+  await roomRef.child("public").set(next);onlinePublic=next;drawn=false;selected=-1;selectedIndices=[];arrangedGroups=[];winningGroups=[];lastDrawnCardId=null;lastDrawSource=null;closeHostRestartPrompt();applyOnlinePublic();
+  // Explicitly reload the host's own private hand after restart. Do not rely only on the realtime listener callback.
+  const ownHandSnap=await roomRef.child("private/hands/"+roomPlayerId).get();
+  const ownHand=ownHandSnap.val()||[];
+  if(!players.length)players=[{id:roomPlayerId,name:(next.players.find(p=>p.id===roomPlayerId)||{}).name||"You",score:0,human:true,active:true,hand:ownHand}];
+  else players[0]={...players[0],hand:ownHand};
+  autoArrange(false);render();
  }catch(e){message("Could not restart the game: "+e.message);}
 }
 </script>
