@@ -1457,6 +1457,7 @@ body:has(#roundResults:not(.hidden))>header,
 </details>
 </div>
 
+<div id="hostRestartPrompt" class="rules-modal hidden" role="dialog" aria-modal="true" aria-labelledby="hostRestartTitle"><div class="rules-modal-card"><div class="rules-modal-head"><div><span class="rules-kicker">MODDU SET</span><h2 id="hostRestartTitle">New game requested</h2></div></div><div class="rules-modal-body"><p>At least two players requested a new game. Everyone is now back at the game table. As host, use <strong>Restart New Game</strong> in Game Actions to deal fresh cards and reset scores.</p></div><button class="rules-done" onclick="closeHostRestartPrompt()">Got it</button></div></div>
 <div id="gameRulesModal" class="rules-modal hidden" role="dialog" aria-modal="true" aria-labelledby="gameRulesTitle" onclick="if(event.target===this)closeRules()">
  <div class="rules-modal-card"><div class="rules-modal-head"><div><span class="rules-kicker">MODDU SET</span><h2 id="gameRulesTitle">Game Rules</h2></div><button class="rules-close" onclick="closeRules()" aria-label="Close">×</button></div>
  <div class="rules-modal-body">
@@ -2025,7 +2026,7 @@ function render(){
  const targetScoreLabel=document.getElementById("targetScoreInfo");if(targetScoreLabel)targetScoreLabel.textContent="TARGET "+(onlineMode?Math.max(1,Number(onlinePublic?.scoreLimit)||200):Math.max(1,Number(scoreLimit)||200));
  const newRoundBtn=document.getElementById("newRoundBtn"),restartBtn=document.getElementById("restartGameBtn");
  if(newRoundBtn)newRoundBtn.style.display=(!onlineMode||isRoomHost)?"":"none";
- if(restartBtn)restartBtn.classList.toggle("hidden",onlineMode&&!isRoomHost);
+ if(restartBtn){restartBtn.classList.toggle("hidden",onlineMode&&!isRoomHost);restartBtn.textContent=onlineMode&&onlinePublic?.status==="restartRequested"?"Restart New Game":"Restart game";}
  const handEl=document.getElementById("hand");
  const playersEl=document.getElementById("players");
  try{
@@ -2615,7 +2616,7 @@ async function restartCurrentGame(){
   const next={status:"playing",gameNumber:(Number(p.gameNumber)||1)+1,round:1,scoreLimit:Math.max(1,Number(p.scoreLimit)||200),turnUid:starter.id,roundStarterUid:starter.id,deckCount:d.length,discard:[first],drawnByUid:null,drawnCardId:null,pickDeadline:starter.isBot?null:Date.now()+60000,discardDeadline:null,specialRank:null,rematchVotes:{},players:freshPlayers,message:"The host restarted the game. Everyone's scores are reset. "+starter.name+"'s turn."};
   await roomRef.child("private").set({deck:d,hands,specialRank:null,specialRanks:{}});
   const actionSnap=await roomRef.child("actions").get();await Promise.all(Object.keys(actionSnap.val()||{}).map(uid=>roomRef.child("actions/"+uid).remove()));
-  await roomRef.child("public").set(next);onlinePublic=next;drawn=false;selected=-1;selectedIndices=[];applyOnlinePublic();
+  await roomRef.child("public").set(next);onlinePublic=next;drawn=false;selected=-1;selectedIndices=[];closeHostRestartPrompt();applyOnlinePublic();
  }catch(e){message("Could not restart the game: "+e.message);}
 }
 </script>
@@ -2799,11 +2800,11 @@ function enterOnlineGame(state){
  if(!roomRef||!roomPlayerId)return;onlineMode=true;onlinePublic=state;const gameCodeEl=document.getElementById("gameRoomCode");if(gameCodeEl){gameCodeEl.textContent=roomCode||"------";gameCodeEl.closest(".game-room-code").style.display=roomCode?"flex":"none";}eliminatedSpectator=false;document.getElementById("setup").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");document.getElementById("game").classList.remove("hidden");document.getElementById("voicePanel")?.classList.remove("hidden");
  const notice=document.createElement("div");notice.id="spectatorNotice";notice.className="spectator-notice";notice.textContent="👀 You are eliminated. You can watch the game, but cannot play or view anyone’s cards.";document.getElementById("game").prepend(notice);
  onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);chatHasOpened=false;chatUnreadCount=0;chatIsOpen=false;document.getElementById("gameChat")?.classList.remove("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");document.getElementById("chatToggle")?.setAttribute("aria-expanded","false");updateChatUnread();onlineChatRef=roomRef.child("chat");if(onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);const chatRefForLoad=onlineChatRef;chatRefForLoad.limitToLast(60).once("value").then(initial=>{if(!onlineMode||onlineChatRef!==chatRefForLoad)return;const oldKeys=new Set(Object.keys(initial.val()||{}));onlineChatListener=snap=>{const isOld=oldKeys.has(snap.key);oldKeys.delete(snap.key);const shownLocally=locallyShownChatMessages.has(snap.key);locallyShownChatMessages.delete(snap.key);receiveGameChat(snap,!isOld&&!shownLocally);};chatRefForLoad.limitToLast(60).on("child_added",onlineChatListener);}).catch(()=>{});
- if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();scheduleHostDiscardTimeout(onlinePublic);if(isRoomHost){if(onlinePublic.status==="gameComplete"||onlinePublic.status==="rematchStarting")startOnlineRematchIfReady();if(onlinePublic.status==="roundComplete")finalizeOnlineGameIfNeeded().catch(e=>console.error("Game completion check failed:",e));if(onlinePublic.status==="playing"){reconcileDroppedRoundCompletion().catch(e=>console.error("Drop completion recovery failed:",e));runOnlineBotTurn();}}}};onlinePublicRef.on("value",onlinePublicListener);
+ if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();scheduleHostDiscardTimeout(onlinePublic);if(isRoomHost){if(onlinePublic.status==="restartRequested")openHostRestartPrompt();if(onlinePublic.status==="roundComplete")finalizeOnlineGameIfNeeded().catch(e=>console.error("Game completion check failed:",e));if(onlinePublic.status==="playing"){reconcileDroppedRoundCompletion().catch(e=>console.error("Drop completion recovery failed:",e));runOnlineBotTurn();}}}};onlinePublicRef.on("value",onlinePublicListener);
   // Watch the vote node directly as well as the full public state. This makes the host react immediately when the second player votes.
   const rematchVotesRef=roomRef.child("public/rematchVotes");
   if(onlineRematchVotesListener)rematchVotesRef.off("value",onlineRematchVotesListener);
-  onlineRematchVotesListener=snap=>{const votes=snap.val()||{};if(Object.values(votes).filter(Boolean).length<2||!authUser||!roomRef)return;Promise.all([roomRef.child("hostId").get(),roomRef.child("public").get()]).then(([hostSnap,stateSnap])=>{isRoomHost=hostSnap.val()===authUser.uid;const state=stateSnap.val();if(isRoomHost&&state&&(state.status==="gameComplete"||state.status==="rematchStarting"))startOnlineRematchIfReady();}).catch(e=>{console.error("Rematch vote check failed:",e);setLobbyNotice("Could not check rematch requests: "+e.message);});};
+  onlineRematchVotesListener=snap=>{const votes=snap.val()||{};if(Object.values(votes).filter(Boolean).length>=2)hostPrepareRestartAfterVotes();};
   rematchVotesRef.on("value",onlineRematchVotesListener);
  if(onlineSpecialRef){onlineSpecialRef.off("value");onlineSpecialRef.on("value",snap=>{const privateRank=snap.val();if(privateRank)specialRank=privateRank;render();if(specialRank)highlightSpecialJoker();});}if(onlineHandListener)onlineHandRef.off("value",onlineHandListener);onlineHandListener=s=>{if(!s.exists())return;const h=s.val()||[];if(!players.length)players=[{id:roomPlayerId,name:"You",hand:h,score:0,human:true}];else players[0]={...players[0],hand:h};if(onlinePublic?.turnUid===roomPlayerId&&h.length===14)drawn=true;else if(h.length===13)drawn=false;selected=-1;selectedIndices=[];arrangedGroups=[];applyOnlinePublic();autoArrange(false);render();};onlineHandRef.on("value",onlineHandListener);
  if(isRoomHost){
@@ -3173,7 +3174,7 @@ async function leaveVoiceChat(){
 
 function applyOnlinePublic(){
  if(!onlineMode||!onlinePublic)return;onlineActionPending=false;const st=onlinePublic,prior=players[0]||{},m=st.players||[];specialRank=st.specialRank||null;showSharedAction(st.lastAction);
- if(st.status==="playing"){const resultScreen=document.getElementById("roundResults");if(resultScreen){resultScreen.classList.add("hidden");resultScreen.classList.remove("game-complete-screen");}}
+ if(st.status==="playing"||st.status==="restartRequested"){const resultScreen=document.getElementById("roundResults");if(resultScreen){resultScreen.classList.add("hidden");resultScreen.classList.remove("game-complete-screen");}}
  const ordered=[...m].sort((a,b)=>a.id===roomPlayerId?-1:b.id===roomPlayerId?1:0);
  players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,roundDrawCount:p.roundDrawCount||0,roundDropped:!!p.roundDropped,dropPenalty:p.dropPenalty||0,unlocked:!!p.unlocked,active:p.active!==false,human:p.id===roomPlayerId,cardCount:p.cardCount||0,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
  if(!players.length)return;
@@ -3523,10 +3524,27 @@ async function voteOnlineRematch(){
  if(!isPlayer){message("Only players from this match can request a rematch.");return;}
  try{
   await roomRef.child("public/rematchVotes/"+roomPlayerId).set(true);
+  const votes={...(onlinePublic.rematchVotes||{}),[roomPlayerId]:true},count=Object.values(votes).filter(Boolean).length;
   const footer=document.querySelector("#roundResults .results-footer");
-  if(footer){const count=Object.values({...onlinePublic.rematchVotes,[roomPlayerId]:true}).filter(Boolean).length;const button=footer.querySelector(".rematch-btn");if(button){button.disabled=true;button.textContent="✓ Rematch requested";}const status=footer.querySelector(".rematch-status");if(status)status.textContent=count+" player(s) want a rematch. The new game starts automatically when 2 players agree.";}
+  if(footer){const button=footer.querySelector(".rematch-btn");if(button){button.disabled=true;button.textContent="✓ Rematch requested";}const status=footer.querySelector(".rematch-status");if(status)status.textContent=count+" player(s) requested a new game. Waiting for the host to restart."}
+  if(count>=2)await hostPrepareRestartAfterVotes();
  }catch(e){message("Could not record your rematch request: "+e.message);}
 }
+async function hostPrepareRestartAfterVotes(){
+ if(!onlineMode||!roomRef||!authUser)return;
+ try{
+  const [hostSnap,stateSnap]=await Promise.all([roomRef.child("hostId").get(),roomRef.child("public").get()]);
+  if(hostSnap.val()!==authUser.uid)return;
+  const state=stateSnap.val();if(!state||state.status!=="gameComplete")return;
+  const count=Object.values(state.rematchVotes||{}).filter(Boolean).length;if(count<2)return;
+  await roomRef.child("public").update({status:"restartRequested",message:"Players requested a new game. The host can now restart the game."});
+ }catch(e){console.error("Could not prepare host restart:",e);setLobbyNotice("Could not prepare the new game: "+e.message);}
+}
+function openHostRestartPrompt(){
+ if(!isRoomHost||!onlineMode||onlinePublic?.status!=="restartRequested")return;
+ const modal=document.getElementById("hostRestartPrompt");if(modal)modal.classList.remove("hidden");
+}
+function closeHostRestartPrompt(){document.getElementById("hostRestartPrompt")?.classList.add("hidden");}
 async function startOnlineRematchIfReady(){
  if(!roomRef||!authUser||onlineRematchStarting)return;
  // Do not trust a possibly stale local host flag. Confirm the current host directly from the room before processing votes.
