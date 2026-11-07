@@ -52,6 +52,7 @@
           },
           "signals": {
             "$fromUid": {
+              ".write": "auth != null && auth.uid === $fromUid && root.child('rooms').child($roomCode).child('lobby').child('players').child(auth.uid).exists()",
               "$toUid": {
                 "$signalId": {
                   ".read": "auth != null && auth.uid === $toUid && root.child('rooms').child($roomCode).child('lobby').child('players').child(auth.uid).exists()",
