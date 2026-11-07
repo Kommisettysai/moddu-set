@@ -2784,6 +2784,11 @@ function enterOnlineGame(state){
  const notice=document.createElement("div");notice.id="spectatorNotice";notice.className="spectator-notice";notice.textContent="👀 You are eliminated. You can watch the game, but cannot play or view anyone’s cards.";document.getElementById("game").prepend(notice);
  onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);chatHasOpened=false;chatUnreadCount=0;chatIsOpen=false;document.getElementById("gameChat")?.classList.remove("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");document.getElementById("chatToggle")?.setAttribute("aria-expanded","false");updateChatUnread();onlineChatRef=roomRef.child("chat");if(onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);const chatRefForLoad=onlineChatRef;chatRefForLoad.limitToLast(60).once("value").then(initial=>{if(!onlineMode||onlineChatRef!==chatRefForLoad)return;const oldKeys=new Set(Object.keys(initial.val()||{}));onlineChatListener=snap=>{const isOld=oldKeys.has(snap.key);oldKeys.delete(snap.key);const shownLocally=locallyShownChatMessages.has(snap.key);locallyShownChatMessages.delete(snap.key);receiveGameChat(snap,!isOld&&!shownLocally);};chatRefForLoad.limitToLast(60).on("child_added",onlineChatListener);}).catch(()=>{});
  if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();scheduleHostDiscardTimeout(onlinePublic);if(isRoomHost){if(onlinePublic.status==="gameComplete"||onlinePublic.status==="rematchStarting")startOnlineRematchIfReady();if(onlinePublic.status==="roundComplete")finalizeOnlineGameIfNeeded().catch(e=>console.error("Game completion check failed:",e));if(onlinePublic.status==="playing"){reconcileDroppedRoundCompletion().catch(e=>console.error("Drop completion recovery failed:",e));runOnlineBotTurn();}}}};onlinePublicRef.on("value",onlinePublicListener);
+  // Watch the vote node directly as well as the full public state. This makes the host react immediately when the second player votes.
+  const rematchVotesRef=roomRef.child("public/rematchVotes");
+  if(onlineRematchVotesListener)rematchVotesRef.off("value",onlineRematchVotesListener);
+  onlineRematchVotesListener=snap=>{if(!isRoomHost)return;const votes=snap.val()||{};if(Object.values(votes).filter(Boolean).length<2)return;roomRef.child("public").get().then(stateSnap=>{const state=stateSnap.val();if(state&&(state.status==="gameComplete"||state.status==="rematchStarting"))startOnlineRematchIfReady();}).catch(e=>console.error("Rematch vote check failed:",e));};
+  rematchVotesRef.on("value",onlineRematchVotesListener);
  if(onlineSpecialRef){onlineSpecialRef.off("value");onlineSpecialRef.on("value",snap=>{const privateRank=snap.val();if(privateRank)specialRank=privateRank;render();if(specialRank)highlightSpecialJoker();});}if(onlineHandListener)onlineHandRef.off("value",onlineHandListener);onlineHandListener=s=>{if(!s.exists())return;const h=s.val()||[];if(!players.length)players=[{id:roomPlayerId,name:"You",hand:h,score:0,human:true}];else players[0]={...players[0],hand:h};if(onlinePublic?.turnUid===roomPlayerId&&h.length===14)drawn=true;else if(h.length===13)drawn=false;selected=-1;selectedIndices=[];arrangedGroups=[];applyOnlinePublic();autoArrange(false);render();};onlineHandRef.on("value",onlineHandListener);
  if(isRoomHost){
   if(onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);
@@ -3478,7 +3483,7 @@ function openOnlineGameComplete(champion){
  }
  screen.classList.remove("hidden");
 }
-let onlineRematchStarting=false;
+let onlineRematchStarting=false,onlineRematchVotesListener=null;
 async function voteOnlineRematch(){
  if(!onlineMode||!roomRef||!roomPlayerId||!onlinePublic||onlinePublic.status!=="gameComplete")return;
  const isPlayer=(onlinePublic.players||[]).some(p=>p.id===roomPlayerId);
