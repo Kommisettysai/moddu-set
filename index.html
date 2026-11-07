@@ -1453,7 +1453,7 @@ body:has(#roundResults:not(.hidden))>header,
 <summary>Game actions</summary>
 <div class="actions">
 <button onclick="showRules()">Game rules</button>
-<button id="restartGameBtn" class="hidden" onclick="restartCurrentGame()">Restart game</button>
+<button id="restartGameBtn" class="hidden" onclick="restartCurrentGame()">Restart New Game</button>
 <button id="newRoundBtn" onclick="startFreshRoundWithScores()">Start new round (keep scores)</button>
 </div>
 <div id="hostPlayerManagement"></div>
@@ -3514,9 +3514,9 @@ function openOnlineGameComplete(champion){
  handsEl.innerHTML="";
  const footer=screen.querySelector(".results-footer");
  if(footer){
-  const votes=onlinePublic.rematchVotes||{},voteCount=Object.values(votes).filter(Boolean).length,myVote=!!votes[roomPlayerId],isPlayer=(onlinePublic.players||[]).some(p=>p.id===roomPlayerId);
-  footer.innerHTML=(isPlayer?'<button class="rematch-btn" '+(myVote?'disabled':'')+' onclick="voteOnlineRematch()">'+(myVote?'✓ Rematch requested':'↻ REQUEST REMATCH')+'</button>':'')+
-   '<p class="rematch-status">'+voteCount+' of 2 required rematch requests received. The fresh game starts automatically when both players agree.</p>'
+  const canRestart=!!(onlineMode&&isRoomHost&&roomRef);
+  footer.innerHTML=(canRestart?'<button class="rematch-btn" onclick="restartCurrentGame()">↻ RESTART NEW GAME</button>':'')+
+   '<p class="rematch-status">'+(canRestart?'Host can start a fresh game for everyone using the button above.':'Waiting for the host to start a new game.')+'</p>';
  }
  screen.classList.remove("hidden");
 }
