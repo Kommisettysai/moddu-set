@@ -3350,6 +3350,14 @@ function validateOnlineShow(hand,groupIds,player){
 function dropCurrentRound(){
  if(eliminatedSpectator){message("You are watching this game and cannot play.");return;}
  if(gameOver){message("This round is already complete.");return;}
+ const me=onlineMode?(onlinePublic?.players||[]).find(p=>p.id===roomPlayerId):players[0];
+ if(!me||me.active===false||me.roundDropped){message("You cannot drop this round.");return;}
+ const penalty=(Number(me.roundDrawCount)||0)<=1?20:40;
+ showGameConfirm("Drop this round","Are you sure you want to drop? A penalty of "+penalty+" points will be added to your score.",()=>performDropCurrentRound(),"Drop round");
+}
+function performDropCurrentRound(){
+ if(eliminatedSpectator){message("You are watching this game and cannot play.");return;}
+ if(gameOver){message("This round is already complete.");return;}
  if(onlineMode){
   const me=(onlinePublic?.players||[]).find(p=>p.id===roomPlayerId);
   if(!me||me.active===false||me.roundDropped){message("You cannot drop this round.");return;}
@@ -3698,8 +3706,11 @@ async function startOnlineNextRound(){
   onlinePublic=next;applyOnlinePublic();
  }catch(e){message("Could not start next round: "+e.message);}
 }
-async function startFreshRoundWithScores(){
- if(!confirm("Start a fresh round now? All current scores will be kept."))return;
+function startFreshRoundWithScores(){
+ if(onlineMode&&(!isRoomHost||!roomRef)){message("Only the host can start a new online round.");return;}
+ showGameConfirm("Start new round","Deal fresh cards for the next round? All current scores will be kept.",()=>performStartFreshRoundWithScores(),"Start round");
+}
+async function performStartFreshRoundWithScores(){
  if(!onlineMode){startNextRound();return;}
  if(!isRoomHost||!roomRef){message("Only the host can start a new online round.");return;}
  try{
