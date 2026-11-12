@@ -3176,10 +3176,11 @@ async function joinVoiceChat(){
   voiceParticipantsListener=snap=>{
    const data=snap.val()||{},list=[];
    for(const [uid,value] of Object.entries(data)){
-    // Accept the previous flat record format during deployment, and the new
-    // per-session format used for safe reconnects.
-    if(value&&value.id)list.push(value);
-    else for(const session of Object.values(value||{}))if(session&&session.id)list.push(session);
+    // Accept both the old flat record and new per-session records. During
+    // rollout, an old flat record and new session children can coexist.
+    const sessions=Object.values(value||{}).filter(item=>item&&typeof item==="object"&&item.id);
+    if(sessions.length)list.push(...sessions);
+    else if(value&&value.id)list.push(value);
    }
    voiceRenderPeople(list);
    if(voiceJoined)voiceEnsurePeers(list);
