@@ -3013,11 +3013,13 @@ async function voiceMicrophoneErrorMessage(error){
  return "Could not access the microphone ("+(name||"unknown error")+"). Check Chrome and Android microphone permissions, close other apps using the mic, then tap Try Again.";
 }
 function voiceRoomMember(uid){return !!uid&&!!roomRef&&!!roomPlayerId;}
-function voiceSignalPath(from,to,sessionId){return roomRef.child("voice/signals/"+from+"/"+sessionId+"/"+to);}
+function voiceSignalPath(from,to,sessionId){return roomRef.child("voice/signals/"+from+"/"+to+"/"+sessionId);}
 function voiceRenderPeople(list){
  const box=document.getElementById("voicePeople"),count=document.getElementById("voiceCount");
  if(!box)return;
- const connected=(list||[]).filter(p=>p&&p.joined);
+ const latest=new Map();
+ for(const p of list||[]){if(!p||!p.joined||!p.id)continue;const old=latest.get(p.id);if(!old||Number(p.joinedAt||0)>=Number(old.joinedAt||0))latest.set(p.id,p);}
+ const connected=Array.from(latest.values());
  if(count)count.textContent=connected.length+" in voice";
  box.innerHTML=connected.map(p=>'<span class="voice-person '+(p.muted?'muted':'')+'">'+(p.muted?'🔇 ':'🎙️ ')+escapeLobbyText(p.name||"Player")+(p.id===roomPlayerId?' (you)':'')+'</span>').join("");
 }
@@ -3165,13 +3167,20 @@ async function joinVoiceChat(){
   voiceParticipantKey=roomPlayerId+"_"+voiceSessionId;
   voiceParticipantsRef=roomRef.child("voice/participants");
   voiceSignalsRef=roomRef.child("voice/signals");
-  const mySignalSessionRef=voiceSignalsRef.child(roomPlayerId).child(voiceSessionId);
-  await mySignalSessionRef.onDisconnect().remove();
-  const myPresenceRef=voiceParticipantsRef.child(voiceParticipantKey);
+  // Store each browser/microphone session beneath the authenticated player UID.
+  // The UID-level Firebase rule remains valid, while onDisconnect can only remove
+  // this session and can never erase a newer session created after a refresh.
+  const myPresenceRef=voiceParticipantsRef.child(roomPlayerId).child(voiceSessionId);
   await myPresenceRef.set({id:roomPlayerId,name:players[0]?.name||playerProfile?.displayName||"Player",joined:true,muted:true,sessionId:voiceSessionId,joinedAt:firebase.database.ServerValue.TIMESTAMP});
   await myPresenceRef.onDisconnect().remove();
   voiceParticipantsListener=snap=>{
-   const data=snap.val()||{},list=Object.values(data);
+   const data=snap.val()||{},list=[];
+   for(const [uid,value] of Object.entries(data)){
+    // Accept the previous flat record format during deployment, and the new
+    // per-session format used for safe reconnects.
+    if(value&&value.id)list.push(value);
+    else for(const session of Object.values(value||{}))if(session&&session.id)list.push(session);
+   }
    voiceRenderPeople(list);
    if(voiceJoined)voiceEnsurePeers(list);
    voiceUpdateTopControls();
@@ -3207,7 +3216,7 @@ async function toggleVoiceControl(){
    voiceMuted=false;
    voiceStream?.getAudioTracks().forEach(t=>t.enabled=true);
    for(const pc of voicePeerConnections.values())voiceAttachLocalTracks(pc);
-   try{await voiceParticipantsRef.child(voiceParticipantKey).update({muted:false});}catch(e){}
+   try{await voiceParticipantsRef.child(roomPlayerId).child(voiceSessionId).update({muted:false});}catch(e){}
    voiceSetStatus("Your microphone is on. Speak to the table.");
    voiceUpdateTopControls();
   }
@@ -3227,7 +3236,7 @@ async function toggleVoiceMute(){
  if(!voiceMuted&&!tracks.some(t=>t.readyState==="live")){voiceSetStatus("Microphone is not active. Leave voice and join again.");return;}
  for(const pc of voicePeerConnections.values())voiceAttachLocalTracks(pc);
  voiceUpdateTopControls();
- try{await voiceParticipantsRef.child(voiceParticipantKey).update({muted:voiceMuted});}
+ try{await voiceParticipantsRef.child(roomPlayerId).child(voiceSessionId).update({muted:voiceMuted});}
  catch(e){voiceSetStatus("Microphone state could not sync: "+e.message);}
  voiceSetStatus(voiceMuted?"You are listening. Your microphone is muted.":"Your microphone is on. Speak to the table.");
 }
@@ -3240,8 +3249,7 @@ async function leaveVoiceChat(){
  for(const {ref,listener} of voiceSignalListeners.values())ref.off("child_added",listener);
  voiceSignalListeners.clear();
  if(voiceStream){voiceStream.getTracks().forEach(t=>t.stop());voiceStream=null;}
- if(wasJoined&&voiceParticipantsRef&&voiceParticipantKey)try{await voiceParticipantsRef.child(voiceParticipantKey).remove();}catch(e){}
- if(voiceSignalsRef&&roomPlayerId&&voiceSessionId)try{await voiceSignalsRef.child(roomPlayerId).child(voiceSessionId).remove();}catch(e){}
+ if(wasJoined&&voiceParticipantsRef&&roomPlayerId&&voiceSessionId)try{await voiceParticipantsRef.child(roomPlayerId).child(voiceSessionId).remove();}catch(e){}
  voiceMuted=true;voiceParticipantsRef=null;voiceSignalsRef=null;voiceParticipantKey=null;
  const panel=document.getElementById("voicePanel");if(panel&&onlineMode)panel.classList.remove("hidden");
  voiceUpdateTopControls();
