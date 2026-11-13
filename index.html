@@ -2628,6 +2628,16 @@ body:has(#game:not(.hidden)) main{
  #game .game-brand .leave-table-top{font-size:7px!important;padding:6px 4px!important}
 }
 
+
+/* Round reveal must always replace the game view, never sit inline below it. */
+#roundResults.round-results.lc-results-screen{
+ position:fixed!important;inset:0!important;z-index:99999!important;
+ display:block!important;width:100%!important;height:100dvh!important;min-height:100dvh!important;
+ overflow-x:hidden!important;overflow-y:auto!important;box-sizing:border-box!important;
+ overscroll-behavior:contain!important;
+}
+#roundResults.round-results.lc-results-screen.hidden{display:none!important}
+
 </style>
 </head>
 
@@ -4044,9 +4054,24 @@ function renderRoundJokerReveal(rank){
  const safeRank=escapeLobbyText(rank);
  return '<div class="round-joker-reveal"><div class="round-joker-copy"><span>ROUND SPECIAL JOKER</span><strong>'+safeRank+' ★</strong><small>This was revealed during this round</small></div><div class="results-card joker round-joker-card"><span>'+safeRank+'★</span><small>SPECIAL JOKER</small></div></div>';
 }
+function prepareRoundResultsOverlay(screen){
+ if(!screen)return;
+ /* Keep the reveal outside #game so transformed game panels cannot turn fixed positioning into inline flow. */
+ if(screen.parentElement!==document.body)document.body.appendChild(screen);
+ screen.classList.add("lc-results-screen");
+ screen.style.setProperty("position","fixed","important");
+ screen.style.setProperty("inset","0","important");
+ screen.style.setProperty("z-index","99999","important");
+ screen.style.setProperty("width","100%","important");
+ screen.style.setProperty("height","100dvh","important");
+ screen.style.setProperty("min-height","100dvh","important");
+ screen.style.setProperty("overflow-y","auto","important");
+ screen.style.setProperty("box-sizing","border-box","important");
+}
 function openRoundResults(results,winnerIndex=0){
  const screen=document.getElementById("roundResults"),profiles=document.getElementById("resultsProfiles"),hands=document.getElementById("resultsHands");
  if(!screen||!profiles||!hands)return;
+ prepareRoundResultsOverlay(screen);
  const penalties=players.map((p,i)=>p.roundDropped?(p.dropPenalty||0):(i===0?0:bestUnmatchedScore(p.hand,p)));
  const resultOrder=players.map((p,i)=>({p,i,penalty:penalties[i]})).sort((a,b)=>(a.i===winnerIndex?-1:b.i===winnerIndex?1:a.penalty-b.penalty)||a.i-b.i);
  profiles.innerHTML="";
@@ -5116,6 +5141,7 @@ async function processOnlineAction(uid,a){
 function openOnlineRoundResults(result){
  const screen=document.getElementById("roundResults"),profiles=document.getElementById("resultsProfiles"),handsEl=document.getElementById("resultsHands");
  if(!screen||!profiles||!handsEl)return;
+ prepareRoundResultsOverlay(screen);
  const list=(onlinePublic.players||[]).map(p=>({...p,cardCount:(result.hands[p.id]||[]).length})),winner=result.winnerUid;
  const resultOrder=list.map((p,i)=>({p,i,penalty:result.penalties[p.id]||0})).sort((a,b)=>(a.p.id===winner?-1:b.p.id===winner?1:a.penalty-b.penalty)||a.i-b.i);
  profiles.innerHTML=resultOrder.map(({p})=>{const penalty=result.penalties[p.id]||0,total=Number(result.totals[p.id])||0;const isEliminated=p.active===false||total>=Math.max(1,Number(onlinePublic.scoreLimit)||200);return '<div class="results-profile '+(p.id===winner?'show-winner':'')+'"><div class="results-identity"><span class="player-avatar">'+playerInitials(p.name)+'</span><span class="results-name"><strong>'+escapeLobbyText(p.name)+'</strong></span></div><span class="finish-rank">'+(p.id===winner?'🏆 ROUND WINNER':p.roundDropped?'⛔ DROPPED':isEliminated?'ELIMINATED':'ROUND COMPLETE')+'</span><span class="result-points">Total: '+total+'</span><span class="result-count">This round: +'+penalty+'</span></div>';}).join('');
@@ -5140,6 +5166,7 @@ function openOnlineRoundResults(result){
 function openOnlineGameComplete(champion){
  const screen=document.getElementById("roundResults"),profiles=document.getElementById("resultsProfiles"),handsEl=document.getElementById("resultsHands");
  if(!screen||!profiles||!handsEl)return;
+ prepareRoundResultsOverlay(screen);
  screen.classList.add("game-complete-screen");
  const summary=document.getElementById("resultsSummary");
  if(summary)summary.textContent="The final table is complete. Congratulations, "+champion+"!";
