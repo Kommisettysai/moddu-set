@@ -8,6 +8,7 @@ let lcBotTimer = null;
 let lcActionPending = false;
 let lcActionBusy = Object.create(null);
 let lcToastTimer = null;
+let lcLastTurnAlertKey = "";
 let lcSettings = { cardsPerHand: 5, scoreLimit: 200, badShowCost: 40, matchDrop: false };
 
 function lcRoomSettings(lobby) {
@@ -251,13 +252,21 @@ function lcRender() {
   if (!state || activeGameType !== "leastCount") return;
   const ownTurn = state.turnUid === roomPlayerId && state.status === "playing";
   const phase = state.phase || "drop";
+  document.body.classList.add("least-count-theme");
   const playersEl = document.getElementById("players");
+  const playerStrip = playersEl?.closest(".player-strip");
+  if (playerStrip) playerStrip.classList.add("lc-player-strip");
   if (playersEl) {
-    playersEl.innerHTML = (state.players || []).map(p => {
+    playersEl.innerHTML = (state.players || []).map((p, index) => {
       const active = p.active !== false;
-      return '<div class="player lc-player-card ' + (p.id === state.turnUid && state.status === "playing" ? "active" : "") + '" data-player-id="' + escapeLobbyText(p.id) + '">' +
-        '<span class="lc-player-kind">' + (p.isBot ? "🤖 BOT" : "YOU") + '</span><b>' + escapeLobbyText(p.name) + '</b>' +
-        '<span class="profile-score">Score: ' + (Number(p.score) || 0) + '</span><span class="profile-score">' + (active ? (p.cardCount || 0) + " cards" : "ELIMINATED") + '</span></div>';
+      const isCurrent = p.id === state.turnUid && state.status === "playing";
+      const turnText = phase === "drop" ? "YOUR TURN · DROP" : "YOUR TURN · PICK";
+      return '<div class="player lc-player-card ' + (isCurrent ? "active turn-owner" : "") + (!active ? " eliminated-player" : "") + '" data-player-id="' + escapeLobbyText(p.id) + '">' +
+        playerIdentityMarkup(p, index, "game") +
+        '<div class="lc-profile-stats"><span class="profile-score">SCORE <strong>' + (Number(p.score) || 0) + '</strong></span>' +
+        '<span class="profile-score">' + (active ? (Number(p.cardCount) || 0) + ' CARDS' : 'ELIMINATED') + '</span></div>' +
+        (isCurrent ? '<span class="player-turn-badge">' + turnText + '</span>' : '') +
+        '</div>';
     }).join("");
   }
   const roundEl = document.getElementById("roundInfo");
@@ -265,10 +274,20 @@ function lcRender() {
   const targetEl = document.getElementById("targetScoreInfo");
   if (targetEl) targetEl.textContent = "TARGET " + state.scoreLimit;
   const turnEl = document.getElementById("turnInfo");
+  const current = (state.players || []).find(p => p.id === state.turnUid);
+  const turnLabel = ownTurn ? "YOUR TURN · " + (phase === "drop" ? "DROP" : "PICK") :
+    (current ? current.name + (current.isBot ? " · BOT" : "") + "'s turn" : "Waiting");
   if (turnEl) {
-    const current = (state.players || []).find(p => p.id === state.turnUid);
-    turnEl.textContent = state.status === "playing" ? (ownTurn ? "YOUR TURN · " + (phase === "drop" ? "DROP" : "PICK") : (current ? current.name + (current.isBot ? " · BOT" : "") + "'s turn" : "Waiting")) : state.status === "gameComplete" ? "GAME COMPLETE" : "ROUND COMPLETE";
+    turnEl.textContent = state.status === "playing" ? turnLabel : state.status === "gameComplete" ? "GAME COMPLETE" : "ROUND COMPLETE";
+    turnEl.classList.toggle("own-turn", ownTurn);
+    turnEl.setAttribute("aria-label", state.status === "playing" ? turnLabel : turnEl.textContent);
   }
+  const turnAlertKey = state.status === "playing" ? String(state.round) + ":" + String(state.turnUid) : "";
+  if (ownTurn && turnAlertKey && turnAlertKey !== lcLastTurnAlertKey) {
+    try { if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") navigator.vibrate(180); } catch (e) {}
+    lcShowToast("Your turn · " + (phase === "drop" ? "Drop a card" : "Pick a card"));
+  }
+  lcLastTurnAlertKey = turnAlertKey;
   lcSetNotice(state.message);
   const deckCount = document.getElementById("lcDeckCount");
   if (deckCount) deckCount.textContent = String(state.deckCount || 0) + " cards";
@@ -660,6 +679,9 @@ function closeLeastCountRules() {
   if (modal) modal.classList.add("hidden");
 }
 function cleanupLeastCountGame() {
+  document.body.classList.remove("least-count-theme");
+  document.getElementById("players")?.closest(".player-strip")?.classList.remove("lc-player-strip");
+  lcLastTurnAlertKey = "";
   lcHand = [];
   lcSelectedIds = new Set();
   lcBotBusy = false;
