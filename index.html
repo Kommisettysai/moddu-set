@@ -1470,6 +1470,16 @@ body:has(#roundResults:not(.hidden))>header,
  #game #leastCountView #lcHand button.lc-card{width:clamp(42px,12.1vw,53px)!important;height:clamp(66px,18vw,78px)!important;flex-basis:clamp(42px,12.1vw,53px)!important}
 }
 
+
+/* Least Count hand order and tap-the-pile controls */
+#game #leastCountView #lcHand{justify-content:flex-start!important}
+#game #leastCountView #lcHand button.lc-card{order:0}
+#game #leastCountView #lcDeckBtn.ready{border-color:#ffe08a!important;box-shadow:0 0 0 3px #ffe08a55,0 0 18px #e7c56d66,inset 0 1px #ffffff22!important}
+#game #leastCountView #lcOpenCards button.lc-card.match-drop-ready{outline:3px solid #ffe08a!important;outline-offset:3px;box-shadow:0 0 0 5px #ffe08a44,0 0 18px #e7c56d88!important;cursor:pointer!important}
+#game #leastCountView #lcOpenCards button.lc-card.match-drop-disabled{opacity:.42!important;filter:grayscale(.45)!important;cursor:not-allowed!important;pointer-events:none!important}
+#game #leastCountView .lc-action-buttons:empty{display:none!important}
+#game #leastCountView .lc-action-hint{margin-top:9px!important}
+
 </style>
 </head>
 
@@ -1623,9 +1633,9 @@ body:has(#roundResults:not(.hidden))>header,
   <div class="lc-section-heading"><h3>Game Table</h3><button type="button" class="lc-rules-button" onclick="showLeastCountRules()">How to play</button></div>
   <div class="lc-table">
    <div class="lc-pile-wrap">
-    <button type="button" id="lcDeckBtn" class="pile lc-pile lc-deck" onclick="lcPickDeck()" disabled aria-label="Draw from deck">
+    <button type="button" id="lcDeckBtn" class="pile lc-pile lc-deck" onclick="lcDeckAction()" disabled aria-label="Draw from deck">
      <span class="card-stack lc-deck-stack" aria-hidden="true"><span></span><span></span><span></span></span>
-     <strong id="lcDeckCount">0 cards</strong><small>DRAW DECK</small>
+     <strong id="lcDeckCount">0 cards</strong><small id="lcDeckLabel">DRAW DECK</small>
     </button>
    </div>
    <div class="lc-pile-wrap">
@@ -1644,10 +1654,9 @@ body:has(#roundResults:not(.hidden))>header,
   </div>
   <div id="lcHand" class="cards lc-hand" aria-label="Your cards"></div>
   <div class="actions hand-actions lc-action-buttons">
-   <button type="button" id="lcDropBtn" onclick="lcDropSelected()" disabled>Drop selected</button>
    <button type="button" id="lcShowBtn" class="lc-show-button hidden" onclick="lcCallShow()">SHOW</button>
   </div>
-  <p id="lcActionHint" class="lc-action-hint">Select cards to drop.</p>
+  <p id="lcActionHint" class="lc-action-hint">Select one card or a same-rank set, then tap the deck to drop and draw.</p>
  </div>
  <div id="lcResults" class="panel lc-results hidden">
   <div class="lc-result-head"><span class="lc-eyebrow">ROUND SUMMARY</span><h3>Hand scores</h3><p id="lcResultSummary"></p></div>
