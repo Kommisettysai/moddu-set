@@ -7,6 +7,7 @@ let lcBotTurnKey = "";
 let lcBotTimer = null;
 let lcActionPending = false;
 let lcActionBusy = Object.create(null);
+let lcToastTimer = null;
 let lcSettings = { cardsPerHand: 5, scoreLimit: 200, badShowCost: 40, matchDrop: false };
 
 function lcRoomSettings(lobby) {
@@ -67,11 +68,55 @@ function lcCardMarkup(card, selected, clickable, extraClass) {
   // Keep the full ID. Older decks include Unicode suit symbols in their IDs.
   const safeId = escapeLobbyText(String(card.id));
   const action = clickable ? (extraClass === "lc-open-card" ? ' data-lc-open-id="' + safeId + '"' : ' data-lc-card-id="' + safeId + '"') : "";
-  return '<button type="button" class="' + cls + '"' + action + ' aria-pressed="' + (selected ? "true" : "false") + '" aria-label="' + escapeLobbyText(card.rank + " " + card.suit + ", " + lcPoints(card) + " points") + '">' + lcCardFace(card) + '</button>';
+  return '<button type="button" class="' + cls + '"' + action + (clickable ? "" : " disabled") + ' aria-pressed="' + (selected ? "true" : "false") + '" aria-label="' + escapeLobbyText(card.rank + " " + card.suit + ", " + lcPoints(card) + " points") + '">' + lcCardFace(card) + '</button>';
 }
 function lcSetNotice(text) {
   const el = document.getElementById("lcMessage");
   if (el) el.textContent = text || "";
+}
+
+function lcShowToast(message) {
+  const toast = document.getElementById("gameInfoToast");
+  if (!toast) { lcSetNotice(message); return; }
+  toast.textContent = message;
+  toast.classList.add("show");
+  if (lcToastTimer) clearTimeout(lcToastTimer);
+  lcToastTimer = setTimeout(() => {
+    toast.classList.remove("show");
+    lcToastTimer = null;
+  }, 1100);
+}
+function lcSelectedCards() {
+  return lcHand.filter(card => lcSelectedIds.has(card.id));
+}
+function lcCanMatchDrop(state) {
+  const selected = lcSelectedCards();
+  const open = Array.isArray(state?.openCards) ? state.openCards : [];
+  const top = open.length ? open[open.length - 1] : null;
+  return !!(state?.matchDrop && selected.length && top &&
+    selected.every(card => card.rank === selected[0].rank) &&
+    selected[0].rank === top.rank);
+}
+function lcDeckAction() {
+  if (!onlinePublic || onlinePublic.turnUid !== roomPlayerId) return;
+  if (onlinePublic.phase === "pick") { lcPickDeck(); return; }
+  if (onlinePublic.phase !== "drop") return;
+  const selected = lcSelectedCards();
+  if (!selected.length) { lcShowToast("Select a card or same-rank set first."); return; }
+  if (lcCanMatchDrop(onlinePublic)) {
+    lcShowToast("Matching rank! Tap the open card to use Match & Drop.");
+    return;
+  }
+  const ids = selected.map(card => card.id);
+  lcSelectedIds.clear();
+  lcSendAction({ type: "dropAndPickDeck", cardIds: ids });
+}
+function lcMatchDropSelected() {
+  if (!onlinePublic || onlinePublic.phase !== "drop" || !lcCanMatchDrop(onlinePublic)) return;
+  const ids = lcSelectedCards().map(card => card.id);
+  lcSelectedIds.clear();
+  lcShowToast("Match & Drop! Your pick is skipped.");
+  lcSendAction({ type: "drop", cardIds: ids });
 }
 async function updateLeastCountSetting(key, value) {
   if (!isRoomHost || !roomRef || activeGameType !== "leastCount") return;
@@ -230,12 +275,19 @@ function lcRender() {
   const open = document.getElementById("lcOpenCards");
   if (open) {
     const cards = Array.isArray(state.openCards) ? state.openCards : [];
-    open.innerHTML = cards.length ? cards.map(card => lcCardMarkup(card, false, ownTurn && phase === "pick", "lc-open-card")).join("") : '<span class="lc-empty-pile">No open cards</span>';
+    const matchReady = ownTurn && phase === "drop" && lcCanMatchDrop(state);
+    open.innerHTML = cards.length ? cards.map((card, index) => {
+      const isTop = index === cards.length - 1;
+      const canTap = ownTurn && (phase === "pick" || (matchReady && isTop));
+      return lcCardMarkup(card, false, canTap, "lc-open-card" + (phase === "drop" ? (canTap ? " match-drop-ready" : " match-drop-disabled") : ""));
+    }).join("") : '<span class="lc-empty-pile">No open cards</span>';
     open.querySelectorAll("button[data-lc-open-id]").forEach(cardButton => {
       cardButton.addEventListener("click", event => {
         event.preventDefault();
         event.stopPropagation();
-        if (onlinePublic?.turnUid === roomPlayerId && onlinePublic?.phase === "pick") lcPickOpen(cardButton.dataset.lcOpenId);
+        if (onlinePublic?.turnUid !== roomPlayerId) return;
+        if (onlinePublic?.phase === "pick") lcPickOpen(cardButton.dataset.lcOpenId);
+        else if (onlinePublic?.phase === "drop") lcMatchDropSelected();
       }, { passive: false });
     });
 
@@ -248,7 +300,8 @@ function lcRender() {
   }
   const hand = document.getElementById("lcHand");
   if (hand) {
-    hand.innerHTML = lcHand.length ? lcHand.map(card => lcCardMarkup(card, lcSelectedIds.has(card.id), ownTurn && phase === "drop", "")).join("") : '<p class="lc-empty-hand">Your cards will appear here.</p>';
+    const orderedHand = lcHand.slice().sort((a, b) => lcPoints(a) - lcPoints(b));
+    hand.innerHTML = orderedHand.length ? orderedHand.map(card => lcCardMarkup(card, lcSelectedIds.has(card.id), ownTurn && phase === "drop", "")).join("") : '<p class="lc-empty-hand">Your cards will appear here.</p>';
     // Bind directly to each freshly rendered card. This avoids delegated mobile tap
     // events being lost when Firebase updates replace the hand's child elements.
     hand.querySelectorAll("button[data-lc-card-id]").forEach(cardButton => {
@@ -263,14 +316,18 @@ function lcRender() {
   if (handCount) handCount.textContent = String(lcHand.length);
   const total = document.getElementById("lcHandTotal");
   if (total) total.textContent = "In hand: " + lcTotal(lcHand) + " pts";
-  const dropBtn = document.getElementById("lcDropBtn");
-  if (dropBtn) { dropBtn.classList.toggle("hidden", !ownTurn || phase !== "drop"); dropBtn.disabled = lcActionPending || lcSelectedIds.size === 0; }
   const deckBtn = document.getElementById("lcDeckBtn");
-  if (deckBtn) { deckBtn.disabled = lcActionPending || !ownTurn || phase !== "pick"; deckBtn.classList.toggle("ready", ownTurn && phase === "pick"); }
+  if (deckBtn) {
+    const deckActionReady = ownTurn && (phase === "pick" || (phase === "drop" && lcSelectedIds.size > 0 && !lcCanMatchDrop(state)));
+    deckBtn.disabled = lcActionPending || !deckActionReady;
+    deckBtn.classList.toggle("ready", deckActionReady);
+    const deckLabel = document.getElementById("lcDeckLabel");
+    if (deckLabel) deckLabel.textContent = phase === "drop" ? "DROP + DRAW" : "DRAW DECK";
+  }
   const showBtn = document.getElementById("lcShowBtn");
   if (showBtn) { showBtn.disabled = lcActionPending || !ownTurn || phase !== "drop"; showBtn.classList.toggle("hidden", !ownTurn || phase !== "drop"); }
   const actionHint = document.getElementById("lcActionHint");
-  if (actionHint) actionHint.textContent = !ownTurn ? ((state.players || []).find(p => p.id === state.turnUid)?.isBot ? "Bot is playing…" : "Wait for your turn.") : phase === "drop" ? (lcSelectedIds.size ? lcSelectedIds.size + " selected · tap DROP SELECTED." : "Tap a card to select it. Cards of different ranks cannot be dropped together.") : "Pick one card from the discard pile or draw from the deck.";
+  if (actionHint) actionHint.textContent = !ownTurn ? ((state.players || []).find(p => p.id === state.turnUid)?.isBot ? "Bot is playing…" : "Wait for your turn.") : phase === "drop" ? (lcSelectedIds.size ? (lcCanMatchDrop(state) ? lcSelectedIds.size + " selected · matching rank! Tap the highlighted open card to skip your pick." : lcSelectedIds.size + " selected · tap the deck to drop and draw.") : "Select one card or a same-rank set. Lowest points appear first; highest cards are on the right.") : "Pick one card from the discard pile or draw from the deck.";
   const results = document.getElementById("lcResults");
   if (results) results.classList.toggle("hidden", state.status === "playing");
   const nextBtn = document.getElementById("lcNextRoundBtn");
@@ -334,6 +391,48 @@ async function processLeastCountAction(uid, action) {
   if (action.type === "show") {
     if (state.phase !== "drop") throw new Error("Finish your pick before calling SHOW.");
     await lcResolveShow(uid, false, state, settings);
+    return;
+  }
+  if (action.type === "dropAndPickDeck") {
+    if (state.phase !== "drop") throw new Error("You can only drop cards during your DROP turn.");
+    const ids = Array.isArray(action.cardIds) ? Array.from(new Set(action.cardIds)) : [];
+    if (!ids.length) throw new Error("Select at least one card.");
+    const dropped = hand.filter(card => ids.includes(card.id));
+    if (dropped.length !== ids.length) throw new Error("One or more selected cards are no longer in your hand.");
+    if (dropped.some(card => card.rank !== dropped[0].rank)) throw new Error("You can drop only cards of the same rank together.");
+    const previousOpen = Array.isArray(state.openCards) ? state.openCards : [];
+    const previousTop = previousOpen.length ? previousOpen[previousOpen.length - 1] : null;
+    if (settings.matchDrop && previousTop && previousTop.rank === dropped[0].rank) {
+      throw new Error("That rank matches the open card. Tap the open card to use Match & Drop.");
+    }
+    const remaining = hand.filter(card => !ids.includes(card.id));
+    const privateSnap = await roomRef.child("private").get();
+    const privateData = privateSnap.val() || {};
+    let deck = Array.isArray(privateData.deck) ? privateData.deck.slice() : [];
+    let discardPile = (Array.isArray(privateData.discardPile) ? privateData.discardPile : []).concat(previousOpen);
+    if (!deck.length && discardPile.length) {
+      deck = lcShuffle(discardPile);
+      discardPile = [];
+    }
+    if (remaining.length && !deck.length) throw new Error("No cards remain to draw. There are no open cards to recycle.");
+    const next = { ...state,
+      players: (state.players || []).map(p => p.id === uid ? { ...p, cardCount: remaining.length + (remaining.length ? 1 : 0) } : p),
+      openCards: dropped, newDrop: [], deckCount: deck.length,
+      message: "Cards dropped. " + (remaining.length ? "Drawing from the deck." : "All cards dropped. Showing your hand.") };
+    if (remaining.length) {
+      const picked = deck.pop();
+      await roomRef.child("private").update({ deck, discardPile });
+      await handRef.set(remaining.concat(picked));
+      next.players = next.players.map(p => p.id === uid ? { ...p, cardCount: remaining.length + 1 } : p);
+      next.deckCount = deck.length;
+      await roomRef.child("public").set(next);
+      await lcAdvanceTurn(next, uid);
+      return;
+    }
+    await roomRef.child("private").update({ deck, discardPile });
+    await handRef.set([]);
+    await roomRef.child("public").set(next);
+    await lcResolveShow(uid, true, next, settings);
     return;
   }
   if (action.type === "drop") {
@@ -517,7 +616,12 @@ async function runLeastCountBotTurn() {
       let dropCards;
       if (pairOrSet) dropCards = pairOrSet;
       else dropCards = [hand.slice().sort((a, b) => lcPoints(b) - lcPoints(a))[0]];
-      await processLeastCountAction(uid, { type: "drop", cardIds: dropCards.map(c => c.id) });
+      const previousOpen = Array.isArray(state.openCards) ? state.openCards : [];
+      const previousTop = previousOpen.length ? previousOpen[previousOpen.length - 1] : null;
+      const matchesOpen = state.matchDrop && previousTop && previousTop.rank === dropCards[0].rank;
+      await processLeastCountAction(uid, matchesOpen
+        ? { type: "drop", cardIds: dropCards.map(c => c.id) }
+        : { type: "dropAndPickDeck", cardIds: dropCards.map(c => c.id) });
     } else if (state.phase === "pick") {
       const latest = (await roomRef.child("public").get()).val();
       const currentHand = (await roomRef.child("private/hands/" + uid).get()).val() || [];
