@@ -1363,6 +1363,7 @@ body:has(#roundResults:not(.hidden))>header,
  .lc-result-row b{grid-column:2}
 }
 
+.lc-new-drop{display:flex;justify-content:center;align-items:center;gap:4px;flex-wrap:wrap;border-top:1px solid #d9b66b44;margin-top:6px;padding-top:6px}.lc-new-drop small{width:100%;text-align:center;color:#ffe1a0;font-size:8px;letter-spacing:.7px}.lc-new-drop-card{width:34px;height:49px;cursor:default}.lc-new-drop-card .lc-card-center{font-size:18px}
 </style>
 </head>
 
@@ -1463,7 +1464,7 @@ body:has(#roundResults:not(.hidden))>header,
  <div class="private-table-card">
   <div class="lobby-section-title">PLAYERS AT THE TABLE <span id="roomPlayerCount"></span></div>
   <div id="roomPlayers" class="room-players"></div>
-  <p class="lobby-hint">You can start when at least 2 players have joined. Maximum 6 players.</p>
+  <p class="lobby-hint" id="roomPlayerHint">You can start when at least 2 players have joined. Maximum 6 players.</p>
   <div id="modduRoomSettings">
    <label class="lobby-label" for="roomScoreLimit">ELIMINATION SCORE LIMIT</label>
    <select id="roomScoreLimit" class="lobby-input" onchange="updateRoomScoreLimit(this.value)">
@@ -2903,6 +2904,7 @@ function showWaitingRoom(){
   if(!snap.exists())return;
   const l=snap.val(),m=onlineMembers(l),limitEl=document.getElementById("roomScoreLimit");
   activeGameType=l.gameType==="leastCount"?"leastCount":"modduSet";
+  isRoomHost=!!(authUser&&authUser.uid===l.hostId);
   const lcSettingsEl=document.getElementById("leastCountRoomSettings"),modduSettingsEl=document.getElementById("modduRoomSettings");
   if(lcSettingsEl)lcSettingsEl.classList.toggle("hidden",activeGameType!=="leastCount");
   if(modduSettingsEl)modduSettingsEl.classList.toggle("hidden",activeGameType==="leastCount");
@@ -2912,7 +2914,7 @@ function showWaitingRoom(){
   if(scoreSetting){scoreSetting.value=String(settings.scoreLimit);scoreSetting.disabled=!isRoomHost||l.status!=="waiting";}
   if(badShowSetting){badShowSetting.value=String(settings.badShowCost);badShowSetting.disabled=!isRoomHost||l.status!=="waiting";}
   if(matchSetting){matchSetting.checked=settings.matchDrop;matchSetting.disabled=!isRoomHost||l.status!=="waiting";}
-  isRoomHost=!!(authUser&&authUser.uid===l.hostId);
+  const roomHint=document.getElementById("roomPlayerHint");if(roomHint)roomHint.textContent="You can start when at least 2 players have joined. Maximum "+(Number(l.maxPlayers)||6)+" players.";
   if(startBtn)startBtn.classList.toggle("hidden",!isRoomHost);
   if(botBtn)botBtn.classList.toggle("hidden",!isRoomHost);
   if(hostWait)hostWait.classList.toggle("hidden",isRoomHost);
@@ -2964,9 +2966,10 @@ async function addBotToRoom(){
 async function shareRoomInvite(){
  if(!roomCode)return;
  const url=location.href.split("?")[0]+"?room="+roomCode;
- const text="Join my Moddu Set table! Room code: "+roomCode+"\n"+url;
+ const gameName=activeGameType==="leastCount"?"Least Count":"Moddu Set";
+ const text="Join my "+gameName+" table! Room code: "+roomCode+"\n"+url;
  try{
-  if(navigator.share)await navigator.share({title:"Moddu Set invitation",text,url});
+  if(navigator.share)await navigator.share({title:gameName+" invitation",text,url});
   else if(navigator.clipboard){await navigator.clipboard.writeText(text);setLobbyNotice("Invite copied. Share it with your friends!");}
   else setLobbyNotice("Share this room code: "+roomCode);
  }catch(e){if(e.name!=="AbortError")setLobbyNotice("Room code: "+roomCode);}
