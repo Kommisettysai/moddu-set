@@ -62,8 +62,9 @@ function lcCardFace(card) {
 function lcCardMarkup(card, selected, clickable, extraClass) {
   const red = card && (card.suit === "♥" || card.suit === "♦");
   const cls = "lc-card" + (red ? " red" : "") + (selected ? " selected" : "") + (extraClass ? " " + extraClass : "");
-  const action = clickable ? ' onclick="lcToggleCard(\'' + String(card.id).replace(/[^a-zA-Z0-9_-]/g, "") + '\')" role="button" tabindex="0"' : "";
-  return '<button type="button" class="' + cls + '"' + action + ' aria-label="' + escapeLobbyText(card.rank + " " + card.suit + ", " + lcPoints(card) + " points") + '">' + lcCardFace(card) + '</button>';
+  const safeId = String(card.id).replace(/[^a-zA-Z0-9_-]/g, "");
+  const action = clickable ? (extraClass === "lc-open-card" ? ' data-lc-open-id="' + safeId + '"' : ' data-lc-card-id="' + safeId + '"') : "";
+  return '<button type="button" class="' + cls + '"' + action + ' aria-pressed="' + (selected ? "true" : "false") + '" aria-label="' + escapeLobbyText(card.rank + " " + card.suit + ", " + lcPoints(card) + " points") + '">' + lcCardFace(card) + '</button>';
 }
 function lcSetNotice(text) {
   const el = document.getElementById("lcMessage");
@@ -121,6 +122,24 @@ async function startLeastCountRoom() {
     setLobbyNotice("Could not start Least Count: " + e.message);
   }
 }
+function lcBindGameControls() {
+  const hand = document.getElementById("lcHand");
+  if (hand && hand.dataset.lcBound !== "1") {
+    hand.dataset.lcBound = "1";
+    hand.addEventListener("click", event => {
+      const card = event.target.closest("[data-lc-card-id]");
+      if (card && hand.contains(card)) lcToggleCard(card.dataset.lcCardId);
+    });
+  }
+  const open = document.getElementById("lcOpenCards");
+  if (open && open.dataset.lcBound !== "1") {
+    open.dataset.lcBound = "1";
+    open.addEventListener("click", event => {
+      const card = event.target.closest("[data-lc-open-id]");
+      if (card && open.contains(card) && onlinePublic?.turnUid === roomPlayerId && onlinePublic?.phase === "pick") lcPickOpen(card.dataset.lcOpenId);
+    });
+  }
+}
 function enterLeastCountGame(state) {
   if (!roomRef || !roomPlayerId) return;
   activeGameType = "leastCount";
@@ -128,6 +147,7 @@ function enterLeastCountGame(state) {
   onlinePublic = state;
   lcSelectedIds = new Set();
   lcHand = [];
+  lcBindGameControls();
   document.getElementById("setup")?.classList.add("hidden");
   document.getElementById("waitingRoom")?.classList.add("hidden");
   document.getElementById("game")?.classList.remove("hidden");
@@ -206,8 +226,8 @@ function lcRender() {
   if (playersEl) {
     playersEl.innerHTML = (state.players || []).map(p => {
       const active = p.active !== false;
-      return '<div class="player ' + (p.id === state.turnUid && state.status === "playing" ? "active" : "") + '" data-player-id="' + escapeLobbyText(p.id) + '">' +
-        '<span class="profile-count">' + (p.isBot ? "🤖 BOT" : "PLAYER") + '</span><b>' + escapeLobbyText(p.name) + '</b>' +
+      return '<div class="player lc-player-card ' + (p.id === state.turnUid && state.status === "playing" ? "active" : "") + '" data-player-id="' + escapeLobbyText(p.id) + '">' +
+        '<span class="lc-player-kind">' + (p.isBot ? "🤖 BOT" : "YOU") + '</span><b>' + escapeLobbyText(p.name) + '</b>' +
         '<span class="profile-score">Score: ' + (Number(p.score) || 0) + '</span><span class="profile-score">' + (active ? (p.cardCount || 0) + " cards" : "ELIMINATED") + '</span></div>';
     }).join("");
   }
@@ -218,7 +238,7 @@ function lcRender() {
   const turnEl = document.getElementById("turnInfo");
   if (turnEl) {
     const current = (state.players || []).find(p => p.id === state.turnUid);
-    turnEl.textContent = state.status === "playing" ? (ownTurn ? "YOUR TURN · " + (phase === "drop" ? "DROP" : "PICK") : (current ? current.name + "'s turn" : "Waiting")) : state.status === "gameComplete" ? "GAME COMPLETE" : "ROUND COMPLETE";
+    turnEl.textContent = state.status === "playing" ? (ownTurn ? "YOUR TURN · " + (phase === "drop" ? "DROP" : "PICK") : (current ? current.name + (current.isBot ? " · BOT" : "") + "'s turn" : "Waiting")) : state.status === "gameComplete" ? "GAME COMPLETE" : "ROUND COMPLETE";
   }
   lcSetNotice(state.message);
   const deckCount = document.getElementById("lcDeckCount");
@@ -227,7 +247,7 @@ function lcRender() {
   if (open) {
     const cards = Array.isArray(state.openCards) ? state.openCards : [];
     open.innerHTML = cards.length ? cards.map(card => lcCardMarkup(card, false, ownTurn && phase === "pick", "lc-open-card")).join("") : '<span class="lc-empty-pile">No open cards</span>';
-    if (ownTurn && phase === "pick") open.querySelectorAll(".lc-open-card").forEach((el, i) => { el.onclick = () => lcPickOpen(cards[i].id); });
+
   }
   const newDrop = document.getElementById("lcNewDrop");
   if (newDrop) {
@@ -508,7 +528,10 @@ async function runLeastCountBotTurn() {
         else if (useful) await processLeastCountAction(uid, { type: "pickOpen", cardId: useful.id });
       }
     }
-  } catch (e) { console.warn("Least Count bot turn failed:", e); }
+  } catch (e) {
+    console.warn("Least Count bot turn failed:", e);
+    lcSetNotice("Bot move failed: " + (e.message || "please check the table connection."));
+  }
   finally {
     lcBotBusy = false;
     lcBotTurnKey = "";
