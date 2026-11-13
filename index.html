@@ -1766,6 +1766,14 @@ body.modal-open{overflow:hidden;touch-action:none}
 }
 @media(max-width:360px){#roundResults.lc-results-screen .results-hand-head{flex-wrap:wrap!important}#roundResults.lc-results-screen .hand-player-identity{flex-basis:100%}#roundResults.lc-results-screen .lc-result-emblem{display:none}}
 
+
+/* Reliable mobile touch target for Least Count's face-up discard cards */
+#game #leastCountView .lc-open-pile{cursor:pointer!important;touch-action:manipulation!important}
+#game #leastCountView #lcOpenCards,
+#game #leastCountView #lcOpenCards button.lc-card{pointer-events:auto!important;touch-action:manipulation!important}
+#game #leastCountView #lcOpenCards button.lc-card:disabled{opacity:1!important;cursor:pointer!important}
+#game #leastCountView #lcOpenCards button.lc-card.drop-pick-ready{outline:3px solid #ffe08a!important;outline-offset:3px;box-shadow:0 0 0 5px #ffe08a44,0 0 18px #e7c56d88!important}
+
 </style>
 </head>
 
