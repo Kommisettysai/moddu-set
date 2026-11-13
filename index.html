@@ -3258,7 +3258,7 @@ async function toggleVoiceMute(){
  voiceSetStatus(voiceMuted?"You are listening. Your microphone is muted.":"Your microphone is on. Speak to the table.");
 }
 async function leaveVoiceChat(){
- const wasJoined=voiceJoined,leavingSessionId=voiceSessionId;voiceJoined=false;
+ const wasJoined=voiceJoined,leavingSessionId=voiceSessionId,leavingPeers=[...voicePeerSessions.keys()];voiceJoined=false;
  if(voiceParticipantsRef&&voiceParticipantsListener)voiceParticipantsRef.off("value",voiceParticipantsListener);
  voiceParticipantsListener=null;
  for(const [uid,pc] of voicePeerConnections){try{pc.close();}catch(e){}const audio=document.getElementById("voiceAudio_"+uid);if(audio){audio.pause();audio.srcObject=null;audio.remove();}}
@@ -3267,7 +3267,8 @@ async function leaveVoiceChat(){
  voiceSignalListeners.clear();
  if(voiceStream){voiceStream.getTracks().forEach(t=>t.stop());voiceStream=null;}
  if(wasJoined&&voiceParticipantsRef&&roomPlayerId&&leavingSessionId)try{await voiceParticipantsRef.child(roomPlayerId).child(leavingSessionId).remove();}catch(e){}
- if(voiceSignalsRef&&roomPlayerId&&leavingSessionId)try{await voiceSignalsRef.child(roomPlayerId).child(leavingSessionId).remove();}catch(e){}
+ // Remove only this session's outbound signals. Never delete a newer session.
+ if(voiceSignalsRef&&roomPlayerId&&leavingSessionId)await Promise.all(leavingPeers.map(uid=>voiceSignalPath(roomPlayerId,uid,leavingSessionId).remove().catch(()=>{})));
  voiceSessionId=null;voiceMuted=true;voiceParticipantsRef=null;voiceSignalsRef=null;voiceParticipantKey=null;
  const panel=document.getElementById("voicePanel");if(panel&&onlineMode)panel.classList.remove("hidden");
  voiceUpdateTopControls();
@@ -3280,6 +3281,13 @@ async function leaveVoiceChat(){
 }
 
 // Android can suspend the microphone during a phone call. Recover cleanly on return.
+// Retry remote audio playback on the next user gesture if Android/Chrome blocked autoplay.
+document.addEventListener("pointerdown",()=>{
+ document.querySelectorAll('audio[id^="voiceAudio_"]').forEach(audio=>{
+  if(audio.srcObject&&audio.paused)audio.play().catch(()=>{});
+ });
+},{passive:true});
+
 document.addEventListener("visibilitychange",()=>{
  if(document.visibilityState!=="visible"||!voiceJoined||voiceRecoveryInProgress)return;
  const tracks=voiceStream?.getAudioTracks()||[];
