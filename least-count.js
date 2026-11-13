@@ -414,24 +414,25 @@ async function processLeastCountAction(uid, action) {
       deck = lcShuffle(discardPile);
       discardPile = [];
     }
-    const players = (state.players || []).map(p => p.id === uid ? { ...p, cardCount: remaining.length } : p);
-    const next = { ...state, players, openCards: dropped, newDrop: [], deckCount: deck.length,
-      message: "Cards dropped. Drawing from the deck." };
-    await roomRef.child("public").set(next);
-    if (!remaining.length) {
-      await handRef.set([]);
+    if (remaining.length && !deck.length) throw new Error("No cards remain to draw. There are no open cards to recycle.");
+    const next = { ...state,
+      players: (state.players || []).map(p => p.id === uid ? { ...p, cardCount: remaining.length + (remaining.length ? 1 : 0) } : p),
+      openCards: dropped, newDrop: [], deckCount: deck.length,
+      message: "Cards dropped. " + (remaining.length ? "Drawing from the deck." : "All cards dropped. Showing your hand.") };
+    if (remaining.length) {
+      const picked = deck.pop();
       await roomRef.child("private").update({ deck, discardPile });
-      await lcResolveShow(uid, true, next, settings);
+      await handRef.set(remaining.concat(picked));
+      next.players = next.players.map(p => p.id === uid ? { ...p, cardCount: remaining.length + 1 } : p);
+      next.deckCount = deck.length;
+      await roomRef.child("public").set(next);
+      await lcAdvanceTurn(next, uid);
       return;
     }
-    if (!deck.length) throw new Error("No cards remain in the deck. There are no open cards to draw.");
-    const picked = deck.pop();
     await roomRef.child("private").update({ deck, discardPile });
-    await handRef.set(remaining.concat(picked));
-    next.players = next.players.map(p => p.id === uid ? { ...p, cardCount: remaining.length + 1 } : p);
-    next.deckCount = deck.length;
+    await handRef.set([]);
     await roomRef.child("public").set(next);
-    await lcAdvanceTurn(next, uid);
+    await lcResolveShow(uid, true, next, settings);
     return;
   }
   if (action.type === "drop") {
