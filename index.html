@@ -2073,7 +2073,6 @@ async function leaveRoom(showLobby=true){
  document.getElementById("waitingRoom").classList.add("hidden");
  if(showLobby)document.getElementById("setup").classList.remove("hidden");
 }
-initFirebase();
 const invitedRoom=new URLSearchParams(location.search).get("room");
 if(invitedRoom&&/^[A-Z0-9]{6}$/i.test(invitedRoom)){const roomInput=document.getElementById("roomCodeInput");if(roomInput)roomInput.value=invitedRoom.toUpperCase();}
 </script><script>
@@ -4044,6 +4043,7 @@ function leaveRoom(showLobby=true){
 }
 </script>
 <script src="./least-count.js"></script>
+<script>initFirebase();</script>
 
 </body>
   </html>
