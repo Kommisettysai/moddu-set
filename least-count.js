@@ -112,6 +112,17 @@ function lcDeckAction() {
   lcSelectedIds.clear();
   lcSendAction({ type: "dropAndPickDeck", cardIds: ids });
 }
+function lcDropAndPickOpen(cardId) {
+  if (!onlinePublic || onlinePublic.phase !== "drop" || !lcSelectedIds.size || lcActionPending) return;
+  if (lcCanMatchDrop(onlinePublic)) {
+    lcMatchDropSelected();
+    return;
+  }
+  const ids = lcSelectedCards().map(card => card.id);
+  if (!ids.length) return;
+  lcSelectedIds.clear();
+  lcSendAction({ type: "dropAndPickOpen", cardIds: ids, cardId });
+}
 function lcMatchDropSelected() {
   if (!onlinePublic || onlinePublic.phase !== "drop" || !lcCanMatchDrop(onlinePublic) || lcActionPending) return;
   const ids = lcSelectedCards().map(card => card.id);
@@ -293,18 +304,27 @@ function lcRender() {
   if (open) {
     const cards = Array.isArray(state.openCards) ? state.openCards : [];
     const matchReady = ownTurn && phase === "drop" && lcCanMatchDrop(state);
+    const hasSelection = ownTurn && phase === "drop" && lcSelectedIds.size > 0;
     open.innerHTML = cards.length ? cards.map((card, index) => {
       const isTop = index === cards.length - 1;
-      const canTap = ownTurn && (phase === "pick" || (matchReady && isTop));
-      return lcCardMarkup(card, false, canTap, "lc-open-card" + (phase === "drop" ? (canTap ? " match-drop-ready" : " match-drop-disabled") : ""));
+      const isMatchSkip = matchReady && isTop;
+      const canTap = ownTurn && (phase === "pick" || isMatchSkip || (hasSelection && !matchReady));
+      const openActionClass = phase === "drop"
+        ? (isMatchSkip ? " match-drop-ready" : canTap ? " drop-pick-ready" : " match-drop-disabled")
+        : "";
+      return lcCardMarkup(card, false, canTap, "lc-open-card" + openActionClass);
     }).join("") : '<span class="lc-empty-pile">No open cards</span>';
     open.querySelectorAll("button[data-lc-open-id]").forEach(cardButton => {
       cardButton.addEventListener("click", event => {
         event.preventDefault();
         event.stopPropagation();
         if (onlinePublic?.turnUid !== roomPlayerId) return;
-        if (onlinePublic?.phase === "pick") lcPickOpen(cardButton.dataset.lcOpenId);
-        else if (onlinePublic?.phase === "drop") lcMatchDropSelected();
+        const cardId = cardButton.dataset.lcOpenId;
+        if (onlinePublic?.phase === "pick") lcPickOpen(cardId);
+        else if (onlinePublic?.phase === "drop") {
+          if (lcCanMatchDrop(onlinePublic)) lcMatchDropSelected();
+          else lcDropAndPickOpen(cardId);
+        }
       }, { passive: false });
     });
 
@@ -350,7 +370,7 @@ function lcRender() {
   const showBtn = document.getElementById("lcShowBtn");
   if (showBtn) { showBtn.disabled = lcActionPending || !ownTurn || phase !== "drop"; showBtn.classList.toggle("hidden", !ownTurn || phase !== "drop"); }
   const actionHint = document.getElementById("lcActionHint");
-  if (actionHint) actionHint.textContent = !ownTurn ? ((state.players || []).find(p => p.id === state.turnUid)?.isBot ? "Bot is playing…" : "Wait for your turn.") : phase === "drop" ? (lcSelectedIds.size ? (lcCanMatchDrop(state) ? lcSelectedIds.size + " selected · same rank as the open card. You can skip the pick." : lcSelectedIds.size + " selected · tap the deck to drop and draw.") : "Select one card or a same-rank set. Lowest points appear first; highest cards are on the right.") : "Pick one card from the discard pile or draw from the deck.";
+  if (actionHint) actionHint.textContent = !ownTurn ? ((state.players || []).find(p => p.id === state.turnUid)?.isBot ? "Bot is playing…" : "Wait for your turn.") : phase === "drop" ? (lcSelectedIds.size ? (lcCanMatchDrop(state) ? lcSelectedIds.size + " selected · same rank as the open card. You can skip the pick." : lcSelectedIds.size + " selected · tap the deck or an open card to drop and pick.") : "Select one card or a same-rank set. Lowest points appear first; highest cards are on the right.") : "Pick one card from the discard pile or draw from the deck.";
   lcRenderRoundResults(state);
 }
 function lcRenderRoundResults(state) {
@@ -462,6 +482,39 @@ async function processLeastCountAction(uid, action) {
   if (action.type === "show") {
     if (state.phase !== "drop") throw new Error("Finish your pick before calling SHOW.");
     await lcResolveShow(uid, false, state, settings);
+    return;
+  }
+  if (action.type === "dropAndPickOpen") {
+    if (state.phase !== "drop") throw new Error("You can only drop cards during your DROP turn.");
+    const ids = Array.isArray(action.cardIds) ? Array.from(new Set(action.cardIds)) : [];
+    if (!ids.length) throw new Error("Select at least one card.");
+    const dropped = hand.filter(card => ids.includes(card.id));
+    if (dropped.length !== ids.length) throw new Error("One or more selected cards are no longer in your hand.");
+    if (dropped.some(card => card.rank !== dropped[0].rank)) throw new Error("You can drop only cards of the same rank together.");
+    const previousOpen = Array.isArray(state.openCards) ? state.openCards.slice() : [];
+    const openIndex = previousOpen.findIndex(card => card.id === action.cardId);
+    if (openIndex < 0) throw new Error("That open card is no longer available.");
+    const picked = previousOpen.splice(openIndex, 1)[0];
+    const remaining = hand.filter(card => !ids.includes(card.id));
+    const privateSnap = await roomRef.child("private").get();
+    const privateData = privateSnap.val() || {};
+    const discardPile = (Array.isArray(privateData.discardPile) ? privateData.discardPile : []).concat(previousOpen);
+    const next = { ...state,
+      players: (state.players || []).map(p => p.id === uid ? { ...p, cardCount: remaining.length + (remaining.length ? 1 : 0) } : p),
+      openCards: dropped, newDrop: [], deckCount: state.deckCount || 0,
+      message: "Cards dropped and " + picked.rank + " " + picked.suit + " picked from the open pile."
+    };
+    await roomRef.child("private/discardPile").set(discardPile);
+    if (remaining.length) {
+      await handRef.set(remaining.concat(picked));
+      next.players = next.players.map(p => p.id === uid ? { ...p, cardCount: remaining.length + 1 } : p);
+      await roomRef.child("public").set(next);
+      await lcAdvanceTurn(next, uid);
+      return;
+    }
+    await handRef.set([]);
+    await roomRef.child("public").set(next);
+    await lcResolveShow(uid, true, next, settings);
     return;
   }
   if (action.type === "dropAndPickDeck") {
