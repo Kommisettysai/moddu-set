@@ -4,6 +4,7 @@ let lcHand = [];
 let lcSelectedIds = new Set();
 let lcBotBusy = false;
 let lcBotTurnKey = "";
+let lcActionPending = false;
 let lcActionBusy = Object.create(null);
 let lcSettings = { cardsPerHand: 5, scoreLimit: 200, badShowCost: 40, matchDrop: false };
 
@@ -148,6 +149,7 @@ function enterLeastCountGame(state) {
   onlinePublicListener = snap => {
     if (!snap.exists()) return;
     onlinePublic = snap.val();
+    lcActionPending = false;
     lcRender();
     if (isRoomHost && onlinePublic.status === "playing") runLeastCountBotTurn();
   };
@@ -243,11 +245,11 @@ function lcRender() {
   const total = document.getElementById("lcHandTotal");
   if (total) total.textContent = lcTotal(lcHand) + " points";
   const dropBtn = document.getElementById("lcDropBtn");
-  if (dropBtn) { dropBtn.classList.toggle("hidden", !ownTurn || phase !== "drop"); dropBtn.disabled = lcSelectedIds.size === 0; }
+  if (dropBtn) { dropBtn.classList.toggle("hidden", !ownTurn || phase !== "drop"); dropBtn.disabled = lcActionPending || lcSelectedIds.size === 0; }
   const deckBtn = document.getElementById("lcDeckBtn");
-  if (deckBtn) { deckBtn.disabled = !ownTurn || phase !== "pick"; deckBtn.classList.toggle("ready", ownTurn && phase === "pick"); }
+  if (deckBtn) { deckBtn.disabled = lcActionPending || !ownTurn || phase !== "pick"; deckBtn.classList.toggle("ready", ownTurn && phase === "pick"); }
   const showBtn = document.getElementById("lcShowBtn");
-  if (showBtn) { showBtn.disabled = !ownTurn || phase !== "drop"; showBtn.classList.toggle("hidden", !ownTurn || phase !== "drop"); }
+  if (showBtn) { showBtn.disabled = lcActionPending || !ownTurn || phase !== "drop"; showBtn.classList.toggle("hidden", !ownTurn || phase !== "drop"); }
   const actionHint = document.getElementById("lcActionHint");
   if (actionHint) actionHint.textContent = !ownTurn ? "Wait for your turn." : phase === "drop" ? "Select one card or a group of the same rank, then drop." : "Pick one of the cards just dropped, or draw from the deck.";
   const results = document.getElementById("lcResults");
@@ -276,12 +278,18 @@ function lcToggleCard(id) {
   lcRender();
 }
 async function lcSendAction(action) {
-  if (!onlineMode || activeGameType !== "leastCount" || !roomRef || !roomPlayerId) return;
+  if (!onlineMode || activeGameType !== "leastCount" || !roomRef || !roomPlayerId || lcActionPending) return;
   if (onlinePublic?.status !== "playing" || onlinePublic.turnUid !== roomPlayerId) { lcSetNotice("Please wait for your turn."); return; }
+  lcActionPending = true;
+  lcRender();
   try {
     if (isRoomHost) await processLeastCountAction(roomPlayerId, action);
     else await onlineActionRef.child(roomPlayerId).set({ ...action, requestedAt: Date.now() });
-  } catch (e) { lcSetNotice(e.message || "That move could not be completed."); }
+  } catch (e) {
+    lcActionPending = false;
+    lcSetNotice(e.message || "That move could not be completed.");
+    lcRender();
+  }
 }
 async function lcDropSelected() {
   if (!lcSelectedIds.size) return;
@@ -516,6 +524,7 @@ function cleanupLeastCountGame() {
   lcSelectedIds = new Set();
   lcBotBusy = false;
   lcBotTurnKey = "";
+  lcActionPending = false;
   document.getElementById("leastCountView")?.classList.add("hidden");
   document.getElementById("modduTablePanel")?.classList.remove("hidden");
   document.getElementById("modduHandPanel")?.classList.remove("hidden");
