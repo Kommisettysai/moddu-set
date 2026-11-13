@@ -172,7 +172,7 @@ async function startLeastCountRoom() {
       gameType: "leastCount", status: "playing", round: 1,
       cardsPerHand: lcSettings.cardsPerHand, scoreLimit: lcSettings.scoreLimit,
       badShowCost: lcSettings.badShowCost, matchDrop: lcSettings.matchDrop,
-      turnUid: starter.id, phase: "drop", deckCount: deck.length,
+      turnUid: starter.id, roundStarterUid: starter.id, phase: "drop", deckCount: deck.length,
       openCards: [first], players: publicPlayers, results: null,
       message: starter.name + "'s turn. Drop one card or a set of the same rank."
     };
@@ -197,7 +197,7 @@ function enterLeastCountGame(state) {
   document.getElementById("leastCountView")?.classList.remove("hidden");
   document.getElementById("modduTablePanel")?.classList.add("hidden");
   document.getElementById("modduHandPanel")?.classList.add("hidden");
-  document.getElementById("gameActionsPanel")?.classList.add("hidden");
+  document.getElementById("gameActionsPanel")?.classList.toggle("hidden", !isRoomHost);
   document.getElementById("voicePanel")?.classList.remove("hidden");
   const code = document.getElementById("gameRoomCode");
   if (code) { code.textContent = roomCode || "------"; code.closest(".game-room-code").style.display = roomCode ? "flex" : "none"; }
@@ -263,6 +263,7 @@ function enterLeastCountGame(state) {
 function lcRender() {
   const state = onlinePublic;
   if (!state || activeGameType !== "leastCount") return;
+  lcRenderHostActions(state);
   const ownTurn = state.turnUid === roomPlayerId && state.status === "playing";
   const phase = state.phase || "drop";
   const playersEl = document.getElementById("players");
@@ -687,9 +688,172 @@ async function lcResolveShow(showUid, automatic, stateOverride, settingsOverride
     message: stillIn.length <= 1 ? (stillIn[0] ? stillIn[0].name + " wins the table!" : "Game complete.") : "Round complete. Review the scores." };
   await roomRef.child("public").set(next);
 }
-async function restartLeastCountTable() {
-  if (!isRoomHost || activeGameType !== "leastCount") return;
-  await startLeastCountRoom();
+function restartLeastCountTable() {
+  if (!isRoomHost || activeGameType !== "leastCount" || !roomRef) return;
+  showGameConfirm("Restart new game", "Start a fresh Least Count game for everyone? All scores and cards will reset. Players removed by the host will stay removed.", () => performLeastCountGameRestart(), "Restart game");
+}
+async function performLeastCountGameRestart() {
+  if (!isRoomHost || activeGameType !== "leastCount" || !roomRef) return;
+  try {
+    const [publicSnap, lobbySnap, actionsSnap] = await Promise.all([
+      roomRef.child("public").get(), roomRef.child("lobby").get(), roomRef.child("actions").get()
+    ]);
+    const state = publicSnap.val();
+    if (!state || !Array.isArray(state.players)) throw new Error("Could not read the current game.");
+    const participants = state.players.filter(p => p.status !== "Removed by host");
+    if (participants.length < 2) throw new Error("At least two players are required to restart.");
+    lcSettings = lcRoomSettings(lobbySnap.val() || {});
+    const deck = lcBuildDeck(participants.length, lcSettings.cardsPerHand), hands = {};
+    participants.forEach(p => { hands[p.id] = deck.splice(0, lcSettings.cardsPerHand); });
+    const first = deck.pop(), starter = participants[0];
+    const players = participants.map(p => ({
+      ...p, score: 0, active: true, status: p.isBot ? "BOT" : "READY",
+      cardCount: lcSettings.cardsPerHand
+    }));
+    const next = {
+      ...state, gameType: "leastCount", status: "playing", round: 1,
+      cardsPerHand: lcSettings.cardsPerHand, scoreLimit: lcSettings.scoreLimit,
+      badShowCost: lcSettings.badShowCost, matchDrop: lcSettings.matchDrop,
+      turnUid: starter.id, roundStarterUid: starter.id, phase: "drop",
+      deckCount: deck.length, openCards: [first], newDrop: [],
+      players, results: null, resultMessage: null, showUid: null,
+      showOutcome: null, championUid: null,
+      message: "New Least Count game started by the host. Scores reset. " + starter.name + "'s turn."
+    };
+    await roomRef.child("private").set({ deck, hands, discardPile: [] });
+    await Promise.all(Object.keys(actionsSnap.val() || {}).map(uid => roomRef.child("actions/" + uid).remove()));
+    await roomRef.child("public").set(next);
+    onlinePublic = next;
+    lcHand = hands[roomPlayerId] || [];
+    lcSelectedIds.clear();
+    lcShowToast("New game started. Scores reset.");
+  } catch (e) {
+    lcSetNotice("Could not restart the game: " + e.message);
+  }
+}
+function requestLeastCountRestartRound() {
+  if (!isRoomHost || activeGameType !== "leastCount" || !roomRef) return;
+  if (onlinePublic?.status !== "playing") {
+    lcSetNotice("Restart round is available while a round is in progress.");
+    return;
+  }
+  showGameConfirm("Restart current round", "Deal fresh cards for this round? All accumulated scores will be kept, and the same starting player will begin again.", () => performLeastCountRoundRestart(), "Restart round");
+}
+async function performLeastCountRoundRestart() {
+  if (!isRoomHost || activeGameType !== "leastCount" || !roomRef) return;
+  try {
+    const [publicSnap, lobbySnap, actionsSnap] = await Promise.all([
+      roomRef.child("public").get(), roomRef.child("lobby").get(), roomRef.child("actions").get()
+    ]);
+    const state = publicSnap.val();
+    if (!state || state.status !== "playing") throw new Error("The current round is no longer in progress.");
+    const active = (state.players || []).filter(p => p.active !== false);
+    if (active.length < 2) throw new Error("At least two active players are required.");
+    lcSettings = lcRoomSettings(lobbySnap.val() || {});
+    const previousStarterUid = state.roundStarterUid || state.turnUid;
+    const starter = active.find(p => p.id === previousStarterUid) ||
+      chooseNextRoundStarter(state.players || [], active, previousStarterUid) || active[0];
+    const deck = lcBuildDeck(active.length, lcSettings.cardsPerHand), hands = {};
+    active.forEach(p => { hands[p.id] = deck.splice(0, lcSettings.cardsPerHand); });
+    const first = deck.pop();
+    const players = (state.players || []).map(p => p.active === false ? p : {
+      ...p, cardCount: lcSettings.cardsPerHand, status: p.isBot ? "BOT" : "READY"
+    });
+    const next = {
+      ...state, status: "playing", round: Number(state.round) || 1,
+      cardsPerHand: lcSettings.cardsPerHand, scoreLimit: lcSettings.scoreLimit,
+      badShowCost: lcSettings.badShowCost, matchDrop: lcSettings.matchDrop,
+      turnUid: starter.id, roundStarterUid: starter.id, phase: "drop",
+      deckCount: deck.length, openCards: [first], newDrop: [],
+      players, results: null, resultMessage: null, showUid: null,
+      showOutcome: null, championUid: null,
+      message: "Round " + (Number(state.round) || 1) + " restarted by the host. Scores are preserved. " + starter.name + "'s turn."
+    };
+    await roomRef.child("private").set({ deck, hands, discardPile: [] });
+    await Promise.all(Object.keys(actionsSnap.val() || {}).map(uid => roomRef.child("actions/" + uid).remove()));
+    await roomRef.child("public").set(next);
+    onlinePublic = next;
+    lcHand = hands[roomPlayerId] || [];
+    lcSelectedIds.clear();
+    lcShowToast("Round restarted. Scores preserved.");
+  } catch (e) {
+    lcSetNotice("Could not restart the round: " + e.message);
+  }
+}
+function requestLeastCountRemovePlayer(uid) {
+  if (!isRoomHost || activeGameType !== "leastCount" || !roomRef || !uid || uid === roomPlayerId) return;
+  const player = (onlinePublic?.players || []).find(p => p.id === uid);
+  if (!player || player.active === false || onlinePublic?.status !== "playing") return;
+  showGameConfirm("Remove player", "Remove " + player.name + " from this Least Count game? They will not be dealt cards in later rounds.", () => removeLeastCountPlayer(uid), "Remove player");
+}
+async function removeLeastCountPlayer(uid) {
+  if (!isRoomHost || activeGameType !== "leastCount" || !roomRef || !uid || uid === roomPlayerId) return;
+  try {
+    const [publicSnap, actionsSnap] = await Promise.all([
+      roomRef.child("public").get(), roomRef.child("actions").get()
+    ]);
+    const state = publicSnap.val();
+    if (!state || state.status !== "playing") return;
+    const players = (state.players || []).slice();
+    const index = players.findIndex(p => p.id === uid);
+    if (index < 0 || players[index].active === false) return;
+    const removed = players[index], wasTurn = state.turnUid === uid;
+    players[index] = { ...removed, active: false, status: "Removed by host", cardCount: 0 };
+    const active = players.filter(p => p.active !== false);
+    let next = { ...state, players, newDrop: state.newDrop || [] };
+    if (active.length <= 1) {
+      next.status = "gameComplete";
+      next.phase = "results";
+      next.championUid = active[0]?.id || null;
+      next.message = active[0] ? active[0].name + " wins. The host removed the other players." : "No active players remain.";
+    } else if (wasTurn) {
+      const nextPlayer = players.slice(index + 1).find(p => p.active !== false) ||
+        players.slice(0, index).find(p => p.active !== false) || active[0];
+      next.turnUid = nextPlayer.id;
+      next.phase = state.phase === "pick" && Array.isArray(state.newDrop) && state.newDrop.length ? "pick" : "drop";
+      next.message = removed.name + " was removed by the host. " + nextPlayer.name + "'s turn.";
+    } else {
+      next.message = removed.name + " was removed by the host.";
+    }
+    await Promise.all([
+      roomRef.child("private/hands/" + uid).set([]),
+      roomRef.child("actions/" + uid).remove(),
+      roomRef.child("public").set(next),
+      roomRef.child("lobby/players/" + uid).update({ removed: true, ready: false })
+    ]);
+    onlinePublic = next;
+    lcShowToast(removed.name + " was removed.");
+  } catch (e) {
+    lcSetNotice("Could not remove player: " + e.message);
+  }
+}
+function lcRenderHostActions(state) {
+  const panel = document.getElementById("gameActionsPanel");
+  if (!panel) return;
+  panel.classList.toggle("hidden", !isRoomHost);
+  if (!isRoomHost) return;
+  const details = panel.querySelector(".game-actions-fold");
+  const summary = details?.querySelector("summary");
+  if (summary) summary.textContent = "Host controls";
+  const actions = details?.querySelector(".actions");
+  if (actions) {
+    actions.innerHTML =
+      '<button type="button" onclick="showLeastCountRules()">Game rules</button>' +
+      '<button type="button" id="lcHostRestartRoundBtn" onclick="requestLeastCountRestartRound()">Restart round</button>' +
+      '<button type="button" id="lcHostRestartGameBtn" onclick="restartLeastCountTable()">Restart game</button>';
+    const restartRound = document.getElementById("lcHostRestartRoundBtn");
+    if (restartRound) restartRound.classList.toggle("hidden", state.status !== "playing");
+  }
+  const management = document.getElementById("hostPlayerManagement");
+  if (management) {
+    const removable = (state.players || []).filter(p => p.id !== roomPlayerId && p.active !== false);
+    management.innerHTML = removable.length
+      ? '<p>Remove a player</p>' + removable.map(p =>
+          '<button type="button" class="host-remove-player" data-player-id="' + escapeLobbyText(p.id) +
+          '" onclick="requestLeastCountRemovePlayer(this.dataset.playerId)">Remove ' + escapeLobbyText(p.name) + '</button>'
+        ).join("")
+      : '<p>No players available to remove.</p>';
+  }
 }
 async function startLeastCountNextRound() {
   if (!isRoomHost || !roomRef || onlinePublic?.status !== "roundComplete") return;
@@ -702,11 +866,12 @@ async function startLeastCountNextRound() {
     lcSettings = lcRoomSettings(lobbySnap.val() || {});
     const deck = lcBuildDeck(active.length, lcSettings.cardsPerHand), hands = {};
     active.forEach(p => { hands[p.id] = deck.splice(0, lcSettings.cardsPerHand); });
-    const first = deck.pop(), starter = active[0];
+    const first = deck.pop();
+    const starter = chooseNextRoundStarter(state.players || [], active, state.roundStarterUid || state.turnUid) || active[0];
     const players = state.players.map(p => p.active === false ? p : { ...p, cardCount: lcSettings.cardsPerHand, status: p.isBot ? "BOT" : "READY" });
     const next = { ...state, status: "playing", round: (Number(state.round) || 1) + 1,
       cardsPerHand: lcSettings.cardsPerHand, scoreLimit: lcSettings.scoreLimit, badShowCost: lcSettings.badShowCost,
-      matchDrop: lcSettings.matchDrop, turnUid: starter.id, phase: "drop", deckCount: deck.length,
+      matchDrop: lcSettings.matchDrop, turnUid: starter.id, roundStarterUid: starter.id, phase: "drop", deckCount: deck.length,
       openCards: [first], players, results: null, resultMessage: null,
       message: "Round " + ((Number(state.round) || 1) + 1) + " started. " + starter.name + "'s turn." };
     await roomRef.child("private").set({ deck, hands, discardPile: [] });
