@@ -256,6 +256,8 @@ function lcRender() {
   if (results) results.classList.toggle("hidden", state.status === "playing");
   const nextBtn = document.getElementById("lcNextRoundBtn");
   if (nextBtn) { nextBtn.classList.toggle("hidden", !isRoomHost || state.status !== "roundComplete"); nextBtn.disabled = state.status !== "roundComplete"; }
+  const playAgainBtn = document.getElementById("lcPlayAgainBtn");
+  if (playAgainBtn) { playAgainBtn.classList.toggle("hidden", !isRoomHost || state.status !== "gameComplete"); }
   const resultBody = document.getElementById("lcResultRows");
   if (resultBody && state.results) {
     resultBody.innerHTML = state.results.map(r => '<div class="lc-result-row"><strong>' + escapeLobbyText(r.name) + '</strong><span>' + r.total + ' hand pts</span><span>+' + r.points + ' score</span><b>' + r.score + ' total</b></div>').join("");
@@ -429,6 +431,10 @@ async function lcResolveShow(showUid, automatic, stateOverride, settingsOverride
     championUid: stillIn.length === 1 ? stillIn[0].id : null,
     message: stillIn.length <= 1 ? (stillIn[0] ? stillIn[0].name + " wins the table!" : "Game complete.") : "Round complete. Review the scores." };
   await roomRef.child("public").set(next);
+}
+async function restartLeastCountTable() {
+  if (!isRoomHost || activeGameType !== "leastCount") return;
+  await startLeastCountRoom();
 }
 async function startLeastCountNextRound() {
   if (!isRoomHost || !roomRef || onlinePublic?.status !== "roundComplete") return;
