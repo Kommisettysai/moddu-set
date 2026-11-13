@@ -318,10 +318,8 @@ async function processLeastCountAction(uid, action) {
     const privateSnap = await roomRef.child("private").get();
     const privateData = privateSnap.val() || {};
     const oldDiscard = Array.isArray(privateData.discardPile) ? privateData.discardPile : [];
-    await roomRef.child("private").update({
-      discardPile: oldDiscard.concat(previousOpen),
-      hands: { [uid]: remaining }
-    });
+    await roomRef.child("private/discardPile").set(oldDiscard.concat(previousOpen));
+    await handRef.set(remaining);
     const players = (state.players || []).map(p => p.id === uid ? { ...p, cardCount: remaining.length } : p);
     const next = { ...state, players, openCards: dropped, phase: matchSkip ? "drop" : "pick", deckCount: state.deckCount || 0,
       message: matchSkip ? (dropped[0].rank + " matched the open card. Match & Drop: pick skipped.") : "Choose one of the cards just dropped, or draw from the deck." };
@@ -350,7 +348,8 @@ async function processLeastCountAction(uid, action) {
       picked = deck.pop();
     }
     hand.push(picked);
-    await roomRef.child("private").update({ deck, discardPile, hands: { [uid]: hand } });
+    await roomRef.child("private").update({ deck, discardPile });
+    await handRef.set(hand);
     const players = (state.players || []).map(p => p.id === uid ? { ...p, cardCount: hand.length } : p);
     const next = { ...state, players, openCards, deckCount: deck.length };
     await lcAdvanceTurn(next, uid);
@@ -491,8 +490,9 @@ async function runLeastCountBotTurn() {
   } catch (e) { console.warn("Least Count bot turn failed:", e); }
   finally {
     lcBotBusy = false;
+    lcBotTurnKey = "";
     const latest = (await roomRef.child("public").get().catch(() => null))?.val();
-    if (latest && latest.status === "playing" && latest.turnUid !== uid) runLeastCountBotTurn();
+    if (latest && latest.status === "playing" && (latest.turnUid !== uid || latest.phase === "pick")) runLeastCountBotTurn();
   }
 }
 function showLeastCountRules() {
