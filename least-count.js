@@ -262,7 +262,7 @@ function lcRender() {
   const handCount = document.getElementById("lcHandCount");
   if (handCount) handCount.textContent = String(lcHand.length);
   const total = document.getElementById("lcHandTotal");
-  if (total) total.textContent = lcTotal(lcHand) + " points";
+  if (total) total.textContent = "In hand: " + lcTotal(lcHand) + " pts";
   const dropBtn = document.getElementById("lcDropBtn");
   if (dropBtn) { dropBtn.classList.toggle("hidden", !ownTurn || phase !== "drop"); dropBtn.disabled = lcActionPending || lcSelectedIds.size === 0; }
   const deckBtn = document.getElementById("lcDeckBtn");
