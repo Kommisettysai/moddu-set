@@ -4,6 +4,7 @@ let lcHand = [];
 let lcSelectedIds = new Set();
 let lcBotBusy = false;
 let lcBotTurnKey = "";
+let lcBotTimer = null;
 let lcActionPending = false;
 let lcActionBusy = Object.create(null);
 let lcSettings = { cardsPerHand: 5, scoreLimit: 200, badShowCost: 40, matchDrop: false };
@@ -173,7 +174,7 @@ function enterLeastCountGame(state) {
     onlinePublic = snap.val();
     lcActionPending = false;
     lcRender();
-    if (isRoomHost && onlinePublic.status === "playing") runLeastCountBotTurn();
+    if (isRoomHost && onlinePublic.status === "playing") scheduleLeastCountBotTurn();
   };
   onlinePublicRef.on("value", onlinePublicListener);
   if (onlineHandListener) onlineHandRef.off("value", onlineHandListener);
@@ -215,7 +216,7 @@ function enterLeastCountGame(state) {
     chatRefForLoad.limitToLast(60).on("child_added", onlineChatListener);
   }).catch(() => {});
   lcRender();
-  if (isRoomHost) runLeastCountBotTurn();
+  if (isRoomHost) scheduleLeastCountBotTurn(120);
 }
 function lcRender() {
   const state = onlinePublic;
@@ -270,7 +271,7 @@ function lcRender() {
   const showBtn = document.getElementById("lcShowBtn");
   if (showBtn) { showBtn.disabled = lcActionPending || !ownTurn || phase !== "drop"; showBtn.classList.toggle("hidden", !ownTurn || phase !== "drop"); }
   const actionHint = document.getElementById("lcActionHint");
-  if (actionHint) actionHint.textContent = !ownTurn ? "Wait for your turn." : phase === "drop" ? "Select one card or a group of the same rank, then drop." : "Pick one of the cards just dropped, or draw from the deck.";
+  if (actionHint) actionHint.textContent = !ownTurn ? ((state.players || []).find(p => p.id === state.turnUid)?.isBot ? "Bot is thinking and playing automatically…" : "Wait for your turn.") : phase === "drop" ? (lcSelectedIds.size ? lcSelectedIds.size + " card(s) selected. Tap DROP SELECTED to continue." : "Tap a card to select it. Select cards of the same rank, then drop.") : "Pick one of the previous player's dropped cards, or draw from the deck.";
   const results = document.getElementById("lcResults");
   if (results) results.classList.toggle("hidden", state.status === "playing");
   const nextBtn = document.getElementById("lcNextRoundBtn");
@@ -477,7 +478,15 @@ async function startLeastCountNextRound() {
     await roomRef.child("public").set(next);
   } catch (e) { lcSetNotice("Could not start the next round: " + e.message); }
 }
-async function runLeastCountBotTurn() {
+async function scheduleLeastCountBotTurn(delay = 220) {
+  if (!isRoomHost || !onlineMode || activeGameType !== "leastCount") return;
+  if (lcBotTimer) clearTimeout(lcBotTimer);
+  lcBotTimer = setTimeout(() => {
+    lcBotTimer = null;
+    runLeastCountBotTurn();
+  }, delay);
+}
+function runLeastCountBotTurn() {
   if (!isRoomHost || !onlineMode || activeGameType !== "leastCount" || lcBotBusy || !onlinePublic || onlinePublic.status !== "playing") return;
   const uid = onlinePublic.turnUid;
   const bot = (onlinePublic.players || []).find(p => p.id === uid && p.isBot && p.active !== false);
@@ -536,7 +545,7 @@ async function runLeastCountBotTurn() {
     lcBotBusy = false;
     lcBotTurnKey = "";
     const latest = (await roomRef.child("public").get().catch(() => null))?.val();
-    if (latest && latest.status === "playing" && (latest.turnUid !== uid || latest.phase === "pick")) runLeastCountBotTurn();
+    if (latest && latest.status === "playing" && (latest.turnUid !== uid || latest.phase === "pick")) scheduleLeastCountBotTurn(260);
   }
 }
 function showLeastCountRules() {
@@ -552,6 +561,8 @@ function cleanupLeastCountGame() {
   lcSelectedIds = new Set();
   lcBotBusy = false;
   lcBotTurnKey = "";
+  if (lcBotTimer) clearTimeout(lcBotTimer);
+  lcBotTimer = null;
   lcActionPending = false;
   document.getElementById("leastCountView")?.classList.add("hidden");
   document.getElementById("modduTablePanel")?.classList.remove("hidden");
