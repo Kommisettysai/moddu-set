@@ -121,7 +121,8 @@ function lcDropAndPickOpen(cardId) {
   }
   const ids = lcSelectedCards().map(card => card.id);
   if (!ids.length) return;
-  lcSelectedIds.clear();
+  // Keep the selection until the action is accepted. Clearing it before
+  // lcSendAction could silently discard the move if another action is pending.
   lcSendAction({ type: "dropAndPickOpen", cardIds: ids, cardId });
 }
 function lcMatchDropSelected() {
@@ -324,30 +325,31 @@ function lcRender() {
       return lcCardMarkup(card, false, canTap, "lc-open-card" + openActionClass);
     }).join("") : '<span class="lc-empty-pile">No open cards</span>';
 
-    // Delegate the click from the pile container so taps on the card face/suit/value
-    // all reach the same action, even after the open pile is re-rendered.
-    open.onclick = event => {
-      const cardButton = event.target.closest("button[data-lc-open-id]");
-      if (!cardButton || !open.contains(cardButton)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      if (!onlinePublic || onlinePublic.turnUid !== roomPlayerId || lcActionPending) return;
-      const cardId = cardButton.dataset.lcOpenId;
-      if (onlinePublic.phase === "pick") {
-        lcPickOpen(cardId);
-        return;
-      }
-      if (onlinePublic.phase !== "drop") return;
-      if (!lcSelectedIds.size) {
-        lcShowToast("Select a card first, then tap an open card to drop and pick it.");
-        return;
-      }
-      if (lcCanMatchDrop(onlinePublic)) {
-        lcMatchDropSelected();
-        return;
-      }
-      lcDropAndPickOpen(cardId);
-    };
+    // Bind each open card directly after every render. Mobile taps on nested
+    // card-face elements must always resolve to the same open-pick action.
+    open.querySelectorAll("button[data-lc-open-id]").forEach(cardButton => {
+      cardButton.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!onlinePublic || onlinePublic.turnUid !== roomPlayerId || lcActionPending) return;
+        const cardId = cardButton.dataset.lcOpenId;
+        if (!cardId) return;
+        if (onlinePublic.phase === "pick") {
+          lcPickOpen(cardId);
+          return;
+        }
+        if (onlinePublic.phase !== "drop") return;
+        if (!lcSelectedIds.size) {
+          lcShowToast("Select a card first, then tap an open card to drop and pick it.");
+          return;
+        }
+        if (lcCanMatchDrop(onlinePublic)) {
+          lcMatchDropSelected();
+          return;
+        }
+        lcDropAndPickOpen(cardId);
+      }, { passive: false });
+    });
   }
   const newDrop = document.getElementById("lcNewDrop");
   if (newDrop) {
@@ -539,13 +541,16 @@ function lcToggleCard(id) {
 async function lcSendAction(action) {
   if (!onlineMode || activeGameType !== "leastCount" || !roomRef || !roomPlayerId || lcActionPending) return;
   if (onlinePublic?.status !== "playing" || onlinePublic.turnUid !== roomPlayerId) { lcSetNotice("Please wait for your turn."); return; }
+  const restoreSelection = Array.isArray(action.cardIds) ? action.cardIds.slice() : [];
   lcActionPending = true;
+  if (action.type === "dropAndPickOpen" || action.type === "dropAndPickDeck" || action.type === "drop") lcSelectedIds.clear();
   lcRender();
   try {
     if (isRoomHost) await processLeastCountAction(roomPlayerId, action);
     else await onlineActionRef.child(roomPlayerId).set({ ...action, requestedAt: Date.now() });
   } catch (e) {
     lcActionPending = false;
+    restoreSelection.forEach(id => { if (lcHand.some(card => card.id === id)) lcSelectedIds.add(id); });
     lcSetNotice(e.message || "That move could not be completed.");
     lcRender();
   }
