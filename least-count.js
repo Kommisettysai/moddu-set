@@ -264,7 +264,7 @@ function lcRender() {
       return '<div class="player lc-player-card ' + (isCurrent ? "active turn-owner" : "") + (!active ? " eliminated-player" : "") + '" data-player-id="' + escapeLobbyText(p.id) + '">' +
         playerIdentityMarkup(p, index, "game") +
         '<div class="lc-profile-stats"><span class="profile-score">SCORE <strong>' + (Number(p.score) || 0) + '</strong></span>' +
-        '<span class="profile-score">' + (active ? (Number(p.cardCount) || 0) + ' CARDS' : 'ELIMINATED') + '</span></div>' +
+        '<span class="profile-score">' + (active ? 'IN HAND' : 'ELIMINATED') + '</span></div>' +
         (isCurrent ? '<span class="player-turn-badge">' + turnText + '</span>' : '') +
         '</div>';
     }).join("");
