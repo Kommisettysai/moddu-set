@@ -478,7 +478,7 @@ async function startLeastCountNextRound() {
     await roomRef.child("public").set(next);
   } catch (e) { lcSetNotice("Could not start the next round: " + e.message); }
 }
-async function scheduleLeastCountBotTurn(delay = 220) {
+function scheduleLeastCountBotTurn(delay = 220) {
   if (!isRoomHost || !onlineMode || activeGameType !== "leastCount") return;
   if (lcBotTimer) clearTimeout(lcBotTimer);
   lcBotTimer = setTimeout(() => {
@@ -486,7 +486,7 @@ async function scheduleLeastCountBotTurn(delay = 220) {
     runLeastCountBotTurn();
   }, delay);
 }
-function runLeastCountBotTurn() {
+async function runLeastCountBotTurn() {
   if (!isRoomHost || !onlineMode || activeGameType !== "leastCount" || lcBotBusy || !onlinePublic || onlinePublic.status !== "playing") return;
   const uid = onlinePublic.turnUid;
   const bot = (onlinePublic.players || []).find(p => p.id === uid && p.isBot && p.active !== false);
