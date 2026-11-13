@@ -236,9 +236,6 @@ function lcRender() {
   const hand = document.getElementById("lcHand");
   if (hand) {
     hand.innerHTML = lcHand.length ? lcHand.map(card => lcCardMarkup(card, lcSelectedIds.has(card.id), ownTurn && phase === "drop", "")).join("") : '<p class="lc-empty-hand">Your cards will appear here.</p>';
-    hand.querySelectorAll(".lc-card[onclick]").forEach(el => {
-      el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); el.click(); } });
-    });
   }
   const handCount = document.getElementById("lcHandCount");
   if (handCount) handCount.textContent = String(lcHand.length);
@@ -266,7 +263,7 @@ function lcRender() {
   }
 }
 function lcToggleCard(id) {
-  if (!onlinePublic || onlinePublic.turnUid !== roomPlayerId || onlinePublic.phase !== "drop") return;
+  if (lcActionPending || !onlinePublic || onlinePublic.turnUid !== roomPlayerId || onlinePublic.phase !== "drop") return;
   const card = lcHand.find(c => c.id === id);
   if (!card) return;
   if (lcSelectedIds.has(id)) lcSelectedIds.delete(id);
