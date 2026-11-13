@@ -470,7 +470,8 @@ async function restartLeastCountCurrentRound() {
     const deck = lcBuildDeck(active.length, cardsPerHand), hands = {};
     active.forEach(p => { hands[p.id] = deck.splice(0, cardsPerHand); });
     const first = deck.pop();
-    const starter = active.find(p => p.id === state.roundStarterUid) || active[0];
+    const currentIndex = active.findIndex(p => p.id === state.turnUid);
+    const starter = active[(currentIndex >= 0 ? currentIndex + 1 : 0) % active.length];
     const players = (state.players || []).map(p => p.active === false ? p : { ...p, cardCount: cardsPerHand, status: p.isBot ? "BOT" : "READY" });
     const next = { ...state, status: "playing", phase: "drop", turnUid: starter.id,
       roundStarterUid: starter.id, deckCount: deck.length, openCards: [first], newDrop: [],
