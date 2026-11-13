@@ -351,18 +351,66 @@ function lcRender() {
   if (showBtn) { showBtn.disabled = lcActionPending || !ownTurn || phase !== "drop"; showBtn.classList.toggle("hidden", !ownTurn || phase !== "drop"); }
   const actionHint = document.getElementById("lcActionHint");
   if (actionHint) actionHint.textContent = !ownTurn ? ((state.players || []).find(p => p.id === state.turnUid)?.isBot ? "Bot is playing…" : "Wait for your turn.") : phase === "drop" ? (lcSelectedIds.size ? (lcCanMatchDrop(state) ? lcSelectedIds.size + " selected · same rank as the open card. You can skip the pick." : lcSelectedIds.size + " selected · tap the deck to drop and draw.") : "Select one card or a same-rank set. Lowest points appear first; highest cards are on the right.") : "Pick one card from the discard pile or draw from the deck.";
-  const results = document.getElementById("lcResults");
-  if (results) results.classList.toggle("hidden", state.status === "playing");
-  const nextBtn = document.getElementById("lcNextRoundBtn");
-  if (nextBtn) { nextBtn.classList.toggle("hidden", !isRoomHost || state.status !== "roundComplete"); nextBtn.disabled = state.status !== "roundComplete"; }
-  const playAgainBtn = document.getElementById("lcPlayAgainBtn");
-  if (playAgainBtn) { playAgainBtn.classList.toggle("hidden", !isRoomHost || state.status !== "gameComplete"); }
-  const resultBody = document.getElementById("lcResultRows");
-  if (resultBody && state.results) {
-    resultBody.innerHTML = state.results.map(r => '<div class="lc-result-row"><strong>' + escapeLobbyText(r.name) + '</strong><span>' + r.total + ' hand pts</span><span>+' + r.points + ' score</span><b>' + r.score + ' total</b><small class="lc-result-cards">' + (r.cards || []).map(card => escapeLobbyText((card.rank === "JOKER" ? "★" : card.rank) + (card.joker ? "" : card.suit || ""))).join(" · ") + '</small></div>').join("");
-    const summary = document.getElementById("lcResultSummary");
-    if (summary) summary.textContent = state.resultMessage || "";
+  lcRenderRoundResults(state);
+}
+function lcRenderRoundResults(state) {
+  const screen = document.getElementById("roundResults");
+  const sharedFooter = document.getElementById("sharedResultsFooter");
+  const lcFooter = document.getElementById("lcResultsFooter");
+  const isComplete = state.status === "roundComplete" || state.status === "gameComplete";
+  if (!screen) return;
+  screen.classList.toggle("lc-results-screen", isComplete);
+  screen.classList.toggle("hidden", !isComplete);
+  if (!isComplete) {
+    if (sharedFooter) sharedFooter.classList.remove("hidden");
+    if (lcFooter) lcFooter.classList.add("hidden");
+    return;
   }
+  if (sharedFooter) sharedFooter.classList.add("hidden");
+  if (lcFooter) lcFooter.classList.remove("hidden");
+  const kicker = screen.querySelector(".results-kicker");
+  const title = screen.querySelector(".results-header h2");
+  const summary = document.getElementById("resultsSummary");
+  if (kicker) kicker.textContent = "LEAST COUNT · ROUND " + (Number(state.round) || 1) + " · RESULTS";
+  if (title) title.textContent = state.status === "gameComplete" ? "Game Complete" : "Round Results";
+  if (summary) summary.textContent = state.resultMessage || state.message || "All players' hands are revealed.";
+  const rows = Array.isArray(state.results) ? state.results.slice() : [];
+  rows.sort((a, b) => (Number(a.total) || 0) - (Number(b.total) || 0) || (Number(a.points) || 0) - (Number(b.points) || 0));
+  const profiles = document.getElementById("resultsProfiles");
+  const hands = document.getElementById("resultsHands");
+  if (profiles) {
+    profiles.innerHTML = rows.map((r, index) => {
+      const player = (state.players || []).find(p => p.id === r.uid) || { id: r.uid, name: r.name, isBot: false };
+      const isWinner = index === 0;
+      return '<div class="results-profile ' + (isWinner ? "show-winner" : "") + '">' +
+        playerIdentityMarkup(player, index, "results") +
+        '<span class="finish-rank">' + (isWinner ? "🥇 LOWEST HAND" : "#" + (index + 1)) + '</span>' +
+        '<span class="result-points">Hand: ' + (Number(r.total) || 0) + ' pts</span>' +
+        '<span class="result-current">+' + (Number(r.points) || 0) + ' round points</span>' +
+        '<span class="result-count">Total score: ' + (Number(r.score) || 0) + '</span>' +
+        (r.active === false ? '<span class="finish-rank">ELIMINATED</span>' : '') +
+        '</div>';
+    }).join("");
+  }
+  if (hands) {
+    hands.innerHTML = rows.map((r, index) => {
+      const cards = Array.isArray(r.cards) ? r.cards : [];
+      const player = (state.players || []).find(p => p.id === r.uid);
+      const name = player ? player.name : r.name;
+      return '<div class="results-hand ' + (index === 0 ? "winner-hand" : "") + '">' +
+        '<div class="results-hand-head"><div class="hand-player-identity"><span class="player-avatar">' + (player?.isBot ? "🤖" : "👨🏻") + '</span><strong class="hand-player-name">' + escapeLobbyText(name) + '</strong></div>' +
+        '<span class="results-total">' + (Number(r.total) || 0) + ' pts</span><span class="result-current">+' + (Number(r.points) || 0) + '</span></div>' +
+        '<div class="results-card-grid">' + cards.map(renderResultCard).join("") + '</div></div>';
+    }).join("");
+  }
+  const next = document.getElementById("lcResultsNextRoundBtn");
+  const restart = document.getElementById("lcResultsRestartBtn");
+  const waiting = document.getElementById("lcResultsWaiting");
+  const canNext = isRoomHost && state.status === "roundComplete";
+  const canRestart = isRoomHost && state.status === "gameComplete";
+  if (next) { next.classList.toggle("hidden", !canNext); next.disabled = !canNext; }
+  if (restart) { restart.classList.toggle("hidden", !canRestart); restart.disabled = !canRestart; }
+  if (waiting) waiting.classList.toggle("hidden", isRoomHost);
 }
 function lcToggleCard(id) {
   if (lcActionPending || !onlinePublic || onlinePublic.turnUid !== roomPlayerId || onlinePublic.phase !== "drop") return;
