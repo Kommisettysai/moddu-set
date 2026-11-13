@@ -1371,6 +1371,12 @@ body:has(#roundResults:not(.hidden))>header,
    <p class="lobby-hint" id="usernameNotice">Use 3 to 16 letters, numbers or underscores.</p>
   </div>
   <div id="roomActions" class="hidden">
+   <div class="lobby-section-title">CHOOSE YOUR GAME</div>
+   <select id="gameTypeSelect" class="lobby-input game-type-select" aria-label="Choose game">
+    <option value="modduSet">Moddu Set</option>
+    <option value="leastCount">Least Count</option>
+   </select>
+   <p class="lobby-hint">Your friends will join the game selected by the host.</p>
    <div class="lobby-section-title">PLAY WITH FRIENDS</div>
    <button class="lobby-primary" id="createTableBtn" onclick="createRoom()">＋ Create a private table</button>
    <div id="roomJoinControls">
@@ -1393,11 +1399,30 @@ body:has(#roundResults:not(.hidden))>header,
   <div class="lobby-section-title">PLAYERS AT THE TABLE <span id="roomPlayerCount"></span></div>
   <div id="roomPlayers" class="room-players"></div>
   <p class="lobby-hint">You can start when at least 2 players have joined. Maximum 6 players.</p>
-  <label class="lobby-label" for="roomScoreLimit">ELIMINATION SCORE LIMIT</label>
-  <select id="roomScoreLimit" class="lobby-input" onchange="updateRoomScoreLimit(this.value)">
-   <option value="100">100 points</option><option value="150">150 points</option><option value="200" selected>200 points</option><option value="250">250 points</option><option value="300">300 points</option>
-  </select>
-  <p class="lobby-hint" id="scoreLimitHint">Players are eliminated when their total score reaches this limit.</p>
+  <div id="modduRoomSettings">
+   <label class="lobby-label" for="roomScoreLimit">ELIMINATION SCORE LIMIT</label>
+   <select id="roomScoreLimit" class="lobby-input" onchange="updateRoomScoreLimit(this.value)">
+    <option value="100">100 points</option><option value="150">150 points</option><option value="200" selected>200 points</option><option value="250">250 points</option><option value="300">300 points</option>
+   </select>
+   <p class="lobby-hint" id="scoreLimitHint">Players are eliminated when their total score reaches this limit.</p>
+  </div>
+  <div id="leastCountRoomSettings" class="hidden">
+   <div class="lobby-label">LEAST COUNT SETTINGS</div>
+   <label class="lobby-label" for="lcCardsPerHandSetting">CARDS PER HAND</label>
+   <select id="lcCardsPerHandSetting" class="lobby-input" onchange="updateLeastCountSetting('cardsPerHand',this.value)">
+    <option value="5" selected>5 cards</option><option value="7">7 cards</option>
+   </select>
+   <label class="lobby-label" for="lcScoreLimitSetting">PLAY TO</label>
+   <select id="lcScoreLimitSetting" class="lobby-input" onchange="updateLeastCountSetting('scoreLimit',this.value)">
+    <option value="100">100 points</option><option value="150">150 points</option><option value="200" selected>200 points</option><option value="250">250 points</option><option value="300">300 points</option>
+   </select>
+   <label class="lobby-label" for="lcBadShowSetting">BAD SHOW COST</label>
+   <select id="lcBadShowSetting" class="lobby-input" onchange="updateLeastCountSetting('badShowCost',this.value)">
+    <option value="20">20 points</option><option value="40" selected>40 points</option><option value="60">60 points</option><option value="80">80 points</option>
+   </select>
+   <label class="lc-match-setting"><input id="lcMatchDropSetting" type="checkbox" onchange="updateLeastCountSetting('matchDrop',this.checked)"> <span><strong>Match &amp; Drop</strong><small>Match the open card's rank to skip your pick.</small></span></label>
+   <p class="lobby-hint">Up to 8 players, including bots.</p>
+  </div>
   <div class="actions room-actions-row">
    <button class="lobby-secondary" id="addBotBtn" onclick="addBotToRoom()">＋ Add bot</button>
    <button class="lobby-secondary" onclick="shareRoomInvite()">Invite friends</button>
@@ -1421,7 +1446,34 @@ body:has(#roundResults:not(.hidden))>header,
 <div class="players" id="players"></div>
 </div>
 
-<div class="panel">
+<section id="leastCountView" class="least-count-view hidden" aria-label="Least Count game">
+ <div class="lc-board">
+  <div class="lc-board-head"><div><span class="lc-eyebrow">SAI CARD GAMES</span><h2>LEAST COUNT</h2><p>Lowest hand wins the round</p></div><button type="button" class="lc-rules-button" onclick="showLeastCountRules()">How to play</button></div>
+  <div class="lc-status" id="lcMessage" aria-live="polite">Waiting for cards…</div>
+  <div class="lc-table">
+   <div class="lc-pile-wrap"><button type="button" id="lcDeckBtn" class="lc-pile lc-deck" onclick="lcPickDeck()" disabled><span class="lc-deck-stack">▧</span><strong id="lcDeckCount">0 cards</strong><small>DRAW DECK</small></button></div>
+   <div class="lc-pile-wrap"><div class="lc-pile lc-open-pile"><div id="lcOpenCards" class="lc-open-cards"></div><small>CARDS JUST DROPPED · PICK ONE</small></div></div>
+  </div>
+  <div class="lc-action-area">
+   <p id="lcActionHint">Select cards to drop.</p>
+   <div class="lc-action-buttons">
+    <button type="button" id="lcDropBtn" onclick="lcDropSelected()" disabled>DROP SELECTED</button>
+    <button type="button" id="lcShowBtn" class="lc-show-button hidden" onclick="lcCallShow()">SHOW</button>
+   </div>
+  </div>
+  <div class="lc-hand-panel">
+   <div class="lc-hand-head"><div><span class="lc-eyebrow">YOUR HAND</span><h3><span id="lcHandCount">0</span> cards</h3></div><strong id="lcHandTotal">0 points</strong></div>
+   <div id="lcHand" class="lc-hand" aria-label="Your cards"></div>
+  </div>
+  <div id="lcResults" class="lc-results hidden">
+   <div class="lc-result-head"><span class="lc-eyebrow">ROUND SUMMARY</span><h3>Hand scores</h3><p id="lcResultSummary"></p></div>
+   <div id="lcResultRows" class="lc-result-rows"></div>
+   <button type="button" id="lcNextRoundBtn" class="lc-next-button hidden" onclick="startLeastCountNextRound()">Deal next round</button>
+  </div>
+ </div>
+</section>
+
+<div class="panel" id="modduTablePanel">
 <h3 style="text-align:center">Game Table</h3>
 <div class="piles">
 <div><div class="pile draw-pile" id="drawPile" onclick="drawClosed()" aria-label="Draw deck, face down"><div class="card-stack" aria-hidden="true"><span></span><span></span><span></span></div><span class="open-pick-indicator hidden" id="drawPickIndicator">DRAW DECK PICKED</span><small>DRAW DECK</small></div></div>
@@ -1433,7 +1485,7 @@ body:has(#roundResults:not(.hidden))>header,
 
 
 
-<div class="panel">
+<div class="panel" id="modduHandPanel">
 <div class="hand-heading"><h3>Your cards (<span id="handCount">13</span>) <span id="handUnmatched" class="hand-unmatched">In hand: 0</span></h3><div class="joker-slot" id="jokerSlot"><span class="card back joker-card">★</span><small>Special joker</small></div></div>
 <div class="cards" id="hand"></div>
 <div class="actions hand-actions">
@@ -1457,7 +1509,7 @@ body:has(#roundResults:not(.hidden))>header,
  <div class="voice-note">Your microphone starts muted. Only players in this game room can join. Voice is not recorded.</div>
 </section>
 </div>
-<div class="panel game-actions-panel">
+<div class="panel game-actions-panel" id="gameActionsPanel">
 <details class="game-actions-fold">
 <summary>Game actions</summary>
 <div class="actions">
@@ -1482,6 +1534,17 @@ body:has(#roundResults:not(.hidden))>header,
   <section><h3>📊 Scores and elimination</h3><p>Round points are added to each player's total. A player who reaches the room's target score is eliminated. The last eligible player becomes champion.</p></section>
   <p class="rules-note">Follow the score and turn messages shown on the table. Some rule checks and score calculations may still be under development.</p>
  </div><button class="rules-done" onclick="closeRules()">Got it</button></div>
+</div>
+<div id="lcRulesModal" class="rules-modal hidden" role="dialog" aria-modal="true" aria-labelledby="lcRulesTitle" onclick="if(event.target===this)closeLeastCountRules()">
+ <div class="rules-modal-card lc-rules-card"><div class="rules-modal-head"><div><span class="rules-kicker">SAI CARD GAMES</span><h2 id="lcRulesTitle">How to play Least Count</h2></div><button class="rules-close" onclick="closeLeastCountRules()" aria-label="Close">×</button></div>
+  <div class="rules-modal-body">
+   <section><h3>🎴 Objective</h3><p>Keep the total value of your hand lower than everyone else. Aces are 1, number cards use face value, Jacks are 11, Queens are 12, Kings are 13 and jokers are 0.</p></section>
+   <section><h3>🔄 Your turn</h3><p>Drop one card or several cards of the same rank. Then pick one card from the deck or one of the cards just dropped by the previous player.</p></section>
+   <section><h3>🏆 SHOW</h3><p>Call SHOW when you believe you have the unique lowest hand. If correct, you score 0 and everyone else adds their hand total. If wrong, you receive the bad-show penalty. The lowest hand among the other players scores 0.</p></section>
+   <section><h3>✨ Match &amp; Drop</h3><p>When enabled, dropping a card matching the open card's rank lets you skip the pick. Dropping your last card automatically ends the round at 0.</p></section>
+   <section><h3>📊 Elimination</h3><p>Reach the score limit and you're out. The last active player wins.</p></section>
+  </div><button class="rules-done" onclick="closeLeastCountRules()">Got it</button>
+ </div>
 </div>
 <div id="roundResults" class="round-results hidden">
  <div class="results-header">
@@ -1889,6 +1952,7 @@ async function restoreSavedRoom(){
   const lobbySnap=await ref.child("lobby").get();
   if(!lobbySnap.exists()){clearActiveRoom();return;}
   const l=lobbySnap.val()||{},uid=authUser.uid,member=(l.players||{})[uid];
+  activeGameType=l.gameType==="leastCount"?"leastCount":"modduSet";
   if(!member){clearActiveRoom();return;}
   roomCode=code;roomRef=ref;roomPlayerId=uid;isRoomHost=uid===l.hostId;saveActiveRoom();
   if(l.status==="waiting"){showWaitingRoom();setLobbyNotice("Your previous room was restored.");return;}
@@ -2672,9 +2736,12 @@ let onlinePublicListener=null,onlineHandListener=null,onlineActionListener=null,
 function onlineMembers(l){return Object.values(l.players||{}).sort((a,b)=>(a.joinedAt||0)-(b.joinedAt||0));}
 function createRoom(){
  const name=lobbyName();if(!name)return;if(!firebaseReady||!authUser){setLobbyNotice("Firebase sign-in is still loading.");return;}
+ activeGameType=document.getElementById("gameTypeSelect")?.value==="leastCount"?"leastCount":"modduSet";
+ const maxPlayers=activeGameType==="leastCount"?8:6;
+ const settings=activeGameType==="leastCount"?{cardsPerHand:5,scoreLimit:200,badShowCost:40,matchDrop:false}:{};
  (async()=>{try{let code=makeRoomCode(),ref=firebase.database().ref("rooms/"+code),snap=await ref.child("lobby").get();while(snap.exists()){code=makeRoomCode();ref=firebase.database().ref("rooms/"+code);snap=await ref.child("lobby").get();}
  roomCode=code;roomRef=ref;roomPlayerId=authUser.uid;isRoomHost=true;saveActiveRoom();
- await ref.set({hostId:authUser.uid,lobby:{code,hostId:authUser.uid,status:"waiting",maxPlayers:6,scoreLimit:200,players:{[authUser.uid]:{id:authUser.uid,name,ready:true,joinedAt:firebase.database.ServerValue.TIMESTAMP}}},public:{},private:{deck:[],hands:{},specialRank:null,specialRanks:{}},actions:{}});
+ await ref.set({hostId:authUser.uid,lobby:{code,hostId:authUser.uid,status:"waiting",gameType:activeGameType,maxPlayers,scoreLimit:200,settings,players:{[authUser.uid]:{id:authUser.uid,name,ready:true,joinedAt:firebase.database.ServerValue.TIMESTAMP}}},public:{},private:{deck:[],hands:{},discardPile:[],specialRank:null,specialRanks:{}},actions:{}});
  showWaitingRoom();}catch(e){setLobbyNotice("Could not create room: "+e.message);}})();
 }
 async function joinRoom(){
@@ -2691,6 +2758,7 @@ async function joinRoom(){
   const lobbySnap=await ref.child("lobby").get();
   if(!lobbySnap.exists()){setLobbyNotice("Room not found. Check the six-character code.");return;}
   const l=lobbySnap.val()||{},members=onlineMembers(l),uid=authUser.uid;
+  activeGameType=l.gameType==="leastCount"?"leastCount":"modduSet";
   const existing=(l.players||{})[uid]||members.find(p=>p.id===uid)||null;
   let pub=null,gamePlayer=null;
   // Existing members may read public game state; a new player must not read it
@@ -2769,6 +2837,16 @@ function showWaitingRoom(){
  onlineLobbyListener=snap=>{
   if(!snap.exists())return;
   const l=snap.val(),m=onlineMembers(l),limitEl=document.getElementById("roomScoreLimit");
+  activeGameType=l.gameType==="leastCount"?"leastCount":"modduSet";
+  const lcSettingsEl=document.getElementById("leastCountRoomSettings"),modduSettingsEl=document.getElementById("modduRoomSettings");
+  if(lcSettingsEl)lcSettingsEl.classList.toggle("hidden",activeGameType!=="leastCount");
+  if(modduSettingsEl)modduSettingsEl.classList.toggle("hidden",activeGameType==="leastCount");
+  const gameSelect=document.getElementById("gameTypeSelect");if(gameSelect)gameSelect.value=activeGameType;
+  const settings=lcRoomSettings(l);const cardsSetting=document.getElementById("lcCardsPerHandSetting"),scoreSetting=document.getElementById("lcScoreLimitSetting"),badShowSetting=document.getElementById("lcBadShowSetting"),matchSetting=document.getElementById("lcMatchDropSetting");
+  if(cardsSetting){cardsSetting.value=String(settings.cardsPerHand);cardsSetting.disabled=!isRoomHost||l.status!=="waiting";}
+  if(scoreSetting){scoreSetting.value=String(settings.scoreLimit);scoreSetting.disabled=!isRoomHost||l.status!=="waiting";}
+  if(badShowSetting){badShowSetting.value=String(settings.badShowCost);badShowSetting.disabled=!isRoomHost||l.status!=="waiting";}
+  if(matchSetting){matchSetting.checked=settings.matchDrop;matchSetting.disabled=!isRoomHost||l.status!=="waiting";}
   isRoomHost=!!(authUser&&authUser.uid===l.hostId);
   if(startBtn)startBtn.classList.toggle("hidden",!isRoomHost);
   if(botBtn)botBtn.classList.toggle("hidden",!isRoomHost);
@@ -2829,14 +2907,18 @@ async function shareRoomInvite(){
  }catch(e){if(e.name!=="AbortError")setLobbyNotice("Room code: "+roomCode);}
 }
 async function startOnlineRoom(){
- if(!isRoomHost||!roomRef)return;try{const snap=await roomRef.child("lobby").get(),l=snap.val(),m=onlineMembers(l);if(m.length<2){setLobbyNotice("Invite at least one friend before starting.");return;}
+ if(!isRoomHost||!roomRef)return;
+ if(activeGameType==="leastCount"){await startLeastCountRoom();return;}
+ try{const snap=await roomRef.child("lobby").get(),l=snap.val(),m=onlineMembers(l);if(m.length<2){setLobbyNotice("Invite at least one friend before starting.");return;}
  const d=shuffle(makeDeck(m.length)),hands={};m.forEach(p=>hands[p.id]=d.splice(0,13));const first=d.pop();
  const limit=Math.max(1,Number(l.scoreLimit)||200);const pub={status:"playing",round:1,scoreLimit:limit,turnUid:l.hostId,roundStarterUid:l.hostId,deckCount:d.length,discard:[first],drawnByUid:null,pickDeadline:Date.now()+60000,specialRank:null,players:m.map(p=>({id:p.id,name:p.name,isBot:!!p.isBot,active:true,score:0,cardCount:13,roundDrawCount:0,roundDropped:false,dropPenalty:0,unlocked:false,status:"Ready"})),message:"Cards dealt. Elimination limit: "+limit+" points. "+m[0].name+"'s turn. Draw a card."};
  await roomRef.child("private").set({deck:d,hands,specialRank:null,specialRanks:{}});await roomRef.child("public").set(pub);await roomRef.child("lobby/status").set("started");enterOnlineGame(pub);
  }catch(e){setLobbyNotice("Could not start game: "+e.message);}
 }
 function enterOnlineGame(state){
- if(!roomRef||!roomPlayerId)return;onlineMode=true;onlinePublic=state;const gameCodeEl=document.getElementById("gameRoomCode");if(gameCodeEl){gameCodeEl.textContent=roomCode||"------";gameCodeEl.closest(".game-room-code").style.display=roomCode?"flex":"none";}eliminatedSpectator=false;document.getElementById("setup").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");document.getElementById("game").classList.remove("hidden");document.getElementById("voicePanel")?.classList.remove("hidden");
+ if(!roomRef||!roomPlayerId)return;
+ if(activeGameType==="leastCount"||state?.gameType==="leastCount"){enterLeastCountGame(state);return;}
+ onlineMode=true;onlinePublic=state;const gameCodeEl=document.getElementById("gameRoomCode");if(gameCodeEl){gameCodeEl.textContent=roomCode||"------";gameCodeEl.closest(".game-room-code").style.display=roomCode?"flex":"none";}eliminatedSpectator=false;document.getElementById("setup").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");document.getElementById("game").classList.remove("hidden");document.getElementById("voicePanel")?.classList.remove("hidden");
  const notice=document.createElement("div");notice.id="spectatorNotice";notice.className="spectator-notice";notice.textContent="👀 You are eliminated. You can watch the game, but cannot play or view anyone’s cards.";document.getElementById("game").prepend(notice);
  onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);chatHasOpened=false;chatUnreadCount=0;chatIsOpen=false;document.getElementById("gameChat")?.classList.remove("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");document.getElementById("chatToggle")?.setAttribute("aria-expanded","false");updateChatUnread();onlineChatRef=roomRef.child("chat");if(onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);const chatRefForLoad=onlineChatRef;chatRefForLoad.limitToLast(60).once("value").then(initial=>{if(!onlineMode||onlineChatRef!==chatRefForLoad)return;const oldKeys=new Set(Object.keys(initial.val()||{}));onlineChatListener=snap=>{const isOld=oldKeys.has(snap.key);oldKeys.delete(snap.key);const shownLocally=locallyShownChatMessages.has(snap.key);locallyShownChatMessages.delete(snap.key);receiveGameChat(snap,!isOld&&!shownLocally);};chatRefForLoad.limitToLast(60).on("child_added",onlineChatListener);}).catch(()=>{});
  if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();scheduleHostDiscardTimeout(onlinePublic);if(isRoomHost){if(onlinePublic.status==="restartRequested")openHostRestartPrompt();if(onlinePublic.status==="roundComplete")finalizeOnlineGameIfNeeded().catch(e=>console.error("Game completion check failed:",e));if(onlinePublic.status==="playing"){reconcileDroppedRoundCompletion().catch(e=>console.error("Drop completion recovery failed:",e));runOnlineBotTurn();}}}};onlinePublicRef.on("value",onlinePublicListener);
@@ -3885,6 +3967,8 @@ function showHand(){
 function startGame(){if(!onlineMode)return _soloStartGame();message("Leave the online table before starting a solo game.");}
 function leaveRoom(showLobby=true){
  leaveVoiceChat();
+ if(typeof cleanupLeastCountGame==="function")cleanupLeastCountGame();
+ activeGameType="modduSet";
  if(onlineChatRef&&onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);onlineChatRef=null;onlineChatListener=null;chatIsOpen=false;chatHasOpened=false;chatUnreadCount=0;document.getElementById("gameChat")?.classList.add("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");mutedChatSenders.clear();eliminatedSpectator=false;document.getElementById("game")?.classList.remove("spectator-mode");if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);if(onlineSpecialRef)onlineSpecialRef.off("value");if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);if(roomRef&&onlineRejoinListener)roomRef.child("rejoinRequests").off("child_added",onlineRejoinListener);
  if(roomRef&&roomPlayerId)roomRef.child("lobby/players/"+roomPlayerId).remove().catch(()=>{});onlineMode=false;onlinePublic=null;clearActiveRoom();onlinePublicRef=onlineHandRef=onlineActionRef=onlineSpecialRef=null;onlineRejoinListener=null;roomRef=null;roomCode=null;roomPlayerId=null;isRoomHost=false;onlineLobbyListener=null;
  document.getElementById("game").classList.add("hidden");document.getElementById("waitingRoom")?.classList.add("hidden");const createBtn=document.getElementById("createTableBtn"),joinControls=document.getElementById("roomJoinControls");if(createBtn){createBtn.disabled=false;createBtn.textContent="＋ Create a private table";}if(joinControls)joinControls.classList.remove("hidden");if(showLobby)document.getElementById("setup").classList.remove("hidden");
