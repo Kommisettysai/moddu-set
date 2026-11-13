@@ -1660,6 +1660,36 @@ body.modal-open{overflow:hidden;touch-action:none}
 #roundResults.lc-results-screen .lc-results-waiting{color:#d2d2e0}
 @media(max-width:390px){#roundResults.lc-results-screen .results-hand-head .hand-player-identity{flex-wrap:wrap}#roundResults.lc-results-screen .show-caller-inline{font-size:7px;padding:3px 5px}}
 
+
+/* Precisely align the game-picker close control and suit artwork on mobile. */
+#gameTypePickerModal .lobby-modal-head{position:relative;display:block;padding-right:48px;min-height:42px}
+#gameTypePickerModal .lobby-modal-head>div{min-width:0}
+#gameTypePickerModal .lobby-modal-head>button.game-picker-close{
+ position:absolute;top:0;right:0;align-self:auto;flex:none;
+ width:38px;height:38px;min-width:38px;max-width:38px;
+ display:grid;place-items:center;padding:0;margin:0;
+ border:1px solid #d8bd7b88;border-radius:50%;
+ background:linear-gradient(145deg,#103b2d,#08271f);
+ color:#f6e4bf;box-sizing:border-box;line-height:0;
+}
+#gameTypePickerModal .game-picker-close svg{display:block;width:19px;height:19px;overflow:visible}
+#gameTypePickerModal .game-picker-close svg path{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+#gameTypePickerModal .game-picker-suits{
+ display:flex;align-items:center;justify-content:center;gap:3px;
+ padding:0;line-height:0;font-size:0;
+}
+#gameTypePickerModal .game-picker-suits svg{
+ display:block;flex:0 0 25px;width:25px;height:25px;
+ transform:none!important;overflow:visible;
+}
+#gameTypePickerModal .game-picker-suits .picker-spade{color:#f2d98e}
+#gameTypePickerModal .game-picker-suits .picker-heart{color:#ef626a}
+@media(max-width:390px){
+ #gameTypePickerModal .lobby-modal-head{padding-right:44px}
+ #gameTypePickerModal .lobby-modal-head>button.game-picker-close{width:36px;height:36px;min-width:36px;max-width:36px}
+ #gameTypePickerModal .game-picker-suits svg{width:23px;height:23px;flex-basis:23px}
+}
+
 </style>
 </head>
 
@@ -1810,11 +1840,11 @@ body.modal-open{overflow:hidden;touch-action:none}
   
 <div class="lobby-modal-backdrop hidden" id="gameTypePickerModal" onclick="if(event.target===this)closeGameTypePicker()">
  <div class="lobby-modal-card game-picker-modal-card" role="dialog" aria-modal="true" aria-labelledby="gamePickerTitle">
-  <div class="lobby-modal-head"><div><small>SAI CARD GAMES</small><h2 id="gamePickerTitle">Choose your game</h2></div><button type="button" aria-label="Close game picker" onclick="closeGameTypePicker()">×</button></div>
+  <div class="lobby-modal-head"><div><small>SAI CARD GAMES</small><h2 id="gamePickerTitle">Choose your game</h2></div><button type="button" class="game-picker-close" aria-label="Close game picker" onclick="closeGameTypePicker()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6L18 18M18 6L6 18"/></svg></button></div>
   <p class="game-picker-subtitle">Select the game you want to play.</p>
   <div class="game-picker-options">
    <button type="button" class="game-picker-option selected" data-game-choice="modduSet" onclick="selectGameTypeOption('modduSet')"><span class="game-picker-art">🃏</span><span><strong>Moddu Set</strong><small>Form sets and clear your hand.</small></span><span class="game-picker-radio"></span></button>
-   <button type="button" class="game-picker-option" data-game-choice="leastCount" onclick="selectGameTypeOption('leastCount')"><span class="game-picker-art game-picker-suits" aria-hidden="true"><span class="picker-spade">♠</span><span class="picker-heart">♥</span></span><span><strong>Least Count</strong><small>Lowest hand wins the round.</small></span><span class="game-picker-radio"></span></button>
+   <button type="button" class="game-picker-option" data-game-choice="leastCount" onclick="selectGameTypeOption('leastCount')"><span class="game-picker-art game-picker-suits" aria-hidden="true"><svg class="picker-spade" viewBox="0 0 24 24"><path d="M12 2.5C9.4 6.1 3.1 9.3 3.1 14.1a5.1 5.1 0 0 0 8.2 4.1L9.8 22h4.4l-1.5-3.8a5.1 5.1 0 0 0 8.2-4.1C20.9 9.3 14.6 6.1 12 2.5Z" fill="currentColor"/></svg><svg class="picker-heart" viewBox="0 0 24 24"><path d="M12 21S2.5 15.2 2.5 8.5A5.2 5.2 0 0 1 12 5.8a5.2 5.2 0 0 1 9.5 2.7C21.5 15.2 12 21 12 21Z" fill="currentColor"/></svg></span><span><strong>Least Count</strong><small>Lowest hand wins the round.</small></span><span class="game-picker-radio"></span></button>
   </div>
   <button type="button" class="lobby-primary modal-done-button" onclick="confirmGameTypePicker()">Continue</button>
  </div>
