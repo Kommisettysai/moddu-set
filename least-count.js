@@ -197,7 +197,7 @@ function enterLeastCountGame(state) {
   document.getElementById("leastCountView")?.classList.remove("hidden");
   document.getElementById("modduTablePanel")?.classList.add("hidden");
   document.getElementById("modduHandPanel")?.classList.add("hidden");
-  document.getElementById("gameActionsPanel")?.classList.add("hidden");
+  document.getElementById("gameActionsPanel")?.classList.remove("hidden");
   document.getElementById("voicePanel")?.classList.remove("hidden");
   const code = document.getElementById("gameRoomCode");
   if (code) { code.textContent = roomCode || "------"; code.closest(".game-room-code").style.display = roomCode ? "flex" : "none"; }
@@ -263,6 +263,12 @@ function enterLeastCountGame(state) {
 function lcRender() {
   const state = onlinePublic;
   if (!state || activeGameType !== "leastCount") return;
+  const actionsPanel = document.getElementById("gameActionsPanel");
+  if (actionsPanel) actionsPanel.classList.remove("hidden");
+  const restartGameBtn = document.getElementById("restartGameBtn");
+  const restartRoundBtn = document.getElementById("newRoundBtn");
+  if (restartGameBtn) { restartGameBtn.classList.toggle("hidden", !isRoomHost); restartGameBtn.textContent = "Restart new game (reset scores)"; }
+  if (restartRoundBtn) { restartRoundBtn.style.display = isRoomHost ? "" : "none"; restartRoundBtn.textContent = "Restart round (keep scores)"; }
   const ownTurn = state.turnUid === roomPlayerId && state.status === "playing";
   const phase = state.phase || "drop";
   const playersEl = document.getElementById("players");
@@ -432,6 +438,58 @@ function lcRenderRoundResults(state) {
   if (next) { next.classList.toggle("hidden", !canNext); next.disabled = !canNext; }
   if (restart) { restart.classList.toggle("hidden", !canRestart); restart.disabled = !canRestart; }
   if (waiting) waiting.classList.toggle("hidden", isRoomHost);
+}
+let lcRecoveryBusy = false;
+function requestCurrentRoundRestart() {
+  if (activeGameType === "leastCount") {
+    if (!isRoomHost || !roomRef) { lcShowToast("Only the host can restart this round."); return; }
+    showGameConfirm("Restart this round?", "Deal fresh cards for this round. Everyone keeps their current total score.", restartLeastCountCurrentRound, "Restart round");
+    return;
+  }
+  startFreshRoundWithScores();
+}
+function requestCurrentGameRestart() {
+  if (activeGameType === "leastCount") {
+    if (!isRoomHost || !roomRef) { lcShowToast("Only the host can restart the game."); return; }
+    showGameConfirm("Restart Least Count?", "Start a completely new game for everyone at this table. All scores will reset.", restartLeastCountTable, "Restart game");
+    return;
+  }
+  requestRestartCurrentGame();
+}
+async function restartLeastCountCurrentRound() {
+  if (!isRoomHost || !roomRef || lcRecoveryBusy || activeGameType !== "leastCount") return;
+  lcRecoveryBusy = true;
+  try {
+    const [pubSnap, lobbySnap] = await Promise.all([roomRef.child("public").get(), roomRef.child("lobby").get()]);
+    const state = pubSnap.val();
+    if (!state || state.gameType !== "leastCount" || state.status !== "playing") throw new Error("This round is no longer active.");
+    const active = (state.players || []).filter(p => p.active !== false);
+    if (active.length < 2) throw new Error("At least two active players are required.");
+    const lobbySettings = lcRoomSettings(lobbySnap.val() || {});
+    const cardsPerHand = Number(state.cardsPerHand) === 7 ? 7 : (Number(state.cardsPerHand) === 5 ? 5 : lobbySettings.cardsPerHand);
+    const deck = lcBuildDeck(active.length, cardsPerHand), hands = {};
+    active.forEach(p => { hands[p.id] = deck.splice(0, cardsPerHand); });
+    const first = deck.pop();
+    const starter = active.find(p => p.id === state.roundStarterUid) || active[0];
+    const players = (state.players || []).map(p => p.active === false ? p : { ...p, cardCount: cardsPerHand, status: p.isBot ? "BOT" : "READY" });
+    const next = { ...state, status: "playing", phase: "drop", turnUid: starter.id,
+      roundStarterUid: starter.id, deckCount: deck.length, openCards: [first], newDrop: [],
+      players, results: null, resultMessage: null,
+      roundRestartCount: (Number(state.roundRestartCount) || 0) + 1,
+      message: "Round " + state.round + " restarted by the host. Scores are unchanged. " + starter.name + "'s turn." };
+    if (lcBotTimer) clearTimeout(lcBotTimer);
+    lcBotTimer = null; lcBotTurnKey = ""; lcSelectedIds = new Set(); lcActionPending = false;
+    const actionsSnap = await roomRef.child("actions").get();
+    await Promise.all(Object.keys(actionsSnap.val() || {}).map(uid => roomRef.child("actions/" + uid).remove()));
+    await roomRef.child("private").set({ deck, hands, discardPile: [] });
+    await roomRef.child("public").set(next);
+    onlinePublic = next;
+    const ownHandSnap = await roomRef.child("private/hands/" + roomPlayerId).get();
+    lcHand = ownHandSnap.val() || [];
+    lcRender();
+    if (isRoomHost) scheduleLeastCountBotTurn(350);
+  } catch (e) { lcSetNotice("Could not restart this round: " + (e.message || e)); }
+  finally { lcRecoveryBusy = false; }
 }
 function lcToggleCard(id) {
   if (lcActionPending || !onlinePublic || onlinePublic.turnUid !== roomPlayerId || onlinePublic.phase !== "drop") return;
