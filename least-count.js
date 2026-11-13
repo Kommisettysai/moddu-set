@@ -38,6 +38,7 @@ function lcShuffle(cards) {
 }
 function lcBuildDeck(playerCount, cardsPerHand) {
   const suits = ["♠", "♥", "♦", "♣"];
+  const suitCodes = { "♠": "S", "♥": "H", "♦": "D", "♣": "C" };
   const ranks = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
   const required = Math.max(2, Number(playerCount) || 2) * (Number(cardsPerHand) === 7 ? 7 : 5) + 1;
   const packCount = required <= 54 ? 1 : 2;
@@ -45,7 +46,7 @@ function lcBuildDeck(playerCount, cardsPerHand) {
   for (let pack = 0; pack < packCount; pack++) {
     for (const suit of suits) {
       for (const rank of ranks) {
-        cards.push({ id: "lc-" + pack + "-" + rank + "-" + suit + "-" + Math.random().toString(36).slice(2, 9), rank, suit, joker: false });
+        cards.push({ id: "lc-" + pack + "-" + rank + "-" + suitCodes[suit] + "-" + Math.random().toString(36).slice(2, 9), rank, suit, joker: false });
       }
     }
     cards.push({ id: "lc-joker-" + pack + "-a-" + Math.random().toString(36).slice(2, 8), rank: "JOKER", suit: "★", joker: true });
@@ -63,7 +64,8 @@ function lcCardFace(card) {
 function lcCardMarkup(card, selected, clickable, extraClass) {
   const red = card && (card.suit === "♥" || card.suit === "♦");
   const cls = "lc-card" + (red ? " red" : "") + (selected ? " selected" : "") + (extraClass ? " " + extraClass : "");
-  const safeId = String(card.id).replace(/[^a-zA-Z0-9_-]/g, "");
+  // Keep the full ID. Older decks include Unicode suit symbols in their IDs.
+  const safeId = escapeLobbyText(String(card.id));
   const action = clickable ? (extraClass === "lc-open-card" ? ' data-lc-open-id="' + safeId + '"' : ' data-lc-card-id="' + safeId + '"') : "";
   return '<button type="button" class="' + cls + '"' + action + ' aria-pressed="' + (selected ? "true" : "false") + '" aria-label="' + escapeLobbyText(card.rank + " " + card.suit + ", " + lcPoints(card) + " points") + '">' + lcCardFace(card) + '</button>';
 }
