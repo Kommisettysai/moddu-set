@@ -4122,6 +4122,8 @@ function startNextRound(){
 let pendingGameConfirmAction=null;
 function showGameConfirm(title,body,action,confirmLabel="Confirm"){
  const modal=document.getElementById("gameConfirmModal");if(!modal)return;
+ // Keep the confirmation overlay outside transformed game containers so fixed positioning is viewport-centred on mobile.
+ if(modal.parentElement!==document.body)document.body.appendChild(modal);
  document.getElementById("gameConfirmTitle").textContent=title;
  document.getElementById("gameConfirmMessage").textContent=body;
  document.getElementById("gameConfirmAction").textContent=confirmLabel;
