@@ -113,10 +113,11 @@ function lcDeckAction() {
   lcSendAction({ type: "dropAndPickDeck", cardIds: ids });
 }
 function lcMatchDropSelected() {
-  if (!onlinePublic || onlinePublic.phase !== "drop" || !lcCanMatchDrop(onlinePublic)) return;
+  if (!onlinePublic || onlinePublic.phase !== "drop" || !lcCanMatchDrop(onlinePublic) || lcActionPending) return;
   const ids = lcSelectedCards().map(card => card.id);
+  if (!ids.length) return;
   lcSelectedIds.clear();
-  lcShowToast("Match & Drop! Your pick is skipped.");
+  lcShowToast("Matched! Pick skipped.");
   lcSendAction({ type: "drop", cardIds: ids });
 }
 async function updateLeastCountSetting(key, value) {
@@ -252,7 +253,6 @@ function lcRender() {
   if (!state || activeGameType !== "leastCount") return;
   const ownTurn = state.turnUid === roomPlayerId && state.status === "playing";
   const phase = state.phase || "drop";
-  document.body.classList.add("least-count-theme");
   const playersEl = document.getElementById("players");
   const playerStrip = playersEl?.closest(".player-strip");
   if (playerStrip) playerStrip.classList.add("lc-player-strip");
@@ -260,12 +260,10 @@ function lcRender() {
     playersEl.innerHTML = (state.players || []).map((p, index) => {
       const active = p.active !== false;
       const isCurrent = p.id === state.turnUid && state.status === "playing";
-      const turnText = phase === "drop" ? "YOUR TURN · DROP" : "YOUR TURN · PICK";
-      return '<div class="player lc-player-card ' + (isCurrent ? "active turn-owner" : "") + (!active ? " eliminated-player" : "") + '" data-player-id="' + escapeLobbyText(p.id) + '">' +
+      return '<div class="player lc-player-card ' + (isCurrent ? "active turn-owner" : "") + (!active ? "eliminated-player" : "") + '" data-player-id="' + escapeLobbyText(p.id) + '">' +
         playerIdentityMarkup(p, index, "game") +
-        '<div class="lc-profile-stats"><span class="profile-score">SCORE <strong>' + (Number(p.score) || 0) + '</strong></span>' +
-        '<span class="profile-score">' + (active ? 'IN HAND' : 'ELIMINATED') + '</span></div>' +
-        (isCurrent ? '<span class="player-turn-badge">' + turnText + '</span>' : '') +
+        '<span class="profile-score">Score: ' + (Number(p.score) || 0) + '</span>' +
+        (active ? '' : '<span class="player-eliminated">ELIMINATED</span>') +
         '</div>';
     }).join("");
   }
@@ -343,10 +341,16 @@ function lcRender() {
     const deckLabel = document.getElementById("lcDeckLabel");
     if (deckLabel) deckLabel.textContent = phase === "drop" ? "DROP + DRAW" : "DRAW DECK";
   }
+  const skipBtn = document.getElementById("lcSkipPickBtn");
+  const canSkipPick = ownTurn && phase === "drop" && lcCanMatchDrop(state);
+  if (skipBtn) {
+    skipBtn.classList.toggle("hidden", !canSkipPick);
+    skipBtn.disabled = lcActionPending || !canSkipPick;
+  }
   const showBtn = document.getElementById("lcShowBtn");
   if (showBtn) { showBtn.disabled = lcActionPending || !ownTurn || phase !== "drop"; showBtn.classList.toggle("hidden", !ownTurn || phase !== "drop"); }
   const actionHint = document.getElementById("lcActionHint");
-  if (actionHint) actionHint.textContent = !ownTurn ? ((state.players || []).find(p => p.id === state.turnUid)?.isBot ? "Bot is playing…" : "Wait for your turn.") : phase === "drop" ? (lcSelectedIds.size ? (lcCanMatchDrop(state) ? lcSelectedIds.size + " selected · matching rank! Tap the highlighted open card to skip your pick." : lcSelectedIds.size + " selected · tap the deck to drop and draw.") : "Select one card or a same-rank set. Lowest points appear first; highest cards are on the right.") : "Pick one card from the discard pile or draw from the deck.";
+  if (actionHint) actionHint.textContent = !ownTurn ? ((state.players || []).find(p => p.id === state.turnUid)?.isBot ? "Bot is playing…" : "Wait for your turn.") : phase === "drop" ? (lcSelectedIds.size ? (lcCanMatchDrop(state) ? lcSelectedIds.size + " selected · same rank as the open card. You can skip the pick." : lcSelectedIds.size + " selected · tap the deck to drop and draw.") : "Select one card or a same-rank set. Lowest points appear first; highest cards are on the right.") : "Pick one card from the discard pile or draw from the deck.";
   const results = document.getElementById("lcResults");
   if (results) results.classList.toggle("hidden", state.status === "playing");
   const nextBtn = document.getElementById("lcNextRoundBtn");

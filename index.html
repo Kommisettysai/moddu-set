@@ -1481,155 +1481,83 @@ body:has(#roundResults:not(.hidden))>header,
 #game #leastCountView .lc-action-hint{margin-top:9px!important}
 
 
-/* Least Count gets its own midnight / aqua visual identity.
-   Shared Moddu Set identity, turn badges and message patterns are reused. */
-body.least-count-theme #game .lc-player-strip{
-  background:linear-gradient(145deg,#17243a,#101a2c)!important;
-  border:1px solid #486783!important;
-  box-shadow:0 10px 28px #02081788,inset 0 1px #ffffff0d!important;
-  border-radius:18px!important;
+
+/* Least Count compact pass: same felt palette, profile scale and panel rhythm as Moddu Set. */
+#game .player-strip.lc-player-strip{background:linear-gradient(145deg,#174a39ed,#0d3529f2)!important;border:1px solid #d9b66b42!important;box-shadow:0 8px 20px #0003!important;border-radius:16px!important}
+#game .player-strip.lc-player-strip .players{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:5px!important;overflow:visible!important;padding:2px 0!important}
+#game .player-strip.lc-player-strip .player.lc-player-card{
+ display:block!important;position:relative;min-width:0!important;min-height:0!important;width:auto!important;
+ flex:initial!important;padding:6px 3px!important;border-radius:10px!important;
+ background:#245641!important;border:1px solid #d9b66b55!important;color:#f5e7c2!important;
+ box-shadow:none!important;transform:none!important;animation:none!important;text-align:center!important;
 }
-body.least-count-theme #game .lc-player-strip .players-heading h3{color:#e8f4ff!important}
-body.least-count-theme #game .lc-player-strip .players{
-  display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
-  gap:9px!important;overflow:visible!important;padding:4px 2px 8px!important;
+#game .player-strip.lc-player-strip .player.lc-player-card .player-identity{
+ display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;
+ gap:3px!important;margin:0 0 4px!important;
 }
-body.least-count-theme #game .lc-player-strip .player.lc-player-card{
-  position:relative;display:flex;flex-direction:column;align-items:stretch;justify-content:center;
-  flex:initial!important;min-width:0!important;width:100%;min-height:112px;
-  padding:11px 10px 9px!important;border:1px solid #46617d!important;border-radius:15px!important;
-  background:linear-gradient(145deg,#243650,#17243a)!important;color:#eaf4ff!important;
-  box-shadow:0 5px 13px #02081755!important;scroll-snap-align:unset;
-  transition:border-color .18s,box-shadow .18s,transform .18s;
+#game .player-strip.lc-player-strip .player.lc-player-card .avatar-stack{min-width:36px!important;margin:0 0 2px!important}
+#game .player-strip.lc-player-strip .player.lc-player-card .player-avatar{
+ width:30px!important;height:30px!important;flex:0 0 30px!important;font-size:17px!important;
+ border:1px solid #f4d28a!important;background:radial-gradient(circle at 30% 25%,#f8e2ad,#9b7135)!important;
 }
-body.least-count-theme #game .lc-player-strip .player.lc-player-card .player-identity{
-  justify-content:flex-start!important;gap:9px!important;margin:0 20px 8px 0!important;
+#game .player-strip.lc-player-strip .player.lc-player-card .player-card-count{
+ top:-5px!important;left:-8px!important;right:auto!important;min-width:17px;height:17px;padding:0 4px;
+ border:1px solid #fff!important;background:#e34b55!important;color:#fff!important;font-size:8px!important;
 }
-body.least-count-theme #game .lc-player-strip .player.lc-player-card .avatar-stack{
-  min-width:42px!important;margin:0!important;flex:0 0 42px;
+#game .player-strip.lc-player-strip .player.lc-player-card .player-name-wrap{min-width:0!important;max-width:100%;align-items:center!important}
+#game .player-strip.lc-player-strip .player.lc-player-card .player-name-wrap b{
+ display:block!important;max-width:100%;font-size:9px!important;line-height:1.2!important;
+ white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
 }
-body.least-count-theme #game .lc-player-strip .player.lc-player-card .player-avatar{
-  width:40px!important;height:40px!important;flex:0 0 40px!important;
-  border:2px solid #73d8d1!important;
-  background:radial-gradient(circle at 32% 25%,#8ce9e1,#277b83)!important;
-  color:#082d3a!important;font-size:21px!important;
+#game .player-strip.lc-player-strip .player.lc-player-card .profile-more{
+ right:0!important;top:0!important;width:18px!important;height:20px!important;font-size:17px!important;
 }
-body.least-count-theme #game .lc-player-strip .player.lc-player-card .player-card-count{
-  top:-5px!important;left:-6px!important;right:auto!important;
-  min-width:19px;height:19px;border:1px solid #e8ffff!important;
-  background:#1c9a9b!important;color:#fff!important;font-size:9px!important;
+#game .player-strip.lc-player-strip .player.lc-player-card .profile-score{
+ display:block!important;margin-top:2px!important;font-size:8px!important;line-height:1.2!important;
+ color:#d5e6d9!important;white-space:nowrap!important;
 }
-body.least-count-theme #game .lc-player-strip .player.lc-player-card .player-name-wrap{
-  align-items:flex-start!important;min-width:0!important;max-width:100%;
+#game .player-strip.lc-player-strip .player.lc-player-card.active.turn-owner{
+ border:2px solid #fff07a!important;background:#245641!important;
+ box-shadow:0 0 7px #fff06a,0 0 18px #ffe23d88!important;animation:profileGlow 1.6s ease-in-out infinite!important;z-index:1;
 }
-body.least-count-theme #game .lc-player-strip .player.lc-player-card .player-name-wrap b{
-  max-width:100%;font-size:12px!important;line-height:1.2!important;
-  color:#f4f8ff!important;white-space:normal!important;overflow-wrap:anywhere;
+#game #leastCountView .lc-table-panel,#game #leastCountView .lc-hand-panel,#game #leastCountView .lc-results{
+ padding:10px 12px!important;margin:0 0 9px!important;border-radius:16px!important;
+ background:linear-gradient(145deg,#174a39ed,#0d3529f2)!important;
+ border:1px solid #d9b66b42!important;box-shadow:0 8px 20px #0003!important;
 }
-body.least-count-theme #game .lc-player-strip .player.lc-player-card .player-role{
-  color:#8fdedb!important;font-size:8px!important;letter-spacing:1px!important;
+#game #leastCountView .lc-section-heading{margin:0 0 5px!important}
+#game #leastCountView .lc-section-heading h3{font-size:17px!important}
+#game #leastCountView .lc-rules-button{padding:6px 9px!important;font-size:10px!important}
+#game #leastCountView .lc-table{gap:12px!important;padding:3px 0 6px!important}
+#game #leastCountView .lc-pile-wrap{flex:0 1 126px!important}
+#game #leastCountView button.lc-pile,#game #leastCountView .lc-open-pile{
+ height:104px!important;min-height:104px!important;padding:6px!important;gap:4px!important;border-radius:12px!important;
+ background:linear-gradient(145deg,#174c39,#0c3026)!important;border:2px solid #e4c27a!important;
 }
-body.least-count-theme #game .lc-player-strip .player.lc-player-card .profile-more{
-  right:2px!important;top:5px!important;color:#b9d5eb!important;
+#game #leastCountView .lc-deck-stack{font-size:38px!important}
+#game #leastCountView .lc-open-cards{min-height:62px!important;padding:1px!important}
+#game #leastCountView .lc-open-card{width:34px!important;height:50px!important}
+#game #leastCountView .lc-open-card .lc-card-center{font-size:19px!important}
+#game #leastCountView .lc-pile small{font-size:8px!important;letter-spacing:.6px!important}
+#game #leastCountView .lc-status{min-height:0!important;margin:5px 0 0!important;padding:7px 9px!important;font-size:11px!important;line-height:1.3!important}
+#game #leastCountView .lc-hand-head{margin-bottom:5px!important}
+#game #leastCountView .lc-hand-head h3{font-size:16px!important}
+#game #leastCountView .lc-hand-head>strong{padding:5px 8px!important;font-size:9px!important}
+#game #leastCountView .lc-hand{min-height:0!important;padding:7px 1px 5px!important;gap:5px!important}
+#game #leastCountView .lc-hand .lc-card{width:clamp(38px,10.5vw,50px)!important;height:clamp(57px,15.5vw,74px)!important}
+#game #leastCountView .lc-action-buttons{gap:7px!important;margin:5px 0!important}
+#game #leastCountView .lc-action-buttons button{min-width:0!important;padding:9px 13px!important;font-size:11px!important}
+#game #leastCountView .lc-skip-pick-button{
+ background:linear-gradient(180deg,#fff0bd,#d9b35e)!important;color:#35270e!important;
+ border:1px solid #ffe8a0!important;box-shadow:0 3px 0 #80602b!important;font-weight:900!important;
 }
-body.least-count-theme #game .lc-player-strip .player.lc-player-card .lc-profile-stats{
-  display:flex;align-items:center;justify-content:space-between;gap:5px;
-  padding-top:7px;border-top:1px solid #91b8d322;
-}
-body.least-count-theme #game .lc-player-strip .player.lc-player-card .profile-score{
-  color:#b9cde0!important;font-size:9px!important;line-height:1.25!important;
-  letter-spacing:.35px;
-}
-body.least-count-theme #game .lc-player-strip .player.lc-player-card .profile-score strong{
-  color:#f4f8ff;font-size:13px;margin-left:3px;
-}
-body.least-count-theme #game .lc-player-strip .player.lc-player-card .player-turn-badge{
-  align-self:flex-start;margin-top:7px;padding:4px 8px;border-radius:99px;
-  background:linear-gradient(180deg,#a6fff0,#42c9c0)!important;color:#06343b!important;
-  font-size:8px!important;font-weight:1000;letter-spacing:.55px;
-  box-shadow:0 0 12px #4ce2d455;
-}
-body.least-count-theme #game .lc-player-strip .player.lc-player-card.active.turn-owner{
-  border:2px solid #66e4dc!important;
-  background:linear-gradient(145deg,#254b5a,#1b3047)!important;
-  box-shadow:0 0 0 3px #52d9d044,0 0 22px #42d9d077!important;
-  transform:translateY(-2px);animation:lcProfilePulse 1.8s ease-in-out infinite;z-index:1;
-}
-@keyframes lcProfilePulse{0%,100%{box-shadow:0 0 0 3px #52d9d033,0 0 13px #42d9d044}50%{box-shadow:0 0 0 4px #52d9d066,0 0 23px #42d9d099}}
-body.least-count-theme #game .lc-player-strip .player.lc-player-card.eliminated-player{
-  opacity:.5;filter:saturate(.45);
-}
-body.least-count-theme #game .lc-player-strip .turn-pill{
-  border-color:#477b91!important;background:#172c43!important;color:#b8d7e8!important;
-}
-body.least-count-theme #game .lc-player-strip .turn-pill.own-turn{
-  border-color:#64e1d9!important;background:linear-gradient(120deg,#176d70,#164b60)!important;
-  color:#eaffff!important;text-shadow:none!important;animation:lcTurnPulse 1.4s ease-in-out infinite;
-}
-@keyframes lcTurnPulse{0%,100%{box-shadow:0 0 0 0 #51e0d933}50%{box-shadow:0 0 0 5px #51e0d922}}
-body.least-count-theme #game #leastCountView .lc-table-panel,
-body.least-count-theme #game #leastCountView .lc-hand-panel,
-body.least-count-theme #game #leastCountView .lc-results{
-  border:1px solid #3d5876!important;border-radius:20px!important;
-  background:linear-gradient(150deg,#1b2b43,#101b2e)!important;
-  box-shadow:0 12px 28px #02081766,inset 0 1px #ffffff0a!important;
-}
-body.least-count-theme #game #leastCountView .lc-section-heading h3,
-body.least-count-theme #game #leastCountView .lc-hand-panel h3,
-body.least-count-theme #game #leastCountView .lc-result-head h3{color:#edf5ff!important}
-body.least-count-theme #game #leastCountView .lc-rules-button{
-  background:linear-gradient(145deg,#284762,#1b3149)!important;color:#c8f4f0!important;
-  border:1px solid #58bdb9!important;box-shadow:0 3px 0 #102033!important;
-}
-body.least-count-theme #game #leastCountView .lc-status{
-  border:1px solid #3d8290!important;border-left:4px solid #58d6cb!important;
-  background:linear-gradient(100deg,#132d42,#172c40)!important;color:#e1f8f7!important;
-}
-body.least-count-theme #game #leastCountView .lc-pile{
-  border:2px solid #5ccbc5!important;background:linear-gradient(145deg,#25445e,#142a42)!important;
-  color:#e5f8ff!important;box-shadow:0 8px 20px #02081777,inset 0 0 0 3px #70e5dc12!important;
-}
-body.least-count-theme #game #leastCountView .lc-pile small{color:#a9d4dd!important}
-body.least-count-theme #game #leastCountView .lc-pile strong{color:#d9f2f5!important}
-body.least-count-theme #game #leastCountView .lc-deck-stack{
-  color:#7de2d9!important;text-shadow:4px 4px #365d9a,-4px -3px #63a8c5!important;
-}
-body.least-count-theme #game #leastCountView .lc-deck.ready{
-  outline:3px solid #77e8df!important;box-shadow:0 0 0 6px #68e5db22,0 0 25px #68e5db66!important;
-}
-body.least-count-theme #game #leastCountView .lc-card.selected{
-  border:2px solid #4ddbd0!important;box-shadow:0 0 0 3px #4ddbd044,0 8px 16px #0008!important;
-}
-body.least-count-theme #game #leastCountView .lc-card.match-drop-ready{
-  outline:3px solid #b7f36b!important;outline-offset:3px;box-shadow:0 0 0 5px #b7f36b33,0 0 20px #b7f36b88!important;
-}
-body.least-count-theme #game #leastCountView .lc-hand-head>strong{
-  color:#ffd4dc!important;background:#713d55!important;
-}
-body.least-count-theme #game #leastCountView .lc-action-hint,
-body.least-count-theme #game #leastCountView .lc-empty-hand{color:#b8cde0!important}
-body.least-count-theme #game #leastCountView .lc-show-button{
-  background:linear-gradient(180deg,#ff91a4,#e65f7c)!important;border-color:#ffb5c0!important;
-  box-shadow:0 4px 0 #87364e!important;color:#fff!important;
-}
-body.least-count-theme #game #leastCountView .lc-result-row{
-  background:linear-gradient(120deg,#243c56,#1a2d44)!important;color:#cfe0ef!important;
-}
-body.least-count-theme #game #leastCountView .lc-result-row strong,
-body.least-count-theme #game #leastCountView .lc-result-row b{color:#9af0e6!important}
-body.least-count-theme #gameInfoToast{
-  border:1px solid #67e1d8!important;background:linear-gradient(145deg,#1b5364,#14283f)!important;
-  color:#efffff!important;box-shadow:0 8px 28px #020817aa!important;
-}
+#game #leastCountView .lc-action-hint{margin:4px 0 0!important;font-size:10px!important;line-height:1.3!important}
 @media(max-width:450px){
- body.least-count-theme #game .lc-player-strip .players{grid-template-columns:repeat(2,minmax(0,1fr))!important}
- body.least-count-theme #game .lc-player-strip .player.lc-player-card{min-height:108px;padding:9px 8px 8px!important}
- body.least-count-theme #game .lc-player-strip .player.lc-player-card .player-avatar{width:35px!important;height:35px!important;flex-basis:35px!important;font-size:19px!important}
- body.least-count-theme #game .lc-player-strip .player.lc-player-card .player-name-wrap b{font-size:11px!important}
-}
-@media(prefers-reduced-motion:reduce){
- body.least-count-theme #game .lc-player-strip .player.lc-player-card.active.turn-owner,
- body.least-count-theme #game .lc-player-strip .turn-pill.own-turn{animation:none}
+ #game .player-strip.lc-player-strip .players{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:4px!important}
+ #game .player-strip.lc-player-strip .player.lc-player-card{padding:5px 2px!important}
+ #game .player-strip.lc-player-strip .player.lc-player-card .player-name-wrap b{font-size:8px!important}
+ #game #leastCountView .lc-pile-wrap{flex:0 1 43%!important}
+ #game #leastCountView button.lc-pile,#game #leastCountView .lc-open-pile{height:96px!important;min-height:96px!important}
 }
 
 </style>
@@ -1806,6 +1734,7 @@ body.least-count-theme #gameInfoToast{
   </div>
   <div id="lcHand" class="cards lc-hand" aria-label="Your cards"></div>
   <div class="actions hand-actions lc-action-buttons">
+   <button type="button" id="lcSkipPickBtn" class="lc-skip-pick-button hidden" onclick="lcMatchDropSelected()">SKIP PICK</button>
    <button type="button" id="lcShowBtn" class="lc-show-button hidden" onclick="lcCallShow()">SHOW</button>
   </div>
   <p id="lcActionHint" class="lc-action-hint">Select one card or a same-rank set, then tap the deck to drop and draw.</p>
