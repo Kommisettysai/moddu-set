@@ -315,26 +315,39 @@ function lcRender() {
     open.innerHTML = cards.length ? cards.map((card, index) => {
       const isTop = index === cards.length - 1;
       const isMatchSkip = matchReady && isTop;
-      const canTap = ownTurn && (phase === "pick" || isMatchSkip || (hasSelection && !matchReady));
+      // During DROP, the open pile is a valid pick source after a card/set is selected.
+      // When Match & Drop applies, only the top matching card remains tappable and skips the pick.
+      const canTap = ownTurn && (phase === "pick" || (hasSelection && (!matchReady || isTop)));
       const openActionClass = phase === "drop"
         ? (isMatchSkip ? " match-drop-ready" : canTap ? " drop-pick-ready" : " match-drop-disabled")
         : "";
       return lcCardMarkup(card, false, canTap, "lc-open-card" + openActionClass);
     }).join("") : '<span class="lc-empty-pile">No open cards</span>';
-    open.querySelectorAll("button[data-lc-open-id]").forEach(cardButton => {
-      cardButton.addEventListener("click", event => {
-        event.preventDefault();
-        event.stopPropagation();
-        if (onlinePublic?.turnUid !== roomPlayerId) return;
-        const cardId = cardButton.dataset.lcOpenId;
-        if (onlinePublic?.phase === "pick") lcPickOpen(cardId);
-        else if (onlinePublic?.phase === "drop") {
-          if (lcCanMatchDrop(onlinePublic)) lcMatchDropSelected();
-          else lcDropAndPickOpen(cardId);
-        }
-      }, { passive: false });
-    });
 
+    // Delegate the click from the pile container so taps on the card face/suit/value
+    // all reach the same action, even after the open pile is re-rendered.
+    open.onclick = event => {
+      const cardButton = event.target.closest("button[data-lc-open-id]");
+      if (!cardButton || !open.contains(cardButton)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (!onlinePublic || onlinePublic.turnUid !== roomPlayerId || lcActionPending) return;
+      const cardId = cardButton.dataset.lcOpenId;
+      if (onlinePublic.phase === "pick") {
+        lcPickOpen(cardId);
+        return;
+      }
+      if (onlinePublic.phase !== "drop") return;
+      if (!lcSelectedIds.size) {
+        lcShowToast("Select a card first, then tap an open card to drop and pick it.");
+        return;
+      }
+      if (lcCanMatchDrop(onlinePublic)) {
+        lcMatchDropSelected();
+        return;
+      }
+      lcDropAndPickOpen(cardId);
+    };
   }
   const newDrop = document.getElementById("lcNewDrop");
   if (newDrop) {
