@@ -2638,6 +2638,76 @@ body:has(#game:not(.hidden)) main{
 }
 #roundResults.round-results.lc-results-screen.hidden{display:none!important}
 
+
+/* Game picker alignment: close control and card suits */
+#gameTypePickerModal .lobby-modal-card.game-picker-modal-card{
+ position:relative!important;
+ padding:22px 17px 17px!important;
+}
+#gameTypePickerModal .lobby-modal-head{
+ position:relative!important;
+ display:block!important;
+ padding-right:48px!important;
+ min-height:48px!important;
+}
+#gameTypePickerModal .lobby-modal-head>button{
+ position:absolute!important;
+ top:0!important;
+ right:0!important;
+ display:grid!important;
+ place-items:center!important;
+ width:36px!important;
+ height:36px!important;
+ min-width:36px!important;
+ margin:0!important;
+ padding:0 0 2px!important;
+ box-sizing:border-box!important;
+ border:1px solid #d8bd7b99!important;
+ border-radius:50%!important;
+ background:linear-gradient(145deg,#123c30,#08291f)!important;
+ color:#f8e8c7!important;
+ font-family:Arial,sans-serif!important;
+ font-size:25px!important;
+ font-weight:400!important;
+ line-height:1!important;
+ text-align:center!important;
+ box-shadow:0 2px 7px #0005,inset 0 1px #ffffff18!important;
+ transform:none!important;
+}
+#gameTypePickerModal .game-picker-art.game-picker-suits{
+ display:grid!important;
+ grid-template-columns:1fr 1fr!important;
+ place-items:center!important;
+ gap:0!important;
+ overflow:hidden!important;
+}
+#gameTypePickerModal .game-picker-suits>span{
+ display:flex!important;
+ align-items:center!important;
+ justify-content:center!important;
+ width:100%!important;
+ height:100%!important;
+ font-family:Georgia,serif!important;
+ font-size:29px!important;
+ font-weight:700!important;
+ line-height:1!important;
+ font-variant-emoji:text!important;
+}
+#gameTypePickerModal .game-picker-suits .game-picker-spade{
+ color:#d8d5df!important;
+ transform:translateY(1px)!important;
+}
+#gameTypePickerModal .game-picker-suits .game-picker-heart{
+ color:#f04450!important;
+ transform:translateY(1px)!important;
+}
+@media(max-width:390px){
+ #gameTypePickerModal .lobby-modal-card.game-picker-modal-card{padding:19px 13px 15px!important}
+ #gameTypePickerModal .lobby-modal-head{padding-right:44px!important}
+ #gameTypePickerModal .lobby-modal-head>button{width:34px!important;height:34px!important;min-width:34px!important}
+ #gameTypePickerModal .game-picker-suits>span{font-size:26px!important}
+}
+
 </style>
 </head>
 
@@ -2792,7 +2862,7 @@ body:has(#game:not(.hidden)) main{
   <p class="game-picker-subtitle">Select the game you want to play.</p>
   <div class="game-picker-options">
    <button type="button" class="game-picker-option selected" data-game-choice="modduSet" onclick="selectGameTypeOption('modduSet')"><span class="game-picker-art">🃏</span><span><strong>Moddu Set</strong><small>Form sets and clear your hand.</small></span><span class="game-picker-radio"></span></button>
-   <button type="button" class="game-picker-option" data-game-choice="leastCount" onclick="selectGameTypeOption('leastCount')"><span class="game-picker-art">♠️♥️</span><span><strong>Least Count</strong><small>Lowest hand wins the round.</small></span><span class="game-picker-radio"></span></button>
+   <button type="button" class="game-picker-option" data-game-choice="leastCount" onclick="selectGameTypeOption('leastCount')"><span class="game-picker-art game-picker-suits" aria-label="Spade and heart"><span class="game-picker-spade">♠</span><span class="game-picker-heart">♥</span></span><span><strong>Least Count</strong><small>Lowest hand wins the round.</small></span><span class="game-picker-radio"></span></button>
   </div>
   <button type="button" class="lobby-primary modal-done-button" onclick="confirmGameTypePicker()">Continue</button>
  </div>
