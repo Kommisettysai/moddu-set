@@ -125,24 +125,6 @@ async function startLeastCountRoom() {
     setLobbyNotice("Could not start Least Count: " + e.message);
   }
 }
-function lcBindGameControls() {
-  const hand = document.getElementById("lcHand");
-  if (hand && hand.dataset.lcBound !== "1") {
-    hand.dataset.lcBound = "1";
-    hand.addEventListener("click", event => {
-      const card = event.target.closest("[data-lc-card-id]");
-      if (card && hand.contains(card)) lcToggleCard(card.dataset.lcCardId);
-    });
-  }
-  const open = document.getElementById("lcOpenCards");
-  if (open && open.dataset.lcBound !== "1") {
-    open.dataset.lcBound = "1";
-    open.addEventListener("click", event => {
-      const card = event.target.closest("[data-lc-open-id]");
-      if (card && open.contains(card) && onlinePublic?.turnUid === roomPlayerId && onlinePublic?.phase === "pick") lcPickOpen(card.dataset.lcOpenId);
-    });
-  }
-}
 function enterLeastCountGame(state) {
   if (!roomRef || !roomPlayerId) return;
   activeGameType = "leastCount";
@@ -150,7 +132,6 @@ function enterLeastCountGame(state) {
   onlinePublic = state;
   lcSelectedIds = new Set();
   lcHand = [];
-  lcBindGameControls();
   document.getElementById("setup")?.classList.add("hidden");
   document.getElementById("waitingRoom")?.classList.add("hidden");
   document.getElementById("game")?.classList.remove("hidden");
@@ -250,6 +231,13 @@ function lcRender() {
   if (open) {
     const cards = Array.isArray(state.openCards) ? state.openCards : [];
     open.innerHTML = cards.length ? cards.map(card => lcCardMarkup(card, false, ownTurn && phase === "pick", "lc-open-card")).join("") : '<span class="lc-empty-pile">No open cards</span>';
+    open.querySelectorAll("button[data-lc-open-id]").forEach(cardButton => {
+      cardButton.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (onlinePublic?.turnUid === roomPlayerId && onlinePublic?.phase === "pick") lcPickOpen(cardButton.dataset.lcOpenId);
+      }, { passive: false });
+    });
 
   }
   const newDrop = document.getElementById("lcNewDrop");
@@ -261,11 +249,20 @@ function lcRender() {
   const hand = document.getElementById("lcHand");
   if (hand) {
     hand.innerHTML = lcHand.length ? lcHand.map(card => lcCardMarkup(card, lcSelectedIds.has(card.id), ownTurn && phase === "drop", "")).join("") : '<p class="lc-empty-hand">Your cards will appear here.</p>';
+    // Bind directly to each freshly rendered card. This avoids delegated mobile tap
+    // events being lost when Firebase updates replace the hand's child elements.
+    hand.querySelectorAll("button[data-lc-card-id]").forEach(cardButton => {
+      cardButton.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        lcToggleCard(cardButton.dataset.lcCardId);
+      }, { passive: false });
+    });
   }
   const handCount = document.getElementById("lcHandCount");
   if (handCount) handCount.textContent = String(lcHand.length);
   const total = document.getElementById("lcHandTotal");
-  if (total) total.textContent = lcTotal(lcHand) + " points";
+  if (total) total.textContent = "In hand: " + lcTotal(lcHand) + " pts";
   const dropBtn = document.getElementById("lcDropBtn");
   if (dropBtn) { dropBtn.classList.toggle("hidden", !ownTurn || phase !== "drop"); dropBtn.disabled = lcActionPending || lcSelectedIds.size === 0; }
   const deckBtn = document.getElementById("lcDeckBtn");
@@ -273,7 +270,7 @@ function lcRender() {
   const showBtn = document.getElementById("lcShowBtn");
   if (showBtn) { showBtn.disabled = lcActionPending || !ownTurn || phase !== "drop"; showBtn.classList.toggle("hidden", !ownTurn || phase !== "drop"); }
   const actionHint = document.getElementById("lcActionHint");
-  if (actionHint) actionHint.textContent = !ownTurn ? ((state.players || []).find(p => p.id === state.turnUid)?.isBot ? "Bot is thinking and playing automatically…" : "Wait for your turn.") : phase === "drop" ? (lcSelectedIds.size ? lcSelectedIds.size + " card(s) selected. Tap DROP SELECTED to continue." : "Tap a card to select it. Select cards of the same rank, then drop.") : "Pick one of the previous player's dropped cards, or draw from the deck.";
+  if (actionHint) actionHint.textContent = !ownTurn ? ((state.players || []).find(p => p.id === state.turnUid)?.isBot ? "Bot is playing…" : "Wait for your turn.") : phase === "drop" ? (lcSelectedIds.size ? lcSelectedIds.size + " selected · tap DROP SELECTED." : "Tap a card to select it. Cards of different ranks cannot be dropped together.") : "Pick one card from the discard pile or draw from the deck.";
   const results = document.getElementById("lcResults");
   if (results) results.classList.toggle("hidden", state.status === "playing");
   const nextBtn = document.getElementById("lcNextRoundBtn");
