@@ -1574,6 +1574,59 @@ body:has(#roundResults:not(.hidden))>header,
 #roundResults.lc-results-screen .lc-results-footer #lcResultsRestartBtn{background:linear-gradient(145deg,#174c39,#0c3026);color:#f5d99d;border:1px solid #e4c27a}
 #roundResults.lc-results-screen .lc-results-waiting{margin:3px 0 0;text-align:center;color:#e5d3a5;font-size:12px}
 
+
+/* Compact private-table lobby and branded pickers */
+#waitingRoom.inline-private-table{padding:14px 12px 12px}
+#waitingRoom .lobby-wait-head{padding:3px 4px 12px}
+#waitingRoom .lobby-wait-head h2{font-size:25px;margin:5px 0}
+#waitingRoom .room-code-display{margin:10px auto 0;min-height:52px}
+#waitingRoom .private-table-card{padding:11px 9px 10px}
+#waitingRoom .private-table-card>.lobby-section-title{margin:2px 3px 9px}
+#waitingRoom #roomPlayerHint{margin:7px 3px 9px}
+#waitingRoom #modduRoomSettings,#waitingRoom #leastCountRoomSettings{margin:0}
+#waitingRoom .room-settings-summary{width:100%;display:flex;align-items:center;gap:11px;text-align:left;margin:11px 0 2px;padding:12px 13px;border:1px solid #d8bd7b77;border-radius:14px;background:linear-gradient(145deg,#124633,#092d22);color:#f7e4b7}
+#waitingRoom .settings-summary-icon{font-size:20px}
+#waitingRoom .settings-summary-copy{display:flex;flex:1;flex-direction:column;gap:3px;min-width:0}
+#waitingRoom .settings-summary-copy strong{font-size:14px;color:#ffe2a0}
+#waitingRoom .settings-summary-copy small{font-size:10px;color:#c4d8cb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#waitingRoom .settings-summary-chevron{font-size:25px;color:#f2d58c;line-height:1}
+#waitingRoom .room-actions-row{margin:11px 0 8px}
+#waitingRoom #startRoomBtn{margin-top:2px}
+.game-type-select-native{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;clip-path:inset(50%)!important}
+.game-type-picker-button{width:100%;display:flex;align-items:center;justify-content:space-between;text-align:left;padding:12px 15px;margin:4px 0 7px;border-radius:13px;border:1px solid #dfc37d;background:#082b21;color:#f8e5bd;min-height:58px}
+.game-type-picker-button>span:first-child{display:flex;flex-direction:column;gap:3px}
+.game-type-picker-button small{font-size:9px;letter-spacing:1.5px;color:#b9cbbb}
+.game-type-picker-button strong{font-size:16px;color:#ffe2a0}
+.game-type-picker-button .picker-chevron{font-size:22px;color:#e6c778}
+body.modal-open{overflow:hidden;touch-action:none}
+.lobby-modal-backdrop{position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;padding:18px;background:#00150fbd;backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+.lobby-modal-backdrop.hidden{display:none!important}
+.lobby-modal-card{width:min(100%,470px);max-height:min(86dvh,720px);overflow:auto;padding:19px 17px 17px;border:1px solid #c9ae6eaa;border-radius:23px;background:radial-gradient(ellipse at 50% 0,#19543f,#0a3024 75%);box-shadow:0 22px 65px #0009,inset 0 0 0 3px #f0d78a12;color:#f5e6c5}
+.lobby-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.lobby-modal-head>div>small{font-size:9px;letter-spacing:2.4px;color:#e3c67f}
+.lobby-modal-head h2{margin:4px 0 0;font:700 23px Georgia,serif;color:#ffe4a6}
+.lobby-modal-head>button{width:34px;height:34px;border-radius:50%;border:1px solid #d8bd7b66;background:#0a2a20;color:#f6e4bf;font-size:25px;line-height:1}
+.game-picker-subtitle{margin:8px 0 15px;text-align:center;color:#c4d8cb;font-size:13px}
+.game-picker-options{display:grid;gap:10px}
+.game-picker-option{width:100%;display:grid;grid-template-columns:54px 1fr 22px;align-items:center;gap:12px;text-align:left;padding:13px;border:1px solid #b9a56b77;border-radius:16px;background:#0b3327;color:#f6e4c1}
+.game-picker-option.selected{border:2px solid #f2d16d;background:linear-gradient(120deg,#18543e,#0d382b);box-shadow:0 0 0 2px #f5d77c22,0 0 17px #eacb6540}
+.game-picker-art{width:48px;height:48px;display:grid;place-items:center;border-radius:13px;background:#1d6047;font-size:24px}
+.game-picker-option>span:nth-child(2){display:flex;flex-direction:column;gap:4px}
+.game-picker-option strong{font:700 16px Georgia,serif;color:#ffe5ad}
+.game-picker-option small{font:12px Georgia,serif;color:#bfd1c3}
+.game-picker-radio{width:19px;height:19px;border:2px solid #b8c8ba;border-radius:50%;position:relative}
+.game-picker-option.selected .game-picker-radio{border-color:#f6d267}
+.game-picker-option.selected .game-picker-radio:after{content:"";position:absolute;inset:4px;border-radius:50%;background:#f6d267}
+.modal-done-button{width:100%;margin-top:17px;min-height:49px;border-radius:13px}
+.room-settings-modal-card .room-settings-modal-body{margin-top:14px}
+.room-settings-modal-card .lobby-label{margin-top:12px}
+.room-settings-modal-card .lobby-input{min-height:48px}
+.room-settings-modal-card .lc-match-setting{margin-top:13px}
+.room-settings-modal-card #modduRoomSettings,.room-settings-modal-card #leastCountRoomSettings{display:block!important}
+.room-settings-modal-card #modduRoomSettings.hidden,.room-settings-modal-card #leastCountRoomSettings.hidden{display:none!important}
+.room-settings-modal-card .lobby-hint{margin-bottom:8px}
+@media(max-width:390px){.lobby-modal-card{padding:16px 13px}.game-picker-option{grid-template-columns:46px 1fr 20px;padding:11px}.game-picker-art{width:42px;height:42px}}
+
 </style>
 </head>
 
@@ -1648,7 +1701,10 @@ body:has(#roundResults:not(.hidden))>header,
   </div>
   <div id="roomActions" class="hidden">
    <div class="lobby-section-title">CHOOSE YOUR GAME</div>
-   <select id="gameTypeSelect" class="lobby-input game-type-select" aria-label="Choose game">
+   <button type="button" id="gameTypePickerButton" class="game-type-picker-button" onclick="openGameTypePicker()">
+    <span><small>SELECTED GAME</small><strong id="gameTypePickerLabel">Moddu Set</strong></span><span class="picker-chevron">⌄</span>
+   </button>
+   <select id="gameTypeSelect" class="game-type-select-native" aria-label="Choose game" tabindex="-1" aria-hidden="true">
     <option value="modduSet">Moddu Set</option>
     <option value="leastCount">Least Count</option>
    </select>
@@ -1675,31 +1731,41 @@ body:has(#roundResults:not(.hidden))>header,
   <div class="lobby-section-title">PLAYERS AT THE TABLE <span id="roomPlayerCount"></span></div>
   <div id="roomPlayers" class="room-players"></div>
   <p class="lobby-hint" id="roomPlayerHint">You can start when at least 2 players have joined. Maximum 6 players.</p>
-  <div id="modduRoomSettings">
-   <label class="lobby-label" for="roomScoreLimit">ELIMINATION SCORE LIMIT</label>
-   <select id="roomScoreLimit" class="lobby-input" onchange="updateRoomScoreLimit(this.value)">
-    <option value="100">100 points</option><option value="150">150 points</option><option value="200" selected>200 points</option><option value="250">250 points</option><option value="300">300 points</option>
-   </select>
-   <p class="lobby-hint" id="scoreLimitHint">Players are eliminated when their total score reaches this limit.</p>
-  </div>
-  <div id="leastCountRoomSettings" class="hidden">
-   <div class="lobby-label">LEAST COUNT SETTINGS</div>
-   <label class="lobby-label" for="lcCardsPerHandSetting">CARDS PER HAND</label>
-   <select id="lcCardsPerHandSetting" class="lobby-input" onchange="updateLeastCountSetting('cardsPerHand',this.value)">
-    <option value="5" selected>5 cards</option><option value="7">7 cards</option>
-   </select>
-   <label class="lobby-label" for="lcScoreLimitSetting">PLAY TO</label>
-   <select id="lcScoreLimitSetting" class="lobby-input" onchange="updateLeastCountSetting('scoreLimit',this.value)">
-    <option value="100">100 points</option><option value="150">150 points</option><option value="200" selected>200 points</option><option value="250">250 points</option><option value="300">300 points</option>
-   </select>
-   <label class="lobby-label" for="lcBadShowSetting">BAD SHOW COST</label>
-   <select id="lcBadShowSetting" class="lobby-input" onchange="updateLeastCountSetting('badShowCost',this.value)">
-    <option value="20">20 points</option><option value="40" selected>40 points</option><option value="60">60 points</option><option value="80">80 points</option>
-   </select>
-   <label class="lc-match-setting"><input id="lcMatchDropSetting" type="checkbox" onchange="updateLeastCountSetting('matchDrop',this.checked)"> <span><strong>Match &amp; Drop</strong><small>Match the open card's rank to skip your pick.</small></span></label>
-   <p class="lobby-hint">Up to 8 players, including bots.</p>
-  </div>
-  <div class="actions room-actions-row">
+  <button type="button" class="room-settings-summary" id="roomSettingsOpenBtn" onclick="openRoomSettings()">
+   <span class="settings-summary-icon">⚙</span><span class="settings-summary-copy"><strong>Game settings</strong><small id="roomSettingsSummaryText">200 points · Standard rules</small></span><span class="settings-summary-chevron">›</span>
+  </button>
+  <div class="lobby-modal-backdrop hidden" id="roomSettingsModal" onclick="if(event.target===this)closeRoomSettings()">
+   <div class="lobby-modal-card room-settings-modal-card" role="dialog" aria-modal="true" aria-labelledby="roomSettingsModalTitle">
+    <div class="lobby-modal-head"><div><small>TABLE OPTIONS</small><h2 id="roomSettingsModalTitle">Game settings</h2></div><button type="button" aria-label="Close settings" onclick="closeRoomSettings()">×</button></div>
+    <div class="room-settings-modal-body">
+     <div id="modduRoomSettings">
+        <label class="lobby-label" for="roomScoreLimit">ELIMINATION SCORE LIMIT</label>
+        <select id="roomScoreLimit" class="lobby-input" onchange="updateRoomScoreLimit(this.value)">
+         <option value="100">100 points</option><option value="150">150 points</option><option value="200" selected>200 points</option><option value="250">250 points</option><option value="300">300 points</option>
+        </select>
+        <p class="lobby-hint" id="scoreLimitHint">Players are eliminated when their total score reaches this limit.</p>
+       </div>
+       <div id="leastCountRoomSettings" class="hidden">
+        <div class="lobby-label">LEAST COUNT SETTINGS</div>
+        <label class="lobby-label" for="lcCardsPerHandSetting">CARDS PER HAND</label>
+        <select id="lcCardsPerHandSetting" class="lobby-input" onchange="updateLeastCountSetting('cardsPerHand',this.value)">
+         <option value="5" selected>5 cards</option><option value="7">7 cards</option>
+        </select>
+        <label class="lobby-label" for="lcScoreLimitSetting">PLAY TO</label>
+        <select id="lcScoreLimitSetting" class="lobby-input" onchange="updateLeastCountSetting('scoreLimit',this.value)">
+         <option value="100">100 points</option><option value="150">150 points</option><option value="200" selected>200 points</option><option value="250">250 points</option><option value="300">300 points</option>
+        </select>
+        <label class="lobby-label" for="lcBadShowSetting">BAD SHOW COST</label>
+        <select id="lcBadShowSetting" class="lobby-input" onchange="updateLeastCountSetting('badShowCost',this.value)">
+         <option value="20">20 points</option><option value="40" selected>40 points</option><option value="60">60 points</option><option value="80">80 points</option>
+        </select>
+        <label class="lc-match-setting"><input id="lcMatchDropSetting" type="checkbox" onchange="updateLeastCountSetting('matchDrop',this.checked)"> <span><strong>Match &amp; Drop</strong><small>Match the open card's rank to skip your pick.</small></span></label>
+        <p class="lobby-hint">Up to 8 players, including bots.</p>
+       </div>
+    </div>
+    <button type="button" class="lobby-primary modal-done-button" onclick="closeRoomSettings()">Done</button>
+   </div>
+  </div>  <div class="actions room-actions-row">
    <button class="lobby-secondary" id="addBotBtn" onclick="addBotToRoom()">＋ Add bot</button>
    <button class="lobby-secondary" onclick="shareRoomInvite()">Invite friends</button>
   </div>
@@ -1708,6 +1774,19 @@ body:has(#roundResults:not(.hidden))>header,
   <button class="lobby-text-button" onclick="leaveRoom()">Leave table</button>
  </div>
 </div>
+  
+<div class="lobby-modal-backdrop hidden" id="gameTypePickerModal" onclick="if(event.target===this)closeGameTypePicker()">
+ <div class="lobby-modal-card game-picker-modal-card" role="dialog" aria-modal="true" aria-labelledby="gamePickerTitle">
+  <div class="lobby-modal-head"><div><small>SAI CARD GAMES</small><h2 id="gamePickerTitle">Choose your game</h2></div><button type="button" aria-label="Close game picker" onclick="closeGameTypePicker()">×</button></div>
+  <p class="game-picker-subtitle">Select the game you want to play.</p>
+  <div class="game-picker-options">
+   <button type="button" class="game-picker-option selected" data-game-choice="modduSet" onclick="selectGameTypeOption('modduSet')"><span class="game-picker-art">🃏</span><span><strong>Moddu Set</strong><small>Form sets and clear your hand.</small></span><span class="game-picker-radio"></span></button>
+   <button type="button" class="game-picker-option" data-game-choice="leastCount" onclick="selectGameTypeOption('leastCount')"><span class="game-picker-art">♠️♥️</span><span><strong>Least Count</strong><small>Lowest hand wins the round.</small></span><span class="game-picker-radio"></span></button>
+  </div>
+  <button type="button" class="lobby-primary modal-done-button" onclick="confirmGameTypePicker()">Continue</button>
+ </div>
+</div>
+
   <div id="lobbyNotice" class="lobby-notice">Create a table or join with a room code.</div>
  </div>
 </section>
@@ -2196,6 +2275,44 @@ async function declineFriendRequest(senderUid){
 function setLobbyNotice(t){const el=document.getElementById("lobbyNotice");if(el)el.textContent=t;}
 function lobbyName(){if(!authUser||!profileReady||!playerProfile){setLobbyNotice("Sign in with Google and choose your username first.");return "";}const v=playerProfile.displayName||authUser.displayName||playerProfile.username;document.getElementById("playerName").value=v;return v.slice(0,18);}
 function makeRoomCode(){return Math.random().toString(36).slice(2,8).toUpperCase();}
+
+let pendingGameTypeChoice="modduSet";
+function openGameTypePicker(){
+ const select=document.getElementById("gameTypeSelect");pendingGameTypeChoice=select?.value==="leastCount"?"leastCount":"modduSet";
+ const modal=document.getElementById("gameTypePickerModal");if(!modal)return;
+ document.querySelectorAll("[data-game-choice]").forEach(b=>b.classList.toggle("selected",b.dataset.gameChoice===pendingGameTypeChoice));
+ modal.classList.remove("hidden");document.body.classList.add("modal-open");
+}
+function closeGameTypePicker(){document.getElementById("gameTypePickerModal")?.classList.add("hidden");document.body.classList.remove("modal-open");}
+function selectGameTypeOption(type){
+ if(type!=="modduSet"&&type!=="leastCount")return;
+ pendingGameTypeChoice=type;
+ document.querySelectorAll("[data-game-choice]").forEach(b=>b.classList.toggle("selected",b.dataset.gameChoice===type));
+}
+function confirmGameTypePicker(){
+ const select=document.getElementById("gameTypeSelect");if(select){select.value=pendingGameTypeChoice;select.dispatchEvent(new Event("change",{bubbles:true}));}
+ const label=document.getElementById("gameTypePickerLabel");if(label)label.textContent=pendingGameTypeChoice==="leastCount"?"Least Count":"Moddu Set";
+ closeGameTypePicker();
+}
+function openRoomSettings(){
+ const modal=document.getElementById("roomSettingsModal");if(!modal)return;
+ const lc=document.getElementById("leastCountRoomSettings"),moddu=document.getElementById("modduRoomSettings");
+ if(lc&&moddu){const isLc=activeGameType==="leastCount";lc.classList.toggle("hidden",!isLc);moddu.classList.toggle("hidden",isLc);}
+ modal.classList.remove("hidden");document.body.classList.add("modal-open");
+}
+function closeRoomSettings(){
+ document.getElementById("roomSettingsModal")?.classList.add("hidden");document.body.classList.remove("modal-open");updateRoomSettingsSummary();
+}
+function updateRoomSettingsSummary(){
+ const el=document.getElementById("roomSettingsSummaryText");if(!el)return;
+ if(activeGameType==="leastCount"){
+  const cards=document.getElementById("lcCardsPerHandSetting")?.value||"5",score=document.getElementById("lcScoreLimitSetting")?.value||"200",bad=document.getElementById("lcBadShowSetting")?.value||"40",match=!!document.getElementById("lcMatchDropSetting")?.checked;
+  el.textContent=cards+" cards · Play to "+score+" · Bad show "+bad+" · Match & Drop "+(match?"On":"Off");
+ }else{
+  const score=document.getElementById("roomScoreLimit")?.value||"200";el.textContent="Elimination at "+score+" points";
+ }
+}
+
 function createRoom(){
  const name=lobbyName();if(!name)return;
  if(!firebaseReady){setLobbyNotice("Firebase is not connected yet. Add the Firebase web config first, then create your room.");return;}
@@ -3135,6 +3252,9 @@ function showWaitingRoom(){
   if(lcSettingsEl)lcSettingsEl.classList.toggle("hidden",activeGameType!=="leastCount");
   if(modduSettingsEl)modduSettingsEl.classList.toggle("hidden",activeGameType==="leastCount");
   const gameSelect=document.getElementById("gameTypeSelect");if(gameSelect){gameSelect.value=activeGameType;gameSelect.disabled=true;}
+  const gamePickerLabel=document.getElementById("gameTypePickerLabel");if(gamePickerLabel)gamePickerLabel.textContent=activeGameType==="leastCount"?"Least Count":"Moddu Set";
+  const gamePickerButton=document.getElementById("gameTypePickerButton");if(gamePickerButton)gamePickerButton.disabled=!!roomCode;
+  updateRoomSettingsSummary();
   const settings=lcRoomSettings(l);const cardsSetting=document.getElementById("lcCardsPerHandSetting"),scoreSetting=document.getElementById("lcScoreLimitSetting"),badShowSetting=document.getElementById("lcBadShowSetting"),matchSetting=document.getElementById("lcMatchDropSetting");
   if(cardsSetting){cardsSetting.value=String(settings.cardsPerHand);cardsSetting.disabled=!isRoomHost||l.status!=="waiting";}
   if(scoreSetting){scoreSetting.value=String(settings.scoreLimit);scoreSetting.disabled=!isRoomHost||l.status!=="waiting";}
