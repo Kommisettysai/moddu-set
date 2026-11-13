@@ -1298,6 +1298,71 @@ body:has(#roundResults:not(.hidden))>header,
 #gameInfoToast.show{opacity:1;transform:translate(-50%,0)}
 .player-card-count{position:absolute;left:-10px;top:2px;min-width:21px;height:21px;padding:0 5px;display:grid;place-items:center;border:1.5px solid #ffe6a1;border-radius:50%;background:#0b4638;color:#fff0b5;font:900 10px/1 system-ui,sans-serif;box-shadow:0 2px 6px #0008}
 
+
+/* Least Count: separate premium felt-table experience */
+.game-type-select{width:100%;margin:4px 0 8px;background:#08291f;color:#ffe6ad;border:1px solid #d9b66b88;border-radius:12px;padding:13px;font-size:15px}
+.lc-match-setting{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid #d9b66b55;border-radius:12px;background:#092a21;margin:10px 0;color:#f7dfaa}
+.lc-match-setting input{width:20px;height:20px;accent-color:#e9bd62}
+.lc-match-setting span{display:flex;flex-direction:column;gap:3px}
+.lc-match-setting small{color:#adc6b7;font-size:11px}
+.least-count-view{margin:0 0 14px}
+.lc-board{padding:clamp(14px,3vw,24px);border-radius:24px;border:1px solid #d8b76b77;background:radial-gradient(ellipse at 50% 0,#1b644c 0,#0c3b2d 48%,#06271e 100%);box-shadow:0 18px 38px #0005,inset 0 0 0 5px #d9b66b12;overflow:hidden}
+.lc-board-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-bottom:14px;border-bottom:1px solid #e5c77b35}
+.lc-board-head h2{margin:4px 0;color:#ffe2a0;font:700 clamp(23px,6vw,34px) Georgia,serif;letter-spacing:2px}
+.lc-board-head p{margin:0;color:#b7d0c2;font-size:12px}
+.lc-eyebrow{color:#d8bb7c;font-size:9px;font-weight:800;letter-spacing:1.7px}
+.lc-rules-button{background:#103c2e;color:#f6dca0;border:1px solid #d8b76b88;box-shadow:none;padding:10px 12px;font-size:11px}
+.lc-status{margin:14px 0;padding:12px 14px;border:1px solid #e3c27655;border-radius:12px;background:#041f18aa;color:#ffe2a0;text-align:center;font-size:13px;line-height:1.45;min-height:44px}
+.lc-table{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:center;padding:12px 0 18px}
+.lc-pile-wrap{display:flex;justify-content:center;min-width:0}
+.lc-pile{width:min(100%,180px);min-height:150px;border-radius:17px;border:2px solid #e3c47b;background:linear-gradient(145deg,#15533d,#082d22);box-shadow:0 8px 18px #0005,inset 0 0 0 4px #f4d28a12;color:#f8e1ac;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px}
+.lc-pile small{font-size:9px;letter-spacing:1px;color:#d8c79e}
+.lc-pile strong{font-size:11px;color:#c5d9ca}
+.lc-deck-stack{font-size:54px;line-height:1;color:#f5d58c;text-shadow:4px 4px #235b8a,-4px -3px #5a83ac}
+.lc-deck.ready{outline:3px solid #f7d46e;box-shadow:0 0 0 6px #f5d47c22,0 0 24px #f7d46e55}
+.lc-open-pile{cursor:default}
+.lc-open-cards{display:flex;justify-content:center;align-items:center;gap:4px;flex-wrap:wrap;min-height:92px;max-width:100%;padding:3px}
+.lc-card{position:relative;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start;width:49px;height:72px;min-width:0;padding:5px;border:1px solid #d8d2c5;border-radius:8px;background:linear-gradient(145deg,#fffdf6,#ece7da);color:#16251e;box-shadow:0 5px 10px #0006;font-family:Georgia,serif;cursor:pointer;transition:transform .15s,border-color .15s}
+.lc-card.red{color:#c32d3a}
+.lc-card.selected{transform:translateY(-12px);border:2px solid #ffda62;box-shadow:0 0 0 3px #f8d46d44,0 8px 15px #0007}
+.lc-card-corner{font-size:13px;font-weight:800;line-height:1}
+.lc-card-corner small{display:block;font-size:10px}
+.lc-card-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:27px}
+.lc-card-value{align-self:flex-end;font:700 10px Arial,sans-serif;color:#56675e}
+.lc-open-card{width:43px;height:63px;cursor:pointer}
+.lc-open-card .lc-card-center{font-size:23px}
+.lc-empty-pile{font-size:11px;color:#adc6b7}
+.lc-action-area{padding:12px 0;border-top:1px solid #e3c27635;border-bottom:1px solid #e3c27635;text-align:center}
+.lc-action-area p{font-size:12px;color:#d5e5d9;margin:0 0 10px}
+.lc-action-buttons{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+.lc-action-buttons button,.lc-next-button{min-width:145px}
+#lcDropBtn{background:linear-gradient(180deg,#ffe6a9,#d5a94e)}
+.lc-show-button{background:linear-gradient(180deg,#ff8b8b,#e84e63);color:#fff;border-color:#ffb1a8;box-shadow:0 4px 0 #9b3443}
+.lc-hand-panel{padding:15px 0 4px}
+.lc-hand-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px}
+.lc-hand-head h3{margin:4px 0;color:#fff0c7;font:700 19px Georgia,serif}
+.lc-hand-head>strong{color:#ffdf91;background:#6e382c;border-radius:99px;padding:7px 11px;font-size:11px}
+.lc-hand{display:flex;justify-content:center;align-items:flex-end;gap:clamp(3px,1.5vw,9px);min-height:110px;padding:12px 2px 7px;flex-wrap:wrap}
+.lc-hand .lc-card{width:clamp(39px,11vw,59px);height:clamp(61px,17vw,89px)}
+.lc-results{margin-top:18px;padding:15px;border:1px solid #e3c27666;border-radius:15px;background:#061f18b8}
+.lc-result-head h3{margin:5px 0;color:#ffe2a0;font:700 21px Georgia,serif}
+.lc-result-head p{font-size:12px;color:#c3d7c9}
+.lc-result-rows{display:grid;gap:7px}
+.lc-result-row{display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center;padding:9px;border-radius:9px;background:#164433;font-size:10px;color:#d8e8dd}
+.lc-result-row strong{color:#ffe5ac;font-size:12px}
+.lc-result-row b{color:#ffe5ac}
+.lc-next-button{margin-top:14px;width:100%}
+.lc-empty-hand{color:#b5cbbd;font-size:12px}
+.lc-rules-card{max-width:560px}
+@media(max-width:420px){
+ .lc-board{padding:12px;border-radius:18px}
+ .lc-pile{min-height:128px}
+ .lc-card{width:42px;height:63px}
+ .lc-open-card{width:36px;height:54px}
+ .lc-result-row{grid-template-columns:1fr auto;row-gap:4px}
+ .lc-result-row b{grid-column:2}
+}
+
 </style>
 </head>
 
@@ -3974,6 +4039,7 @@ function leaveRoom(showLobby=true){
  document.getElementById("game").classList.add("hidden");document.getElementById("waitingRoom")?.classList.add("hidden");const createBtn=document.getElementById("createTableBtn"),joinControls=document.getElementById("roomJoinControls");if(createBtn){createBtn.disabled=false;createBtn.textContent="＋ Create a private table";}if(joinControls)joinControls.classList.remove("hidden");if(showLobby)document.getElementById("setup").classList.remove("hidden");
 }
 </script>
+<script src="./least-count.js"></script>
 
 </body>
   </html>
