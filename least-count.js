@@ -417,49 +417,43 @@ function lcRenderRoundResults(state) {
   if (title) title.textContent = state.status === "gameComplete" ? "Game Complete" : "Round Results";
   if (summary) summary.textContent = state.resultMessage || state.message || "All players' hands are revealed.";
   const showCallout = document.getElementById("lcShowCallout");
-  if (showCallout) {
-    const caller = (state.players || []).find(p => p.id === state.showUid);
-    const isBadShow = state.showOutcome === "bad";
-    const isSuccessfulShow = state.showOutcome === "successful";
-    showCallout.classList.toggle("hidden", !caller || (!isBadShow && !isSuccessfulShow));
-    showCallout.classList.toggle("good-show", isSuccessfulShow);
-    if (caller && (isBadShow || isSuccessfulShow)) {
-      showCallout.innerHTML = isBadShow
-        ? '<strong>⚠ BAD SHOW</strong><span>' + escapeLobbyText(caller.name) + ' called SHOW and receives +' + (Number(state.badShowCost) || 0) + ' penalty points</span>'
-        : '<strong>✦ SUCCESSFUL SHOW</strong><span>' + escapeLobbyText(caller.name) + ' called SHOW and had the unique lowest hand</span>';
-    } else showCallout.textContent = "";
-  }
   const rows = Array.isArray(state.results) ? state.results.slice() : [];
   rows.sort((a, b) => (Number(a.total) || 0) - (Number(b.total) || 0) || (Number(a.points) || 0) - (Number(b.points) || 0));
+  const caller = (state.players || []).find(p => p.id === state.showUid);
+  const isBadShow = state.showOutcome === "bad";
+  const isSuccessfulShow = state.showOutcome === "successful";
+  if (showCallout) {
+    showCallout.className = "lc-show-callout " + (caller && (isBadShow || isSuccessfulShow) ? (isBadShow ? "is-bad" : "is-good") : "hidden");
+    showCallout.innerHTML = caller && (isBadShow || isSuccessfulShow)
+      ? '<span class="lc-callout-icon" aria-hidden="true">' + (isBadShow ? '⚠' : '✦') + '</span><strong>' + (isBadShow ? 'BAD SHOW' : 'SUCCESSFUL SHOW') + '</strong><span class="lc-callout-divider"></span><span class="lc-callout-copy">' + escapeLobbyText(caller.name) + (isBadShow ? ' called a SHOW with ' + ((rows.find(r => r.uid === state.showUid)?.total) || 0) + ' points and received a <b>' + (Number(state.badShowCost) || 0) + '-point penalty.</b>' : ' called SHOW and had the unique lowest hand.') + '</span>'
+      : "";
+  }
   const profiles = document.getElementById("resultsProfiles");
   const hands = document.getElementById("resultsHands");
-  if (profiles) {
-    profiles.innerHTML = rows.map((r, index) => {
-      const player = (state.players || []).find(p => p.id === r.uid) || { id: r.uid, name: r.name, isBot: false };
-      const isWinner = index === 0;
-      const isShowCaller = !!state.showUid && r.uid === state.showUid;
-      const showTag = isShowCaller ? (state.showOutcome === "bad" ? '<span class="show-caller-tag bad-show-tag">⚠ BAD SHOW CALLER</span>' : state.showOutcome === "successful" ? '<span class="show-caller-tag good-show-tag">✦ CALLED SHOW</span>' : "") : "";
-      return '<div class="results-profile ' + (isWinner ? "show-winner" : "") + (isShowCaller ? " show-caller" : "") + '">' +
-        playerIdentityMarkup(player, index, "results") + showTag +
-        '<span class="finish-rank">' + (isWinner ? "🥇 LOWEST HAND" : "#" + (index + 1)) + '</span>' +
-        '<span class="result-points">Hand: ' + (Number(r.total) || 0) + ' pts</span>' +
-        '<span class="result-current">+' + (Number(r.points) || 0) + ' round points</span>' +
-        '<span class="result-count">Total score: ' + (Number(r.score) || 0) + '</span>' +
-        (r.active === false ? '<span class="finish-rank">ELIMINATED</span>' : '') +
-        '</div>';
-    }).join("");
-  }
+  if (profiles) profiles.innerHTML = "";
   if (hands) {
     hands.innerHTML = rows.map((r, index) => {
       const cards = Array.isArray(r.cards) ? r.cards : [];
-      const player = (state.players || []).find(p => p.id === r.uid);
-      const name = player ? player.name : r.name;
+      const player = (state.players || []).find(p => p.id === r.uid) || { id: r.uid, name: r.name, isBot: false };
+      const name = player.name || r.name || "Player";
+      const isWinner = index === 0;
       const isShowCaller = !!state.showUid && r.uid === state.showUid;
-      const showLabel = isShowCaller ? (state.showOutcome === "bad" ? '<span class="show-caller-inline bad-show-tag">⚠ BAD SHOW</span>' : state.showOutcome === "successful" ? '<span class="show-caller-inline good-show-tag">✦ SHOW CALLER</span>' : "") : "";
-      return '<div class="results-hand ' + (index === 0 ? "winner-hand" : "") + (isShowCaller ? " show-caller-hand" : "") + '">' +
-        '<div class="results-hand-head"><div class="hand-player-identity"><span class="player-avatar">' + (player?.isBot ? "🤖" : "👨🏻") + '</span><strong class="hand-player-name">' + escapeLobbyText(name) + '</strong>' + showLabel + '</div>' +
-        '<span class="results-total">' + (Number(r.total) || 0) + ' pts</span><span class="result-current">+' + (Number(r.points) || 0) + '</span></div>' +
-        '<div class="results-card-grid">' + cards.map(renderResultCard).join("") + '</div></div>';
+      const isBadCaller = isShowCaller && isBadShow;
+      const isGoodCaller = isShowCaller && isSuccessfulShow;
+      const avatar = player.isBot ? "🤖" : "👨🏻";
+      const classes = ["results-hand", isWinner ? "winner-hand" : "", isBadCaller ? "bad-show-hand" : "", isGoodCaller ? "good-show-hand" : ""].filter(Boolean).join(" ");
+      return '<article class="' + classes + '">' +
+        (isWinner ? '<div class="lc-winner-ribbon"><span aria-hidden="true">♛</span> Round Winner (Lowest Hand)</div>' : '') +
+        '<div class="results-hand-head">' +
+          '<div class="hand-player-identity"><span class="player-avatar">' + avatar + '</span><strong class="hand-player-name">' + escapeLobbyText(name) + '</strong>' +
+          (isBadCaller ? '<span class="lc-player-status bad">⚠ BAD SHOW</span>' : isGoodCaller ? '<span class="lc-player-status good">✦ SHOW CALLER</span>' : '') +
+          '</div>' +
+          '<span class="results-total">' + (Number(r.total) || 0) + ' pts</span>' +
+          '<span class="result-current">+' + (Number(r.points) || 0) + '</span>' +
+        '</div>' +
+        '<div class="lc-result-body"><div class="results-card-grid">' + cards.map(renderResultCard).join("") + '</div>' +
+        (isWinner ? '<div class="lc-result-emblem winner-emblem" aria-hidden="true">🏆</div>' : isBadCaller ? '<div class="lc-result-emblem bad-emblem" aria-hidden="true">🔨</div>' : '') +
+        '</div></article>';
     }).join("");
   }
   const next = document.getElementById("lcResultsNextRoundBtn");
