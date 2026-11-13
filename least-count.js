@@ -259,7 +259,7 @@ function lcRender() {
   if (playAgainBtn) { playAgainBtn.classList.toggle("hidden", !isRoomHost || state.status !== "gameComplete"); }
   const resultBody = document.getElementById("lcResultRows");
   if (resultBody && state.results) {
-    resultBody.innerHTML = state.results.map(r => '<div class="lc-result-row"><strong>' + escapeLobbyText(r.name) + '</strong><span>' + r.total + ' hand pts</span><span>+' + r.points + ' score</span><b>' + r.score + ' total</b></div>').join("");
+    resultBody.innerHTML = state.results.map(r => '<div class="lc-result-row"><strong>' + escapeLobbyText(r.name) + '</strong><span>' + r.total + ' hand pts</span><span>+' + r.points + ' score</span><b>' + r.score + ' total</b><small class="lc-result-cards">' + (r.cards || []).map(card => escapeLobbyText((card.rank === "JOKER" ? "★" : card.rank) + (card.joker ? "" : card.suit || ""))).join(" · ") + '</small></div>').join("");
     const summary = document.getElementById("lcResultSummary");
     if (summary) summary.textContent = state.resultMessage || "";
   }
@@ -416,7 +416,7 @@ async function lcResolveShow(showUid, automatic, stateOverride, settingsOverride
     else points = totals[p.id] === lowestOther ? 0 : totals[p.id];
     const score = (Number(p.score) || 0) + points;
     const activeNow = score < settings.scoreLimit;
-    resultRows.push({ uid: p.id, name: p.name, total: totals[p.id], points, score, active: activeNow });
+    resultRows.push({ uid: p.id, name: p.name, total: totals[p.id], points, score, active: activeNow, cards: handSnaps[active.findIndex(x => x.id === p.id)].val() || [] });
     return { ...p, score, active: activeNow, cardCount: 0, status: activeNow ? "READY" : "ELIMINATED" };
   });
   const stillIn = players.filter(p => p.active !== false);
