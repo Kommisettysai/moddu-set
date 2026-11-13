@@ -1517,7 +1517,7 @@ body:has(#roundResults:not(.hidden))>header,
   <div class="lc-status" id="lcMessage" aria-live="polite">Waiting for cards…</div>
   <div class="lc-table">
    <div class="lc-pile-wrap"><button type="button" id="lcDeckBtn" class="lc-pile lc-deck" onclick="lcPickDeck()" disabled><span class="lc-deck-stack">▧</span><strong id="lcDeckCount">0 cards</strong><small>DRAW DECK</small></button></div>
-   <div class="lc-pile-wrap"><div class="lc-pile lc-open-pile"><div id="lcOpenCards" class="lc-open-cards"></div><small>CARDS JUST DROPPED · PICK ONE</small></div></div>
+   <div class="lc-pile-wrap"><div class="lc-pile lc-open-pile"><div id="lcOpenCards" class="lc-open-cards"></div><small>PREVIOUS PLAYER'S DROP · PICK ONE</small><div id="lcNewDrop" class="lc-new-drop hidden"></div></div></div>
   </div>
   <div class="lc-action-area">
    <p id="lcActionHint">Select cards to drop.</p>
