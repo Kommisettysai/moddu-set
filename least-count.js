@@ -35,11 +35,13 @@ function lcShuffle(cards) {
   }
   return cards;
 }
-function lcBuildDeck() {
+function lcBuildDeck(playerCount, cardsPerHand) {
   const suits = ["♠", "♥", "♦", "♣"];
   const ranks = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+  const required = Math.max(2, Number(playerCount) || 2) * (Number(cardsPerHand) === 7 ? 7 : 5) + 1;
+  const packCount = required <= 54 ? 1 : 2;
   const cards = [];
-  for (let pack = 0; pack < 2; pack++) {
+  for (let pack = 0; pack < packCount; pack++) {
     for (const suit of suits) {
       for (const rank of ranks) {
         cards.push({ id: "lc-" + pack + "-" + rank + "-" + suit + "-" + Math.random().toString(36).slice(2, 9), rank, suit, joker: false });
@@ -94,7 +96,7 @@ async function startLeastCountRoom() {
     const members = onlineMembers(lobby);
     if (members.length < 2) { setLobbyNotice("Invite at least one more player or add a bot."); return; }
     lcSettings = lcRoomSettings(lobby);
-    const deck = lcBuildDeck();
+    const deck = lcBuildDeck(members.length, lcSettings.cardsPerHand);
     const hands = {};
     members.forEach(p => { hands[p.id] = deck.splice(0, lcSettings.cardsPerHand); });
     const first = deck.pop();
@@ -442,7 +444,7 @@ async function startLeastCountNextRound() {
     if (active.length <= 1) return;
     const lobbySnap = await roomRef.child("lobby").get();
     lcSettings = lcRoomSettings(lobbySnap.val() || {});
-    const deck = lcBuildDeck(), hands = {};
+    const deck = lcBuildDeck(active.length, lcSettings.cardsPerHand), hands = {};
     active.forEach(p => { hands[p.id] = deck.splice(0, lcSettings.cardsPerHand); });
     const first = deck.pop(), starter = active[0];
     const players = state.players.map(p => p.active === false ? p : { ...p, cardCount: lcSettings.cardsPerHand, status: p.isBot ? "BOT" : "READY" });
