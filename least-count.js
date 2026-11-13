@@ -321,7 +321,6 @@ async function processLeastCountAction(uid, action) {
     const privateSnap = await roomRef.child("private").get();
     const privateData = privateSnap.val() || {};
     const oldDiscard = Array.isArray(privateData.discardPile) ? privateData.discardPile : [];
-    await roomRef.child("private/discardPile").set(oldDiscard.concat(previousOpen));
     await handRef.set(remaining);
     const players = (state.players || []).map(p => p.id === uid ? { ...p, cardCount: remaining.length } : p);
     const next = { ...state, players, newDrop: dropped, phase: matchSkip ? "drop" : "pick", deckCount: state.deckCount || 0,
@@ -356,9 +355,8 @@ async function processLeastCountAction(uid, action) {
       picked = deck.pop();
     }
     hand.push(picked);
-    const previousOpen = Array.isArray(state.openCards) ? state.openCards : [];
     const newDrop = Array.isArray(state.newDrop) ? state.newDrop : [];
-    await roomRef.child("private").update({ deck, discardPile: discardPile.concat(openCards.filter(card => !openCards.some(x => x.id === card.id && x.id === picked.id))) });
+    await roomRef.child("private").update({ deck, discardPile: discardPile.concat(openCards) });
     await handRef.set(hand);
     const players = (state.players || []).map(p => p.id === uid ? { ...p, cardCount: hand.length } : p);
     const next = { ...state, players, openCards: newDrop, newDrop: [], deckCount: deck.length };
