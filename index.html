@@ -1602,15 +1602,18 @@ body.modal-open{overflow:hidden;touch-action:none}
 .lobby-modal-backdrop{position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;padding:18px;background:#00150fbd;backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
 .lobby-modal-backdrop.hidden{display:none!important}
 .lobby-modal-card{width:min(100%,470px);max-height:min(86dvh,720px);overflow:auto;padding:19px 17px 17px;border:1px solid #c9ae6eaa;border-radius:23px;background:radial-gradient(ellipse at 50% 0,#19543f,#0a3024 75%);box-shadow:0 22px 65px #0009,inset 0 0 0 3px #f0d78a12;color:#f5e6c5}
-.lobby-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.lobby-modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .lobby-modal-head>div>small{font-size:9px;letter-spacing:2.4px;color:#e3c67f}
 .lobby-modal-head h2{margin:4px 0 0;font:700 23px Georgia,serif;color:#ffe4a6}
-.lobby-modal-head>button{width:34px;height:34px;border-radius:50%;border:1px solid #d8bd7b66;background:#0a2a20;color:#f6e4bf;font-size:25px;line-height:1}
+.lobby-modal-head>button{flex:0 0 34px;width:34px;height:34px;display:grid;place-items:center;align-self:center;padding:0;border-radius:50%;border:1px solid #d8bd7b66;background:#0a2a20;color:#f6e4bf;font-size:23px;line-height:1;box-sizing:border-box}
 .game-picker-subtitle{margin:8px 0 15px;text-align:center;color:#c4d8cb;font-size:13px}
 .game-picker-options{display:grid;gap:10px}
 .game-picker-option{width:100%;display:grid;grid-template-columns:54px 1fr 22px;align-items:center;gap:12px;text-align:left;padding:13px;border:1px solid #b9a56b77;border-radius:16px;background:#0b3327;color:#f6e4c1}
 .game-picker-option.selected{border:2px solid #f2d16d;background:linear-gradient(120deg,#18543e,#0d382b);box-shadow:0 0 0 2px #f5d77c22,0 0 17px #eacb6540}
 .game-picker-art{width:48px;height:48px;display:grid;place-items:center;border-radius:13px;background:#1d6047;font-size:24px}
+.game-picker-art.game-picker-suits{display:flex;align-items:center;justify-content:center;gap:2px;line-height:1;font-family:Georgia,serif;font-size:29px;font-weight:700;padding:0}
+.game-picker-suits .picker-spade{color:#f2d98e;transform:translateY(-1px)}
+.game-picker-suits .picker-heart{color:#ef626a;transform:translateY(1px)}
 .game-picker-option>span:nth-child(2){display:flex;flex-direction:column;gap:4px}
 .game-picker-option strong{font:700 16px Georgia,serif;color:#ffe5ad}
 .game-picker-option small{font:12px Georgia,serif;color:#bfd1c3}
@@ -1781,7 +1784,7 @@ body.modal-open{overflow:hidden;touch-action:none}
   <p class="game-picker-subtitle">Select the game you want to play.</p>
   <div class="game-picker-options">
    <button type="button" class="game-picker-option selected" data-game-choice="modduSet" onclick="selectGameTypeOption('modduSet')"><span class="game-picker-art">🃏</span><span><strong>Moddu Set</strong><small>Form sets and clear your hand.</small></span><span class="game-picker-radio"></span></button>
-   <button type="button" class="game-picker-option" data-game-choice="leastCount" onclick="selectGameTypeOption('leastCount')"><span class="game-picker-art">♠️♥️</span><span><strong>Least Count</strong><small>Lowest hand wins the round.</small></span><span class="game-picker-radio"></span></button>
+   <button type="button" class="game-picker-option" data-game-choice="leastCount" onclick="selectGameTypeOption('leastCount')"><span class="game-picker-art game-picker-suits" aria-hidden="true"><span class="picker-spade">♠</span><span class="picker-heart">♥</span></span><span><strong>Least Count</strong><small>Lowest hand wins the round.</small></span><span class="game-picker-radio"></span></button>
   </div>
   <button type="button" class="lobby-primary modal-done-button" onclick="confirmGameTypePicker()">Continue</button>
  </div>
