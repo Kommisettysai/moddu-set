@@ -223,10 +223,13 @@ function lcRender() {
   if (open) {
     const cards = Array.isArray(state.openCards) ? state.openCards : [];
     open.innerHTML = cards.length ? cards.map(card => lcCardMarkup(card, false, ownTurn && phase === "pick", "lc-open-card")).join("") : '<span class="lc-empty-pile">No open cards</span>';
-    if (ownTurn && phase === "pick") open.querySelectorAll(".lc-open-card").forEach((el, i) => {
-      const card = cards[i];
-      el.onclick = () => lcPickOpen(card.id);
-    });
+    if (ownTurn && phase === "pick") open.querySelectorAll(".lc-open-card").forEach((el, i) => { el.onclick = () => lcPickOpen(cards[i].id); });
+  }
+  const newDrop = document.getElementById("lcNewDrop");
+  if (newDrop) {
+    const cards = Array.isArray(state.newDrop) ? state.newDrop : [];
+    newDrop.innerHTML = cards.length ? '<small>NEXT PLAYER CAN PICK</small>' + cards.map(card => lcCardMarkup(card, false, false, "lc-new-drop-card")).join("") : "";
+    newDrop.classList.toggle("hidden", !cards.length);
   }
   const hand = document.getElementById("lcHand");
   if (hand) {
@@ -242,7 +245,7 @@ function lcRender() {
   const dropBtn = document.getElementById("lcDropBtn");
   if (dropBtn) { dropBtn.classList.toggle("hidden", !ownTurn || phase !== "drop"); dropBtn.disabled = lcSelectedIds.size === 0; }
   const deckBtn = document.getElementById("lcDeckBtn");
-  if (deckBtn) { deckBtn.disabled = !ownTurn || phase !== "pick" || Number(state.deckCount) <= 0; deckBtn.classList.toggle("ready", ownTurn && phase === "pick"); }
+  if (deckBtn) { deckBtn.disabled = !ownTurn || phase !== "pick"; deckBtn.classList.toggle("ready", ownTurn && phase === "pick"); }
   const showBtn = document.getElementById("lcShowBtn");
   if (showBtn) { showBtn.disabled = !ownTurn || phase !== "drop"; showBtn.classList.toggle("hidden", !ownTurn || phase !== "drop"); }
   const actionHint = document.getElementById("lcActionHint");
@@ -321,8 +324,13 @@ async function processLeastCountAction(uid, action) {
     await roomRef.child("private/discardPile").set(oldDiscard.concat(previousOpen));
     await handRef.set(remaining);
     const players = (state.players || []).map(p => p.id === uid ? { ...p, cardCount: remaining.length } : p);
-    const next = { ...state, players, openCards: dropped, phase: matchSkip ? "drop" : "pick", deckCount: state.deckCount || 0,
-      message: matchSkip ? (dropped[0].rank + " matched the open card. Match & Drop: pick skipped.") : "Choose one of the cards just dropped, or draw from the deck." };
+    const next = { ...state, players, newDrop: dropped, phase: matchSkip ? "drop" : "pick", deckCount: state.deckCount || 0,
+      message: matchSkip ? (dropped[0].rank + " matched the previous open card. Match & Drop: pick skipped.") : "Pick one of the previous player's open cards, or draw from the deck." };
+    if (matchSkip) {
+      await roomRef.child("private/discardPile").set(oldDiscard.concat(previousOpen));
+      next.openCards = dropped;
+      next.newDrop = [];
+    }
     await roomRef.child("public").set(next);
     if (remaining.length === 0) { await lcResolveShow(uid, true, next, settings); return; }
     if (matchSkip) await lcAdvanceTurn(next, uid);
@@ -348,10 +356,12 @@ async function processLeastCountAction(uid, action) {
       picked = deck.pop();
     }
     hand.push(picked);
-    await roomRef.child("private").update({ deck, discardPile });
+    const previousOpen = Array.isArray(state.openCards) ? state.openCards : [];
+    const newDrop = Array.isArray(state.newDrop) ? state.newDrop : [];
+    await roomRef.child("private").update({ deck, discardPile: discardPile.concat(openCards.filter(card => !openCards.some(x => x.id === card.id && x.id === picked.id))) });
     await handRef.set(hand);
     const players = (state.players || []).map(p => p.id === uid ? { ...p, cardCount: hand.length } : p);
-    const next = { ...state, players, openCards, deckCount: deck.length };
+    const next = { ...state, players, openCards: newDrop, newDrop: [], deckCount: deck.length };
     await lcAdvanceTurn(next, uid);
     return;
   }
