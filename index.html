@@ -1560,6 +1560,19 @@ body:has(#roundResults:not(.hidden))>header,
  #game #leastCountView button.lc-pile,#game #leastCountView .lc-open-pile{height:96px!important;min-height:96px!important}
 }
 
+
+/* Least Count uses Moddu Set's full-screen round-results view. */
+#roundResults.lc-results-screen{z-index:1100}
+#roundResults.lc-results-screen .results-header h2{color:#ffe2a0}
+#roundResults.lc-results-screen .results-profile .result-current{display:block;margin-top:3px;color:#f4d99e;font-size:11px;font-weight:800}
+#roundResults.lc-results-screen .results-hand{background:linear-gradient(145deg,#164635,#0c3025);border-color:#d6bd7b66}
+#roundResults.lc-results-screen .results-hand.winner-hand{border:2px solid #ffda78;box-shadow:0 0 0 2px #f4d58a22}
+#roundResults.lc-results-screen .lc-results-footer{display:grid;grid-template-columns:1fr;gap:8px}
+#roundResults.lc-results-screen .lc-results-footer button{min-height:44px;border-radius:12px}
+#roundResults.lc-results-screen .lc-results-footer #lcResultsNextRoundBtn{background:linear-gradient(180deg,#ffe6a9,#d5a94e);color:#38270c;border:1px solid #ffe8a0}
+#roundResults.lc-results-screen .lc-results-footer #lcResultsRestartBtn{background:linear-gradient(145deg,#174c39,#0c3026);color:#f5d99d;border:1px solid #e4c27a}
+#roundResults.lc-results-screen .lc-results-waiting{margin:3px 0 0;text-align:center;color:#e5d3a5;font-size:12px}
+
 </style>
 </head>
 
@@ -1829,8 +1842,13 @@ body:has(#roundResults:not(.hidden))>header,
  </div>
  <div id="resultsProfiles" class="results-profiles"></div>
  <div id="resultsHands" class="results-hands"></div>
- <div class="results-footer">
+ <div class="results-footer" id="sharedResultsFooter">
   <button onclick="closeResults()">Back to table</button>
+ </div>
+ <div class="results-footer lc-results-footer hidden" id="lcResultsFooter">
+  <button type="button" class="lc-next-button" id="lcResultsNextRoundBtn" onclick="startLeastCountNextRound()">DEAL NEXT ROUND</button>
+  <button type="button" class="lc-next-button" id="lcResultsRestartBtn" onclick="restartLeastCountTable()">RESTART NEW GAME</button>
+  <p id="lcResultsWaiting" class="lc-results-waiting hidden">Waiting for the host to continue…</p>
  </div>
 </div>
 </div>
