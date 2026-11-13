@@ -1690,6 +1690,82 @@ body.modal-open{overflow:hidden;touch-action:none}
  #gameTypePickerModal .game-picker-suits svg{width:23px;height:23px;flex-basis:23px}
 }
 
+
+/* Least Count results: premium emerald, champagne gold and dramatic bad-show red. */
+#roundResults.lc-results-screen{--lc-emerald:#052d24;--lc-panel:#07392d;--lc-gold:#f2d477;--lc-cream:#fff0c5;--lc-red:#ff6478;background:radial-gradient(ellipse at 50% 18%,#0d5942 0%,#07372c 42%,#031f19 100%)!important;color:var(--lc-cream)!important;padding:20px 18px 30px!important}
+#roundResults.lc-results-screen:before,#roundResults.lc-results-screen:after{content:"";position:fixed;pointer-events:none;z-index:0;width:190px;height:190px;opacity:.12;border:2px solid #d7b65e;border-radius:48% 52% 50% 45%;transform:rotate(35deg)}
+#roundResults.lc-results-screen:before{top:-125px;left:-115px;box-shadow:0 0 0 12px #d7b65e22,0 0 0 24px #d7b65e11}
+#roundResults.lc-results-screen:after{right:-130px;bottom:-125px;box-shadow:0 0 0 12px #d7b65e22,0 0 0 24px #d7b65e11}
+#roundResults.lc-results-screen>*{position:relative;z-index:1}
+#roundResults.lc-results-screen .results-header{padding:8px 4px 17px!important;text-align:center}
+#roundResults.lc-results-screen .results-brand{display:none!important}
+#roundResults.lc-results-screen .results-kicker{font-size:10px!important;letter-spacing:3px!important;color:#e8c96f!important;font-weight:900}
+#roundResults.lc-results-screen .results-header h2{font-family:Georgia,serif!important;font-size:36px!important;line-height:1.08!important;margin:7px 0 9px!important;color:#fff0c5!important;text-shadow:0 3px 18px #f2d47722}
+#roundResults.lc-results-screen #resultsSummary{display:none!important}
+#roundResults.lc-results-screen #lcShowCallout{display:flex!important;align-items:center;gap:12px;margin:0 2px 25px!important;padding:13px 15px!important;border:2px solid #ff6378!important;border-radius:19px!important;background:linear-gradient(110deg,#541c29 0%,#32151f 100%)!important;color:#fff1e8!important;box-shadow:0 0 0 1px #ff829044,0 8px 24px #ff36512b,inset 0 1px #ffffff20!important;text-align:left!important;min-height:70px}
+#roundResults.lc-results-screen #lcShowCallout.hidden{display:none!important}
+#roundResults.lc-results-screen #lcShowCallout.is-good{border-color:#8bdc9b!important;background:linear-gradient(110deg,#164b37,#0b3027)!important;box-shadow:0 8px 22px #4ad58a22!important}
+#roundResults.lc-results-screen .lc-callout-icon{width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;border-radius:13px;background:#ff687b;color:#fff;font-size:26px;box-shadow:0 3px 12px #0004}
+#roundResults.lc-results-screen .is-good .lc-callout-icon{background:#7acb8c}
+#roundResults.lc-results-screen .lc-show-callout>strong{font-family:Georgia,serif;font-size:18px;line-height:1.1;color:#fff0e9;white-space:nowrap}
+#roundResults.lc-results-screen .lc-callout-divider{width:1px;height:42px;flex:0 0 1px;background:#ffc3c566}
+#roundResults.lc-results-screen .lc-callout-copy{font-family:Georgia,serif;font-size:13px;line-height:1.45;color:#f8e8e0}
+#roundResults.lc-results-screen .lc-callout-copy b{color:#ffdc54}
+#roundResults.lc-results-screen #resultsProfiles{display:none!important}
+#roundResults.lc-results-screen #resultsHands{display:flex!important;flex-direction:column;gap:16px!important;margin:0 0 20px!important}
+#roundResults.lc-results-screen .results-hand{position:relative;overflow:visible!important;margin:0!important;padding:25px 15px 15px!important;border:2px solid #51c7e7!important;border-radius:23px!important;background:linear-gradient(135deg,#103f3a 0%,#082d2b 100%)!important;box-shadow:0 7px 22px #0003,inset 0 1px #ffffff18!important}
+#roundResults.lc-results-screen .results-hand.winner-hand{border:3px solid #ffdf78!important;background:linear-gradient(135deg,#103c2d,#062b23)!important;box-shadow:0 0 0 1px #fff0ad66,0 0 20px #ffdf7855,0 8px 24px #0004!important}
+#roundResults.lc-results-screen .results-hand.bad-show-hand{border:3px solid #ff687b!important;background:linear-gradient(135deg,#421e2a 0%,#251820 100%)!important;box-shadow:0 0 0 1px #ff9aa366,0 0 24px #ff536244,0 8px 24px #0005!important}
+#roundResults.lc-results-screen .results-hand.good-show-hand{border-color:#79d69a!important;box-shadow:0 0 20px #79d69a33!important}
+#roundResults.lc-results-screen .lc-winner-ribbon{position:absolute;top:-18px;left:22px;z-index:2;display:flex;align-items:center;gap:8px;padding:8px 17px;border-radius:30px;background:linear-gradient(180deg,#fff0a6,#efbd42);color:#65400d;font-family:Georgia,serif;font-weight:900;font-size:14px;box-shadow:0 4px 12px #0004,0 0 0 1px #fff2a5}
+#roundResults.lc-results-screen .lc-winner-ribbon span{font-size:23px;line-height:1}
+#roundResults.lc-results-screen .results-hand-head{display:flex!important;align-items:center!important;justify-content:flex-start!important;flex-wrap:nowrap!important;gap:9px!important;margin:0 0 14px!important;padding:0 0 12px!important;border-bottom:1px solid #e7cb765e!important}
+#roundResults.lc-results-screen .hand-player-identity{display:flex;align-items:center;gap:9px;flex:1 1 auto;min-width:0}
+#roundResults.lc-results-screen .results-hand-head .player-avatar{width:46px!important;height:46px!important;flex:0 0 46px!important;font-size:21px!important;border:2px solid #f2d477!important;box-shadow:0 0 0 3px #f2d47722,0 3px 10px #0005!important}
+#roundResults.lc-results-screen .hand-player-name{font-family:Georgia,serif!important;font-size:19px!important;color:#fff2d5!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#roundResults.lc-results-screen .lc-player-status{font-size:9px;line-height:1;padding:6px 8px;border-radius:20px;font-weight:900;white-space:nowrap}
+#roundResults.lc-results-screen .lc-player-status.bad{background:#a92739;color:#fff;border:1px solid #ff8896;box-shadow:0 0 10px #ff526055}
+#roundResults.lc-results-screen .lc-player-status.good{background:#174d35;color:#c6f4ca;border:1px solid #7ddc95}
+#roundResults.lc-results-screen .results-hand-head .results-total{flex:0 0 auto;display:inline-flex!important;align-items:center;justify-content:center;padding:9px 12px!important;border:2px solid #9acb62!important;border-radius:30px!important;background:#062e25!important;color:#fff0c9!important;font-family:Georgia,serif;font-size:17px!important;font-weight:700!important;white-space:nowrap}
+#roundResults.lc-results-screen .results-hand-head .result-current{flex:0 0 auto;display:inline-flex!important;align-items:center;justify-content:center;margin:0!important;min-width:66px;padding:9px 12px!important;border:2px solid #c77d57!important;border-radius:30px!important;background:#713b2d!important;color:#fff0d3!important;font-family:Georgia,serif;font-size:17px!important;font-weight:800!important;white-space:nowrap}
+#roundResults.lc-results-screen .bad-show-hand .results-hand-head .results-total{border-color:#b6a0df!important}
+#roundResults.lc-results-screen .bad-show-hand .results-hand-head .result-current{border-color:#f4a05e!important;color:#ffe16a!important}
+#roundResults.lc-results-screen .lc-result-body{display:flex;align-items:center;gap:6px}
+#roundResults.lc-results-screen .results-card-grid{display:flex!important;flex:1 1 auto;flex-wrap:wrap!important;justify-content:flex-start!important;gap:9px!important;min-width:0}
+#roundResults.lc-results-screen .results-card{width:clamp(46px,14vw,62px)!important;flex:0 1 clamp(46px,14vw,62px)!important;height:clamp(78px,23vw,94px)!important;padding:7px 6px!important;border-radius:10px!important;font-family:Georgia,serif!important;font-size:18px!important;box-shadow:0 3px 7px #0005,inset 0 1px #fff!important;border:2px solid #d9e7df!important;background:linear-gradient(145deg,#fffdf3,#dcebe2)!important;color:#174d3b!important}
+#roundResults.lc-results-screen .results-card.red{color:#b52d48!important;border-color:#ff9aa9!important;background:linear-gradient(145deg,#fff5f5,#f6dfe3)!important}
+#roundResults.lc-results-screen .results-card.suit-spade{color:#164f79!important;border-color:#8bcaf1!important;background:linear-gradient(145deg,#f7fcff,#dceafa)!important}
+#roundResults.lc-results-screen .results-card.suit-diamond{color:#985b24!important;border-color:#f2c46b!important;background:linear-gradient(145deg,#fff9e9,#f6e6bf)!important}
+#roundResults.lc-results-screen .results-card.suit-club{color:#17614b!important;border-color:#84d5b3!important;background:linear-gradient(145deg,#f3fff8,#d6f0e1)!important}
+#roundResults.lc-results-screen .results-card .bottom{font-size:12px!important;opacity:.75}
+#roundResults.lc-results-screen .lc-result-emblem{flex:0 0 94px;width:94px;text-align:center;font-size:65px;line-height:1;filter:drop-shadow(0 5px 8px #0006)}
+#roundResults.lc-results-screen .winner-emblem{color:#f7ca43}
+#roundResults.lc-results-screen .bad-emblem{filter:drop-shadow(0 0 12px #ff7b35)}
+#roundResults.lc-results-screen .lc-results-footer{display:grid!important;grid-template-columns:1fr!important;gap:10px!important;padding:12px 0 6px!important;background:linear-gradient(transparent,#04251d 22%)!important}
+#roundResults.lc-results-screen .lc-results-footer button{min-height:62px!important;border-radius:40px!important;font-family:Georgia,serif!important;font-size:19px!important;letter-spacing:.6px!important}
+#roundResults.lc-results-screen .lc-results-footer #lcResultsNextRoundBtn{background:linear-gradient(180deg,#fff0b0 0%,#f1ca69 52%,#dca83d 100%)!important;color:#123a2c!important;border:2px solid #fff0a8!important;box-shadow:0 5px 0 #91651e,0 9px 22px #0005!important}
+#roundResults.lc-results-screen .lc-results-footer #lcResultsRestartBtn{background:linear-gradient(145deg,#174c39,#0c3026)!important;color:#f5d99d!important;border:1px solid #e4c27a!important}
+#roundResults.lc-results-screen .lc-results-waiting{color:#e5d3a5!important;text-align:center}
+@media(max-width:480px){
+#roundResults.lc-results-screen{padding:18px 12px 24px!important}
+#roundResults.lc-results-screen .results-header h2{font-size:32px!important}
+#roundResults.lc-results-screen #lcShowCallout{gap:8px;padding:11px 10px!important}
+#roundResults.lc-results-screen .lc-callout-icon{width:34px;height:34px;flex-basis:34px;font-size:22px}
+#roundResults.lc-results-screen .lc-show-callout>strong{font-size:14px}
+#roundResults.lc-results-screen .lc-callout-copy{font-size:11px}
+#roundResults.lc-results-screen .results-hand{padding:23px 10px 12px!important;border-radius:19px!important}
+#roundResults.lc-results-screen .results-hand-head{gap:6px!important;margin-bottom:11px!important;padding-bottom:10px!important}
+#roundResults.lc-results-screen .results-hand-head .player-avatar{width:38px!important;height:38px!important;flex-basis:38px!important;font-size:17px!important}
+#roundResults.lc-results-screen .hand-player-name{font-size:15px!important}
+#roundResults.lc-results-screen .lc-player-status{font-size:7px;padding:5px 6px}
+#roundResults.lc-results-screen .results-hand-head .results-total,#roundResults.lc-results-screen .results-hand-head .result-current{font-size:13px!important;padding:7px 8px!important;min-width:0}
+#roundResults.lc-results-screen .results-card-grid{gap:6px!important}
+#roundResults.lc-results-screen .results-card{width:clamp(43px,12.5vw,54px)!important;flex-basis:clamp(43px,12.5vw,54px)!important;height:clamp(70px,20vw,82px)!important;font-size:15px!important}
+#roundResults.lc-results-screen .lc-result-emblem{flex-basis:52px;width:52px;font-size:40px}
+#roundResults.lc-results-screen .lc-winner-ribbon{left:16px;font-size:12px;padding:7px 12px}
+}
+@media(max-width:360px){#roundResults.lc-results-screen .results-hand-head{flex-wrap:wrap!important}#roundResults.lc-results-screen .hand-player-identity{flex-basis:100%}#roundResults.lc-results-screen .lc-result-emblem{display:none}}
+
 </style>
 </head>
 
