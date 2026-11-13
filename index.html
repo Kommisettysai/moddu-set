@@ -2908,7 +2908,7 @@ function showWaitingRoom(){
   const lcSettingsEl=document.getElementById("leastCountRoomSettings"),modduSettingsEl=document.getElementById("modduRoomSettings");
   if(lcSettingsEl)lcSettingsEl.classList.toggle("hidden",activeGameType!=="leastCount");
   if(modduSettingsEl)modduSettingsEl.classList.toggle("hidden",activeGameType==="leastCount");
-  const gameSelect=document.getElementById("gameTypeSelect");if(gameSelect)gameSelect.value=activeGameType;
+  const gameSelect=document.getElementById("gameTypeSelect");if(gameSelect){gameSelect.value=activeGameType;gameSelect.disabled=true;}
   const settings=lcRoomSettings(l);const cardsSetting=document.getElementById("lcCardsPerHandSetting"),scoreSetting=document.getElementById("lcScoreLimitSetting"),badShowSetting=document.getElementById("lcBadShowSetting"),matchSetting=document.getElementById("lcMatchDropSetting");
   if(cardsSetting){cardsSetting.value=String(settings.cardsPerHand);cardsSetting.disabled=!isRoomHost||l.status!=="waiting";}
   if(scoreSetting){scoreSetting.value=String(settings.scoreLimit);scoreSetting.disabled=!isRoomHost||l.status!=="waiting";}
@@ -4039,7 +4039,7 @@ function leaveRoom(showLobby=true){
  activeGameType="modduSet";
  if(onlineChatRef&&onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);onlineChatRef=null;onlineChatListener=null;chatIsOpen=false;chatHasOpened=false;chatUnreadCount=0;document.getElementById("gameChat")?.classList.add("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");mutedChatSenders.clear();eliminatedSpectator=false;document.getElementById("game")?.classList.remove("spectator-mode");if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);if(onlineSpecialRef)onlineSpecialRef.off("value");if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);if(roomRef&&onlineRejoinListener)roomRef.child("rejoinRequests").off("child_added",onlineRejoinListener);
  if(roomRef&&roomPlayerId)roomRef.child("lobby/players/"+roomPlayerId).remove().catch(()=>{});onlineMode=false;onlinePublic=null;clearActiveRoom();onlinePublicRef=onlineHandRef=onlineActionRef=onlineSpecialRef=null;onlineRejoinListener=null;roomRef=null;roomCode=null;roomPlayerId=null;isRoomHost=false;onlineLobbyListener=null;
- document.getElementById("game").classList.add("hidden");document.getElementById("waitingRoom")?.classList.add("hidden");const createBtn=document.getElementById("createTableBtn"),joinControls=document.getElementById("roomJoinControls");if(createBtn){createBtn.disabled=false;createBtn.textContent="＋ Create a private table";}if(joinControls)joinControls.classList.remove("hidden");if(showLobby)document.getElementById("setup").classList.remove("hidden");
+ document.getElementById("game").classList.add("hidden");document.getElementById("waitingRoom")?.classList.add("hidden");const createBtn=document.getElementById("createTableBtn"),joinControls=document.getElementById("roomJoinControls"),gameSelect=document.getElementById("gameTypeSelect");if(createBtn){createBtn.disabled=false;createBtn.textContent="＋ Create a private table";}if(gameSelect)gameSelect.disabled=false;if(joinControls)joinControls.classList.remove("hidden");if(showLobby)document.getElementById("setup").classList.remove("hidden");
 }
 </script>
 <script src="./least-count.js"></script>
