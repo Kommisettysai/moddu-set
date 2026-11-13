@@ -1881,8 +1881,8 @@ body.modal-open{overflow:hidden;touch-action:none}
 <summary>Game actions</summary>
 <div class="actions">
 <button onclick="showRules()">Game rules</button>
-<button id="restartGameBtn" class="hidden" onclick="requestRestartCurrentGame()">Restart New Game</button>
-<button id="newRoundBtn" onclick="startFreshRoundWithScores()">Start new round (keep scores)</button>
+<button id="restartGameBtn" class="hidden" onclick="requestCurrentGameRestart()">Restart New Game</button>
+<button id="newRoundBtn" onclick="requestCurrentRoundRestart()">Restart round (keep scores)</button>
 </div>
 <div id="hostPlayerManagement"></div>
 </details>
