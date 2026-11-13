@@ -68,7 +68,7 @@ function lcCardMarkup(card, selected, clickable, extraClass) {
   // Keep the full ID. Older decks include Unicode suit symbols in their IDs.
   const safeId = escapeLobbyText(String(card.id));
   const action = clickable ? (extraClass === "lc-open-card" ? ' data-lc-open-id="' + safeId + '"' : ' data-lc-card-id="' + safeId + '"') : "";
-  return '<button type="button" class="' + cls + '"' + action + ' aria-pressed="' + (selected ? "true" : "false") + '" aria-label="' + escapeLobbyText(card.rank + " " + card.suit + ", " + lcPoints(card) + " points") + '">' + lcCardFace(card) + '</button>';
+  return '<button type="button" class="' + cls + '"' + action + (clickable ? "" : " disabled") + ' aria-pressed="' + (selected ? "true" : "false") + '" aria-label="' + escapeLobbyText(card.rank + " " + card.suit + ", " + lcPoints(card) + " points") + '">' + lcCardFace(card) + '</button>';
 }
 function lcSetNotice(text) {
   const el = document.getElementById("lcMessage");
