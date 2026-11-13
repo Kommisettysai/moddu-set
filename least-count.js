@@ -414,6 +414,19 @@ function lcRenderRoundResults(state) {
   if (kicker) kicker.textContent = "LEAST COUNT · ROUND " + (Number(state.round) || 1) + " · RESULTS";
   if (title) title.textContent = state.status === "gameComplete" ? "Game Complete" : "Round Results";
   if (summary) summary.textContent = state.resultMessage || state.message || "All players' hands are revealed.";
+  const showCallout = document.getElementById("lcShowCallout");
+  if (showCallout) {
+    const caller = (state.players || []).find(p => p.id === state.showUid);
+    const isBadShow = state.showOutcome === "bad";
+    const isSuccessfulShow = state.showOutcome === "successful";
+    showCallout.classList.toggle("hidden", !caller || (!isBadShow && !isSuccessfulShow));
+    showCallout.classList.toggle("good-show", isSuccessfulShow);
+    if (caller && (isBadShow || isSuccessfulShow)) {
+      showCallout.innerHTML = isBadShow
+        ? '<strong>⚠ BAD SHOW</strong><span>' + escapeLobbyText(caller.name) + ' called SHOW and receives +' + (Number(state.badShowCost) || 0) + ' penalty points</span>'
+        : '<strong>✦ SUCCESSFUL SHOW</strong><span>' + escapeLobbyText(caller.name) + ' called SHOW and had the unique lowest hand</span>';
+    } else showCallout.textContent = "";
+  }
   const rows = Array.isArray(state.results) ? state.results.slice() : [];
   rows.sort((a, b) => (Number(a.total) || 0) - (Number(b.total) || 0) || (Number(a.points) || 0) - (Number(b.points) || 0));
   const profiles = document.getElementById("resultsProfiles");
@@ -422,8 +435,10 @@ function lcRenderRoundResults(state) {
     profiles.innerHTML = rows.map((r, index) => {
       const player = (state.players || []).find(p => p.id === r.uid) || { id: r.uid, name: r.name, isBot: false };
       const isWinner = index === 0;
-      return '<div class="results-profile ' + (isWinner ? "show-winner" : "") + '">' +
-        playerIdentityMarkup(player, index, "results") +
+      const isShowCaller = !!state.showUid && r.uid === state.showUid;
+      const showTag = isShowCaller ? (state.showOutcome === "bad" ? '<span class="show-caller-tag bad-show-tag">⚠ BAD SHOW CALLER</span>' : state.showOutcome === "successful" ? '<span class="show-caller-tag good-show-tag">✦ CALLED SHOW</span>' : "") : "";
+      return '<div class="results-profile ' + (isWinner ? "show-winner" : "") + (isShowCaller ? " show-caller" : "") + '">' +
+        playerIdentityMarkup(player, index, "results") + showTag +
         '<span class="finish-rank">' + (isWinner ? "🥇 LOWEST HAND" : "#" + (index + 1)) + '</span>' +
         '<span class="result-points">Hand: ' + (Number(r.total) || 0) + ' pts</span>' +
         '<span class="result-current">+' + (Number(r.points) || 0) + ' round points</span>' +
@@ -437,8 +452,10 @@ function lcRenderRoundResults(state) {
       const cards = Array.isArray(r.cards) ? r.cards : [];
       const player = (state.players || []).find(p => p.id === r.uid);
       const name = player ? player.name : r.name;
-      return '<div class="results-hand ' + (index === 0 ? "winner-hand" : "") + '">' +
-        '<div class="results-hand-head"><div class="hand-player-identity"><span class="player-avatar">' + (player?.isBot ? "🤖" : "👨🏻") + '</span><strong class="hand-player-name">' + escapeLobbyText(name) + '</strong></div>' +
+      const isShowCaller = !!state.showUid && r.uid === state.showUid;
+      const showLabel = isShowCaller ? (state.showOutcome === "bad" ? '<span class="show-caller-inline bad-show-tag">⚠ BAD SHOW</span>' : state.showOutcome === "successful" ? '<span class="show-caller-inline good-show-tag">✦ SHOW CALLER</span>' : "") : "";
+      return '<div class="results-hand ' + (index === 0 ? "winner-hand" : "") + (isShowCaller ? " show-caller-hand" : "") + '">' +
+        '<div class="results-hand-head"><div class="hand-player-identity"><span class="player-avatar">' + (player?.isBot ? "🤖" : "👨🏻") + '</span><strong class="hand-player-name">' + escapeLobbyText(name) + '</strong>' + showLabel + '</div>' +
         '<span class="results-total">' + (Number(r.total) || 0) + ' pts</span><span class="result-current">+' + (Number(r.points) || 0) + '</span></div>' +
         '<div class="results-card-grid">' + cards.map(renderResultCard).join("") + '</div></div>';
     }).join("");
@@ -742,6 +759,7 @@ async function lcResolveShow(showUid, automatic, stateOverride, settingsOverride
       ? ((players.find(p => p.id === showUid)?.name || "Player") + " had the unique lowest hand. SHOW successful!")
       : ((players.find(p => p.id === showUid)?.name || "Player") + " called a bad SHOW and received a " + settings.badShowCost + "-point penalty.");
   const next = { ...state, status: stillIn.length <= 1 ? "gameComplete" : "roundComplete", phase: "results",
+    showUid: automatic ? null : showUid, showOutcome: automatic ? "automatic" : successful ? "successful" : "bad", badShowCost: settings.badShowCost,
     players, results: resultRows, resultMessage,
     championUid: stillIn.length === 1 ? stillIn[0].id : null,
     message: stillIn.length <= 1 ? (stillIn[0] ? stillIn[0].name + " wins the table!" : "Game complete.") : "Round complete. Review the scores." };
