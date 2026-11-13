@@ -956,15 +956,25 @@ async function runLeastCountBotTurn() {
 function showLeastCountRules() {
   const modal = document.getElementById("lcRulesModal");
   if (!modal) return;
-  // Render the rules overlay at document level so fixed positioning is relative to the phone viewport,
-  // not the transformed game panel that contains the original markup.
+  // Use the same document-level overlay strategy as the working Restart confirmation,
+  // and explicitly pin all four edges to the mobile viewport.
   if (modal.parentElement !== document.body) document.body.appendChild(modal);
   modal.classList.remove("hidden");
+  Object.assign(modal.style, {
+    position: "fixed", inset: "0", top: "0", right: "0", bottom: "0", left: "0",
+    width: "100vw", height: "100dvh", maxWidth: "none", maxHeight: "none",
+    margin: "0", padding: "16px", boxSizing: "border-box",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    zIndex: "2147483000", overflowY: "auto", background: "rgba(0,0,0,.72)"
+  });
   document.body.classList.add("modal-open");
 }
 function closeLeastCountRules() {
   const modal = document.getElementById("lcRulesModal");
-  if (modal) modal.classList.add("hidden");
+  if (modal) {
+    modal.classList.add("hidden");
+    modal.removeAttribute("style");
+  }
   document.body.classList.remove("modal-open");
 }
 function cleanupLeastCountGame() {
