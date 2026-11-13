@@ -955,11 +955,17 @@ async function runLeastCountBotTurn() {
 }
 function showLeastCountRules() {
   const modal = document.getElementById("lcRulesModal");
-  if (modal) modal.classList.remove("hidden");
+  if (!modal) return;
+  // Render the rules overlay at document level so fixed positioning is relative to the phone viewport,
+  // not the transformed game panel that contains the original markup.
+  if (modal.parentElement !== document.body) document.body.appendChild(modal);
+  modal.classList.remove("hidden");
+  document.body.classList.add("modal-open");
 }
 function closeLeastCountRules() {
   const modal = document.getElementById("lcRulesModal");
   if (modal) modal.classList.add("hidden");
+  document.body.classList.remove("modal-open");
 }
 function cleanupLeastCountGame() {
   document.body.classList.remove("least-count-theme");
