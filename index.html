@@ -2737,6 +2737,58 @@ body:has(#game:not(.hidden)) main{
  }
 }
 
+
+/* Match Moddu Set mobile player cards to the compact Least Count profile layout.
+   Scope excludes Least Count, whose .lc-player-strip already has its own design. */
+@media(max-width:600px){
+ #game .player-strip:not(.lc-player-strip) .players{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:5px!important;overflow:visible!important;padding:2px 0 4px!important;
+ }
+ #game .player-strip:not(.lc-player-strip) .player{
+  display:flex!important;flex-direction:column!important;
+  align-items:center!important;justify-content:flex-start!important;
+  box-sizing:border-box!important;min-width:0!important;width:auto!important;
+  min-height:82px!important;height:auto!important;
+  flex:initial!important;padding:5px 2px!important;
+  border-radius:10px!important;line-height:1.2!important;
+ }
+ #game .player-strip:not(.lc-player-strip) .player-identity{
+  display:flex!important;flex-direction:column!important;
+  align-items:center!important;justify-content:center!important;
+  gap:2px!important;margin:0!important;
+ }
+ #game .player-strip:not(.lc-player-strip) .avatar-stack{
+  min-width:29px!important;margin:0 0 1px!important;
+ }
+ #game .player-strip:not(.lc-player-strip) .player-avatar{
+  width:29px!important;height:29px!important;min-width:29px!important;
+  flex:0 0 29px!important;font-size:17px!important;
+ }
+ #game .player-strip:not(.lc-player-strip) .avatar-count{
+  top:-4px!important;right:-6px!important;min-width:15px!important;
+  height:15px!important;padding:0 3px!important;
+  font-size:8px!important;line-height:13px!important;
+ }
+ #game .player-strip:not(.lc-player-strip) .player-name-wrap{
+  max-width:100%!important;min-width:0!important;align-items:center!important;
+ }
+ #game .player-strip:not(.lc-player-strip) .player-name-wrap b{
+  display:block!important;max-width:100%!important;
+  font-size:9px!important;line-height:1.15!important;
+  white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
+ }
+ #game .player-strip:not(.lc-player-strip) .profile-score{
+  margin-top:2px!important;font-size:8px!important;line-height:1.15!important;
+  white-space:nowrap!important;
+ }
+ #game .player-strip:not(.lc-player-strip) .profile-more{
+  width:18px!important;height:22px!important;min-height:22px!important;
+  top:4px!important;right:3px!important;font-size:12px!important;
+ }
+}
+
 </style>
 </head>
 
