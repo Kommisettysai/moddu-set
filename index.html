@@ -2708,6 +2708,35 @@ body:has(#game:not(.hidden)) main{
  #gameTypePickerModal .game-picker-suits>span{font-size:26px!important}
 }
 
+
+/* Moddu Set-only compact player profile correction.
+   Least Count keeps its own already-correct .lc-player-card sizing. */
+@media(max-width:600px){
+ body:not(.least-count-theme) #game .player-strip .player{
+  box-sizing:border-box!important;min-height:91px!important;padding:6px 3px 6px!important;
+ }
+ body:not(.least-count-theme) #game .player-strip .player-identity{
+  gap:2px!important;margin:0!important;
+ }
+ body:not(.least-count-theme) #game .player-strip .avatar-stack{
+  min-width:33px!important;margin-bottom:1px!important;
+ }
+ body:not(.least-count-theme) #game .player-strip .player-avatar{
+  width:32px!important;height:32px!important;min-width:32px!important;
+  flex:0 0 32px!important;font-size:19px!important;
+ }
+ body:not(.least-count-theme) #game .player-strip .avatar-count{
+  top:-4px!important;right:-6px!important;min-width:16px!important;
+  height:16px!important;font-size:9px!important;line-height:14px!important;
+ }
+ body:not(.least-count-theme) #game .player-strip .player-name-wrap b{
+  font-size:10px!important;line-height:1.15!important;
+ }
+ body:not(.least-count-theme) #game .player-strip .profile-score{
+  margin-top:2px!important;font-size:9px!important;line-height:1.2!important;
+ }
+}
+
 </style>
 </head>
 
@@ -4201,7 +4230,13 @@ function showGameConfirm(title,body,action,confirmLabel="Confirm"){
 }
 function closeGameConfirm(){document.getElementById("gameConfirmModal")?.classList.add("hidden");pendingGameConfirmAction=null;}
 function runGameConfirm(){const action=pendingGameConfirmAction;closeGameConfirm();if(typeof action==="function")action();}
-function showRules(){const modal=document.getElementById("gameRulesModal");if(modal)modal.classList.remove("hidden");}
+function showRules(){
+ const modal=document.getElementById("gameRulesModal");
+ if(!modal)return;
+ // Match the working Restart confirmation: place the fixed overlay directly under body.
+ if(modal.parentElement!==document.body)document.body.appendChild(modal);
+ modal.classList.remove("hidden");
+}
 function closeRules(){document.getElementById("gameRulesModal")?.classList.add("hidden");}
 function requestRestartCurrentGame(){
  if(onlineMode&&(!isRoomHost||!roomRef)){message("Only the host can restart the online game.");return;}
