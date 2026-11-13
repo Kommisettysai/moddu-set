@@ -313,26 +313,32 @@ function lcRender() {
     const cards = Array.isArray(state.openCards) ? state.openCards : [];
     const matchReady = ownTurn && phase === "drop" && lcCanMatchDrop(state);
     const hasSelection = ownTurn && phase === "drop" && lcSelectedIds.size > 0;
+    // Keep every face-up card tappable during the current player's turn.
+    // If no card is selected yet, the tap gives a clear instruction instead of
+    // relying on a disabled button that can be difficult to hit on mobile.
     open.innerHTML = cards.length ? cards.map((card, index) => {
       const isTop = index === cards.length - 1;
       const isMatchSkip = matchReady && isTop;
-      // During DROP, the open pile is a valid pick source after a card/set is selected.
-      // When Match & Drop applies, only the top matching card remains tappable and skips the pick.
-      const canTap = ownTurn && (phase === "pick" || (hasSelection && (!matchReady || isTop)));
+      const canTap = ownTurn && (phase === "pick" || phase === "drop");
       const openActionClass = phase === "drop"
-        ? (isMatchSkip ? " match-drop-ready" : canTap ? " drop-pick-ready" : " match-drop-disabled")
+        ? (isMatchSkip ? " match-drop-ready" : canTap ? " drop-pick-ready" : "")
         : "";
       return lcCardMarkup(card, false, canTap, "lc-open-card" + openActionClass);
     }).join("") : '<span class="lc-empty-pile">No open cards</span>';
 
-    // Bind each open card directly after every render. Mobile taps on nested
-    // card-face elements must always resolve to the same open-pick action.
-    open.querySelectorAll("button[data-lc-open-id]").forEach(cardButton => {
-      cardButton.addEventListener("click", event => {
+    // Delegate the tap from the stable pile container. This works when the
+    // player taps the card face, its rank/suit text, or the surrounding pile.
+    const openPile = open.closest(".lc-open-pile");
+    if (openPile) {
+      openPile.onclick = event => {
         event.preventDefault();
-        event.stopPropagation();
         if (!onlinePublic || onlinePublic.turnUid !== roomPlayerId || lcActionPending) return;
-        const cardId = cardButton.dataset.lcOpenId;
+        if (onlinePublic.status !== "playing") return;
+        const tappedCard = event.target.closest("button[data-lc-open-id]");
+        const currentOpen = Array.isArray(onlinePublic.openCards) ? onlinePublic.openCards : [];
+        const cardId = tappedCard && open.contains(tappedCard)
+          ? tappedCard.dataset.lcOpenId
+          : (currentOpen.length ? currentOpen[currentOpen.length - 1].id : null);
         if (!cardId) return;
         if (onlinePublic.phase === "pick") {
           lcPickOpen(cardId);
@@ -348,8 +354,8 @@ function lcRender() {
           return;
         }
         lcDropAndPickOpen(cardId);
-      }, { passive: false });
-    });
+      };
+    }
   }
   const newDrop = document.getElementById("lcNewDrop");
   if (newDrop) {
