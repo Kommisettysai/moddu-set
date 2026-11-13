@@ -1630,6 +1630,36 @@ body.modal-open{overflow:hidden;touch-action:none}
 .room-settings-modal-card .lobby-hint{margin-bottom:8px}
 @media(max-width:390px){.lobby-modal-card{padding:16px 13px}.game-picker-option{grid-template-columns:46px 1fr 20px;padding:11px}.game-picker-art{width:42px;height:42px}}
 
+
+/* Least Count results: midnight plum scoreboard, with explicit SHOW-caller spotlight. */
+#roundResults.lc-results-screen{background:radial-gradient(ellipse at 50% -12%,#40304f 0%,#202338 43%,#111827 100%)!important;color:#f7f0e4!important;border:1px solid #c6a76a55!important}
+#roundResults.lc-results-screen .results-header h2{color:#f7dca2!important;text-shadow:0 3px 18px #e7bd7655}
+#roundResults.lc-results-screen .results-header p{color:#d4d2df!important}
+#roundResults.lc-results-screen .results-profile{background:linear-gradient(145deg,#293149,#1a2235)!important;border:1px solid #8b91ad66!important;color:#f5eddf!important;box-shadow:0 7px 18px #080b1680!important}
+#roundResults.lc-results-screen .results-profile.show-winner{background:linear-gradient(145deg,#51452f,#282b3b)!important;border:2px solid #e9c879!important;box-shadow:0 0 0 2px #f1d68a22,0 0 18px #e9c87935!important}
+#roundResults.lc-results-screen .results-profile.show-caller{border:2px solid #e47a68!important;box-shadow:0 0 0 2px #e47a6840,0 0 20px #e47a6850!important}
+#roundResults.lc-results-screen .results-profile.show-caller.show-winner{border-color:#f0bd68!important;box-shadow:0 0 0 2px #e47a6844,0 0 22px #e8b96a55!important}
+#roundResults.lc-results-screen .results-hand{background:linear-gradient(145deg,#252e45,#182235)!important;border:1px solid #8189a966!important;color:#f6f0e5!important;box-shadow:0 6px 16px #080b1670!important}
+#roundResults.lc-results-screen .results-hand.winner-hand{border:2px solid #e8c778!important;box-shadow:0 0 0 2px #e8c77825,0 0 16px #e8c77828!important}
+#roundResults.lc-results-screen .results-hand.show-caller-hand{border:2px solid #e47a68!important;box-shadow:0 0 0 2px #e47a6840,0 0 20px #e47a6845!important}
+#roundResults.lc-results-screen .results-hand.show-caller-hand.winner-hand{border-color:#f0bd68!important;box-shadow:0 0 0 2px #e47a6840,0 0 20px #e8b96a50!important}
+#roundResults.lc-results-screen .results-hand-head span{color:#e4d9ca!important}
+#roundResults.lc-results-screen .results-profile .result-current{color:#f1d28f!important}
+#roundResults.lc-results-screen .show-caller-tag,#roundResults.lc-results-screen .show-caller-inline{display:inline-flex;align-items:center;gap:4px;border-radius:30px;font-weight:900;letter-spacing:.7px}
+#roundResults.lc-results-screen .show-caller-tag{margin:5px auto 2px;padding:5px 9px;font-size:9px}
+#roundResults.lc-results-screen .show-caller-inline{padding:3px 6px;font-size:8px;white-space:nowrap}
+#roundResults.lc-results-screen .bad-show-tag{background:linear-gradient(135deg,#8f3937,#5b252d);color:#ffe2d8;border:1px solid #ff9b83;box-shadow:0 0 12px #ef806455}
+#roundResults.lc-results-screen .good-show-tag{background:linear-gradient(135deg,#315f59,#1b393f);color:#c9f2df;border:1px solid #78c9a8}
+#roundResults.lc-results-screen .lc-show-callout{display:flex;align-items:center;justify-content:center;gap:9px;flex-wrap:wrap;margin:10px 0 2px;padding:11px 12px;border-radius:13px;text-align:center;background:linear-gradient(110deg,#542b35,#302538 70%,#25263b);border:1px solid #ed8b79;color:#ffe4d8;box-shadow:0 0 0 2px #ed8b7920,0 7px 20px #070b1680}
+#roundResults.lc-results-screen .lc-show-callout strong{font-size:12px;letter-spacing:1px}
+#roundResults.lc-results-screen .lc-show-callout span{font-size:12px;color:#ffcfbd}
+#roundResults.lc-results-screen .lc-show-callout.good-show{background:linear-gradient(110deg,#244b49,#202c42);border-color:#83d1b1;color:#d8ffeb}
+#roundResults.lc-results-screen .results-card{box-shadow:0 3px 7px #080b1680}
+#roundResults.lc-results-screen .lc-results-footer{background:linear-gradient(transparent,#111827 30%)}
+#roundResults.lc-results-screen .lc-results-footer #lcResultsRestartBtn{background:linear-gradient(145deg,#34344d,#20243a)!important;color:#f5d99d!important;border:1px solid #d5b56e!important}
+#roundResults.lc-results-screen .lc-results-waiting{color:#d2d2e0}
+@media(max-width:390px){#roundResults.lc-results-screen .results-hand-head .hand-player-identity{flex-wrap:wrap}#roundResults.lc-results-screen .show-caller-inline{font-size:7px;padding:3px 5px}}
+
 </style>
 </head>
 
@@ -1922,6 +1952,7 @@ body.modal-open{overflow:hidden;touch-action:none}
   <div class="results-kicker">ROUND COMPLETE</div>
   <h2>Show Results</h2>
   <p id="resultsSummary">All players' cards are revealed.</p>
+  <div id="lcShowCallout" class="lc-show-callout hidden" aria-live="polite"></div>
  </div>
  <div id="resultsProfiles" class="results-profiles"></div>
  <div id="resultsHands" class="results-hands"></div>
