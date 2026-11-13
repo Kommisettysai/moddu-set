@@ -1417,6 +1417,59 @@ body:has(#roundResults:not(.hidden))>header,
  #game .lc-hand .lc-card{width:58px!important;height:86px!important}
 }
 
+
+/* Least Count now uses the same panel rhythm and card-table layout as Moddu Set. */
+#game #leastCountView{display:block;margin:0}
+#game #leastCountView.hidden{display:none!important}
+#game #leastCountView .lc-table-panel,#game #leastCountView .lc-hand-panel,#game #leastCountView .lc-results{padding:14px!important;margin:0 0 12px!important;border-radius:18px!important;background:linear-gradient(145deg,#174a39ed,#0d3529f2)!important;border:1px solid #d9b66b42!important;box-shadow:0 10px 26px #0003,inset 0 1px #ffffff0b!important}
+#game #leastCountView .lc-section-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px}
+#game #leastCountView .lc-section-heading h3{margin:0!important;font-size:19px!important;color:#f4d99e!important}
+#game #leastCountView .lc-rules-button{padding:7px 11px!important;font-size:11px!important}
+#game #leastCountView .lc-table{display:flex;align-items:center;justify-content:center;gap:18px;padding:6px 0 10px;margin:0}
+#game #leastCountView .lc-pile-wrap{flex:0 1 150px;min-width:0}
+#game #leastCountView button.lc-pile,#game #leastCountView .lc-open-pile{width:100%!important;height:130px!important;min-height:130px!important;padding:8px!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:5px!important;border:2px solid #e4c27a!important;border-radius:15px!important;background:linear-gradient(145deg,#174c39,#0c3026)!important;color:#f5d99d!important;box-shadow:inset 0 1px #ffffff12,0 5px 12px #0003!important}
+#game #leastCountView button.lc-pile:disabled{opacity:1!important;filter:none!important}
+#game #leastCountView .lc-deck-stack{position:relative;display:block;width:60px;height:72px;margin:0 auto 3px;font-size:0!important;background:repeating-linear-gradient(45deg,#1a523d 0 7px,#b9975a 7px 10px)!important;border:3px solid #e4c27a;border-radius:8px;box-shadow:0 3px 0 #806438,0 5px 9px #0005}
+#game #leastCountView .lc-deck-stack span{display:none}
+#game #leastCountView .lc-pile strong{font-size:12px!important;color:#e8d7ad!important}
+#game #leastCountView .lc-pile small{font-size:9px!important;letter-spacing:1px!important;color:#e8d7ad!important;text-align:center}
+#game #leastCountView .lc-open-cards{display:flex;align-items:center;justify-content:center;gap:4px;min-height:78px;width:100%;flex-wrap:wrap}
+#game #leastCountView #lcOpenCards button.lc-card{width:39px!important;height:57px!important;flex:0 0 39px;padding:4px!important}
+#game #leastCountView .lc-new-drop{display:none!important}
+#game #leastCountView .lc-status{margin:3px 0 0!important;padding:8px 10px!important;border:1px solid #d5b16b38;border-radius:10px;background:#082c22;color:#f2dba6;font-size:11px;text-align:center;min-height:0}
+#game #leastCountView .lc-hand-panel .hand-heading{display:flex;align-items:center;justify-content:flex-start;gap:8px;margin-bottom:8px}
+#game #leastCountView .lc-hand-panel .hand-heading h3{margin:0!important;font-size:18px!important;display:flex;align-items:center;flex-wrap:wrap;gap:7px}
+#game #leastCountView #lcHandTotal{font-size:12px!important;padding:6px 10px!important}
+#game #leastCountView #lcHand{display:flex!important;flex-wrap:wrap!important;justify-content:flex-start!important;align-items:flex-end!important;gap:7px!important;min-height:0;margin:8px 0 12px!important;padding:3px 1px 8px!important;overflow:visible!important}
+#game #leastCountView #lcHand button.lc-card{width:clamp(43px,12vw,58px)!important;height:clamp(68px,18vw,86px)!important;flex:0 0 clamp(43px,12vw,58px)!important;padding:5px!important;border-radius:9px!important;cursor:pointer!important;touch-action:manipulation!important;pointer-events:auto!important;position:relative!important;z-index:2!important;user-select:none!important;-webkit-user-select:none!important;-webkit-tap-highlight-color:transparent!important}
+#game #leastCountView #lcHand button.lc-card.selected{transform:translateY(-10px)!important;outline:3px solid #ffe08a!important;outline-offset:1px!important;border:2px solid #ffdc75!important;box-shadow:0 0 0 4px #f8d46d55,0 8px 14px #0008!important}
+#game #leastCountView #lcHand button.lc-card .lc-card-center{font-size:27px!important}
+#game #leastCountView .lc-action-buttons{display:flex!important;gap:9px!important;flex-wrap:nowrap!important;margin:9px 0 4px!important}
+#game #leastCountView .lc-action-buttons button{flex:1 1 50%!important;min-width:0!important;padding:11px 8px!important;font-size:12px!important}
+#game #leastCountView .lc-action-hint{margin:5px 0 0!important;color:#c8d9ce;font-size:10px;text-align:center}
+#game #leastCountView .lc-results h3{margin:0 0 8px!important}
+#game #leastCountView .lc-result-rows{display:flex;flex-direction:column;gap:7px}
+#game #leastCountView .lc-result-row{display:grid;grid-template-columns:1fr auto auto;gap:5px 8px;padding:9px;border:1px solid #d5b16b35;border-radius:10px;background:#092e24}
+#game #leastCountView .lc-result-row .lc-result-cards{grid-column:1/-1;color:#c4d5c9}
+#game #leastCountView .lc-results button{margin:8px 6px 0 0}
+#game #leastCountView #lcHand button.lc-card,
+#game #leastCountView #lcOpenCards button.lc-card{background:linear-gradient(155deg,#fffdf6 0%,#f0e8d6 100%)!important;color:#17271f!important;border:1px solid #d8c18b!important;box-shadow:0 4px 0 #8b7147,0 7px 12px #0006!important}
+#game #leastCountView #lcHand button.lc-card.red,
+#game #leastCountView #lcOpenCards button.lc-card.red{color:#c33342!important}
+#game #leastCountView #lcHand button.lc-card .lc-card-corner,
+#game #leastCountView #lcOpenCards button.lc-card .lc-card-corner{font-size:13px!important;font-weight:900!important;line-height:1!important}
+#game #leastCountView #lcHand button.lc-card .lc-card-center,
+#game #leastCountView #lcOpenCards button.lc-card .lc-card-center{color:inherit!important}
+#game #leastCountView #lcHand button.lc-card .lc-card-value,
+#game #leastCountView #lcOpenCards button.lc-card .lc-card-value{color:#53645a!important}
+@media(max-width:420px){
+ #game #leastCountView .lc-table{gap:10px}
+ #game #leastCountView .lc-pile-wrap{flex-basis:calc(50% - 5px)}
+ #game #leastCountView button.lc-pile,#game #leastCountView .lc-open-pile{height:118px!important;min-height:118px!important}
+ #game #leastCountView #lcHand{gap:6px!important}
+ #game #leastCountView #lcHand button.lc-card{width:clamp(42px,12.1vw,53px)!important;height:clamp(66px,18vw,78px)!important;flex-basis:clamp(42px,12.1vw,53px)!important}
+}
+
 </style>
 </head>
 
@@ -1566,30 +1619,41 @@ body:has(#roundResults:not(.hidden))>header,
 </div>
 
 <section id="leastCountView" class="least-count-view hidden" aria-label="Least Count game">
- <div class="lc-board">
-  <div class="lc-board-head"><div><span class="lc-eyebrow">SAI CARD GAMES</span><h2>LEAST COUNT</h2><p>Lowest hand wins the round</p></div><button type="button" class="lc-rules-button" onclick="showLeastCountRules()">How to play</button></div>
-  <div class="lc-status" id="lcMessage" aria-live="polite">Waiting for cards…</div>
+ <div class="panel lc-table-panel">
+  <div class="lc-section-heading"><h3>Game Table</h3><button type="button" class="lc-rules-button" onclick="showLeastCountRules()">How to play</button></div>
   <div class="lc-table">
-   <div class="lc-pile-wrap"><button type="button" id="lcDeckBtn" class="lc-pile lc-deck" onclick="lcPickDeck()" disabled><span class="lc-deck-stack">▧</span><strong id="lcDeckCount">0 cards</strong><small>DRAW DECK</small></button></div>
-   <div class="lc-pile-wrap"><div class="lc-pile lc-open-pile"><div id="lcOpenCards" class="lc-open-cards"></div><small>PREVIOUS PLAYER'S DROP · PICK ONE</small><div id="lcNewDrop" class="lc-new-drop hidden"></div></div></div>
-  </div>
-  <div class="lc-action-area">
-   <p id="lcActionHint">Select cards to drop.</p>
-   <div class="lc-action-buttons">
-    <button type="button" id="lcDropBtn" onclick="lcDropSelected()" disabled>DROP SELECTED</button>
-    <button type="button" id="lcShowBtn" class="lc-show-button hidden" onclick="lcCallShow()">SHOW</button>
+   <div class="lc-pile-wrap">
+    <button type="button" id="lcDeckBtn" class="pile lc-pile lc-deck" onclick="lcPickDeck()" disabled aria-label="Draw from deck">
+     <span class="card-stack lc-deck-stack" aria-hidden="true"><span></span><span></span><span></span></span>
+     <strong id="lcDeckCount">0 cards</strong><small>DRAW DECK</small>
+    </button>
+   </div>
+   <div class="lc-pile-wrap">
+    <div class="pile lc-pile lc-open-pile">
+     <div id="lcOpenCards" class="lc-open-cards"></div>
+     <small>DISCARD PILE · PICK ONE</small>
+     <div id="lcNewDrop" class="lc-new-drop hidden"></div>
+    </div>
    </div>
   </div>
-  <div class="lc-hand-panel">
-   <div class="lc-hand-head"><div><span class="lc-eyebrow">YOUR HAND</span><h3><span id="lcHandCount">0</span> cards</h3></div><strong id="lcHandTotal">0 points</strong></div>
-   <div id="lcHand" class="lc-hand" aria-label="Your cards"></div>
+  <div class="lc-status" id="lcMessage" aria-live="polite">Waiting for cards…</div>
+ </div>
+ <div class="panel lc-hand-panel">
+  <div class="hand-heading">
+   <h3>Your cards (<span id="lcHandCount">0</span>) <span id="lcHandTotal" class="hand-unmatched">In hand: 0 pts</span></h3>
   </div>
-  <div id="lcResults" class="lc-results hidden">
-   <div class="lc-result-head"><span class="lc-eyebrow">ROUND SUMMARY</span><h3>Hand scores</h3><p id="lcResultSummary"></p></div>
-   <div id="lcResultRows" class="lc-result-rows"></div>
-   <button type="button" id="lcNextRoundBtn" class="lc-next-button hidden" onclick="startLeastCountNextRound()">Deal next round</button>
-   <button type="button" id="lcPlayAgainBtn" class="lc-next-button hidden" onclick="restartLeastCountTable()">Play again · reset scores</button>
+  <div id="lcHand" class="cards lc-hand" aria-label="Your cards"></div>
+  <div class="actions hand-actions lc-action-buttons">
+   <button type="button" id="lcDropBtn" onclick="lcDropSelected()" disabled>Drop selected</button>
+   <button type="button" id="lcShowBtn" class="lc-show-button hidden" onclick="lcCallShow()">SHOW</button>
   </div>
+  <p id="lcActionHint" class="lc-action-hint">Select cards to drop.</p>
+ </div>
+ <div id="lcResults" class="panel lc-results hidden">
+  <div class="lc-result-head"><span class="lc-eyebrow">ROUND SUMMARY</span><h3>Hand scores</h3><p id="lcResultSummary"></p></div>
+  <div id="lcResultRows" class="lc-result-rows"></div>
+  <button type="button" id="lcNextRoundBtn" class="lc-next-button hidden" onclick="startLeastCountNextRound()">Deal next round</button>
+  <button type="button" id="lcPlayAgainBtn" class="lc-next-button hidden" onclick="restartLeastCountTable()">Play again · reset scores</button>
  </div>
 </section>
 
