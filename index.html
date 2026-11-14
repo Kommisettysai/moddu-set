@@ -4223,6 +4223,12 @@ function openRoundResults(results,winnerIndex=0){
  const screen=document.getElementById("roundResults"),profiles=document.getElementById("resultsProfiles"),hands=document.getElementById("resultsHands");
  if(!screen||!profiles||!hands)return;
  prepareRoundResultsOverlay(screen);
+ screen.classList.remove("game-complete-screen");
+ const lcFooter=document.getElementById("lcResultsFooter");
+ if(lcFooter)lcFooter.style.setProperty("display","none","important");
+ const profilesEl=document.getElementById("resultsProfiles"),handsEl=document.getElementById("resultsHands");
+ if(profilesEl)profilesEl.style.removeProperty("display");
+ if(handsEl)handsEl.style.removeProperty("display");
  const penalties=players.map((p,i)=>p.roundDropped?(p.dropPenalty||0):(i===0?0:bestUnmatchedScore(p.hand,p)));
  const resultOrder=players.map((p,i)=>({p,i,penalty:penalties[i]})).sort((a,b)=>(a.i===winnerIndex?-1:b.i===winnerIndex?1:a.penalty-b.penalty)||a.i-b.i);
  profiles.innerHTML="";
@@ -5301,6 +5307,12 @@ function openOnlineRoundResults(result){
  const screen=document.getElementById("roundResults"),profiles=document.getElementById("resultsProfiles"),handsEl=document.getElementById("resultsHands");
  if(!screen||!profiles||!handsEl)return;
  prepareRoundResultsOverlay(screen);
+ screen.classList.remove("game-complete-screen");
+ const lcFooter=document.getElementById("lcResultsFooter");
+ if(lcFooter)lcFooter.style.setProperty("display","none","important");
+ const profilesEl=document.getElementById("resultsProfiles"),handsDisplay=document.getElementById("resultsHands");
+ if(profilesEl)profilesEl.style.removeProperty("display");
+ if(handsDisplay)handsDisplay.style.removeProperty("display");
  const list=(onlinePublic.players||[]).map(p=>({...p,cardCount:(result.hands[p.id]||[]).length})),winner=result.winnerUid;
  const resultOrder=list.map((p,i)=>({p,i,penalty:result.penalties[p.id]||0})).sort((a,b)=>(a.p.id===winner?-1:b.p.id===winner?1:a.penalty-b.penalty)||a.i-b.i);
  profiles.innerHTML=resultOrder.map(({p})=>{const penalty=result.penalties[p.id]||0,total=Number(result.totals[p.id])||0;const isEliminated=p.active===false||total>=Math.max(1,Number(onlinePublic.scoreLimit)||200);return '<div class="results-profile '+(p.id===winner?'show-winner':'')+'"><div class="results-identity"><span class="player-avatar">'+playerInitials(p.name)+'</span><span class="results-name"><strong>'+escapeLobbyText(p.name)+'</strong></span></div><span class="finish-rank">'+(p.id===winner?'🏆 ROUND WINNER':p.roundDropped?'⛔ DROPPED':isEliminated?'ELIMINATED':'ROUND COMPLETE')+'</span><span class="result-points">Total: '+total+'</span><span class="result-count">This round: +'+penalty+'</span></div>';}).join('');
@@ -5327,12 +5339,22 @@ function openOnlineGameComplete(champion){
  if(!screen||!profiles||!handsEl)return;
  prepareRoundResultsOverlay(screen);
  screen.classList.add("game-complete-screen");
+ const lcFooter=document.getElementById("lcResultsFooter");
+ if(lcFooter)lcFooter.style.setProperty("display","none","important");
+ const profilesDisplay=document.getElementById("resultsProfiles"),handsDisplay=document.getElementById("resultsHands");
+ if(profilesDisplay)profilesDisplay.style.setProperty("display","grid","important");
+ if(handsDisplay)handsDisplay.style.setProperty("display","none","important");
+ const kicker=screen.querySelector(".results-kicker");
+ if(kicker)kicker.textContent="🏆 MODDU SET · GAME COMPLETE";
+ const title=screen.querySelector(".results-header h2");
+ if(title)title.textContent="Game Complete";
  const summary=document.getElementById("resultsSummary");
  if(summary)summary.textContent="The final table is complete. Congratulations, "+champion+"!";
  const confetti=["🎉","🎊","✨","🎈","🏆","🎉","🎊","✨","🎈","🎉","🎊","✨","🎈","🎉","🎊","✨"];
  const confettiMarkup='<div class="winner-confetti" aria-hidden="true">'+confetti.map((item,i)=>'<span style="--i:'+i+';--x:'+((i*6.25)+2)+'%">'+item+'</span>').join("")+'</div>';
  const sorted=[...(onlinePublic.players||[])].sort((a,b)=>Number(a.id===onlinePublic.championUid)-Number(b.id===onlinePublic.championUid)).reverse();
- const winner=sorted.find(p=>p.id===onlinePublic.championUid)||sorted.find(p=>p.name===champion);
+ if(!sorted.length)sorted.push({id:onlinePublic.championUid||"champion",name:champion,score:0});
+ const winner=sorted.find(p=>p.id===onlinePublic.championUid)||sorted.find(p=>p.name===champion)||sorted[0];
  const winnerMarkup=winner?'<div class="champion-celebration"><span class="champion-crown">👑</span><span class="champion-eyebrow">MODDU SET CHAMPION</span><strong>'+escapeLobbyText(winner.name)+'</strong><span class="champion-score">🏆 FINAL SCORE: '+(Number(winner.score)||0)+'</span><span class="champion-message">🎉 Congratulations! 🎊</span></div>':'';
  profiles.innerHTML=confettiMarkup+winnerMarkup+sorted.map((p,i)=>{const isWinner=p.id===onlinePublic.championUid||(!onlinePublic.championUid&&p.name===champion);return '<div class="results-profile '+(isWinner?'show-winner champion-profile':'final-player-profile')+'">'+playerIdentityMarkup(p,i,"results")+'<span class="finish-rank">'+(isWinner?'🏆 CHAMPION':'FINAL PLAYER')+'</span><span class="result-points">Total: '+(Number(p.score)||0)+'</span>'+(isWinner?'<span class="winner-tag">🎊 WINNER 🎊</span>':'')+'</div>';}).join('');
  handsEl.innerHTML="";
@@ -5343,6 +5365,7 @@ function openOnlineGameComplete(champion){
    '<p class="rematch-status">'+(canRestart?'Host can start a fresh game for everyone using the button above.':'Waiting for the host to start a new game.')+'</p>';
  }
  screen.classList.remove("hidden");
+ screen.scrollTop=0;
 }
 let onlineRematchStarting=false,onlineRematchVotesListener=null;
 async function voteOnlineRematch(){
