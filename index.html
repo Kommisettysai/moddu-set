@@ -997,8 +997,7 @@ body.app-locked{overflow:hidden}
 #setup .account-welcome{display:flex;align-items:center;gap:10px;margin:0 0 14px;padding:12px;border:1px solid #d9b66b66;border-radius:14px;background:#08291f88}
 #setup .account-welcome>div:nth-child(2){min-width:0;flex:1}
 #setup .account-signout{flex:0 0 auto;margin:0!important;padding:7px 9px!important;font-size:11px!important;white-space:nowrap}
-#roomActions{margin-top:8px}
-#roomActions>.lobby-primary{min-height:54px;font-size:17px;box-shadow:0 4px 0 #8d642b,0 8px 15px #0003}
+#roomActions{margin-top:8px}#roomActions>.lobby-primary{min-height:54px;font-size:17px;box-shadow:0 4px 0 #8d642b,0 8px 15px #0003}
 #roomJoinControls{margin-top:12px}
 #roomJoinControls .lobby-or{margin:14px 0 10px}
 .inline-private-table{margin:18px 0 0;padding:14px 10px 12px;border:2px solid #e6c66f;border-radius:21px;background:linear-gradient(150deg,#0e4935,#082b21);box-shadow:0 0 0 2px #f2d47a22,0 0 18px #eacb7840}
@@ -1997,8 +1996,7 @@ body:has(#game:not(.hidden)) main{max-width:900px!important;padding:14px 13px 26
   background:linear-gradient(90deg,#092a22,#0e382c,#092a22)!important;
   color:#f4dfad!important;font:13px/1.4 Georgia,serif!important;
 }
-#game #leastCountView .lc-hand-panel{padding:17px!important}
-#game #leastCountView .hand-heading{margin:0 0 8px!important}
+#game #leastCountView .lc-hand-panel{padding:17px!important}#game #leastCountView .hand-heading{margin:0 0 8px!important}
 #game #leastCountView .hand-heading h3{
   color:#f8e2ad!important;font:700 20px Georgia,serif!important;
 }
@@ -2998,7 +2996,6 @@ body:has(#game:not(.hidden)) main{
 <div class="players-heading"><h3>Players</h3></div>
 <div class="players" id="players"></div>
 </div>
-
 <section id="leastCountView" class="least-count-view hidden" aria-label="Least Count game">
  <div class="panel lc-table-panel">
   <div class="lc-section-heading"><h3>Game Table</h3><button type="button" class="lc-rules-button" onclick="showLeastCountRules()">How to play</button></div>
@@ -3997,8 +3994,7 @@ function renderHandLayout(){
   while(same.length>=3){
    const cards=same.splice(0,3);cards.forEach(c=>groupedLoose.add(c.id));
    looseRankItems.push({kind:"looseSet",cards,priority:1,rank:ranks.indexOf(rank)});
-  }
-  while(same.length>=2){
+  }  while(same.length>=2){
    const cards=same.splice(0,2);cards.forEach(c=>groupedLoose.add(c.id));
    looseRankItems.push({kind:"pair",cards,priority:2,rank:ranks.indexOf(rank)});
   }
@@ -4719,9 +4715,16 @@ async function requestCardWatch(targetUid){
   }
   cardWatchViewerDismissed=false;
   await lockRef.set({targetUid,round:roundNo,viewerUid:roomPlayerId,createdAt:firebase.database.ServerValue.TIMESTAMP});
-  await requestRef.set({targetUid,viewerUid:roomPlayerId,round:roundNo,status:"pending",requestedAt:firebase.database.ServerValue.TIMESTAMP});
-  cardWatchState={targetUid,viewerUid:roomPlayerId,round:roundNo,status:"pending"};
-  setLobbyNotice("Request sent. Waiting for "+target.name+" to approve.");
+  const autoApproved=!!target.isBot;
+  const requestStatus=autoApproved?"accepted":"pending";
+  await requestRef.set({targetUid,viewerUid:roomPlayerId,round:roundNo,status:requestStatus,requestedAt:firebase.database.ServerValue.TIMESTAMP,...(autoApproved?{respondedAt:firebase.database.ServerValue.TIMESTAMP,autoApproved:true}:{})});
+  cardWatchState={targetUid,viewerUid:roomPlayerId,round:roundNo,status:requestStatus,...(autoApproved?{autoApproved:true}:{})};
+  if(autoApproved){
+   setLobbyNotice(target.name+" is a bot. Your card view is approved automatically.");
+   syncCardWatchViewer();
+  }else{
+   setLobbyNotice("Request sent. Waiting for "+target.name+" to approve.");
+  }
   listenToOwnCardWatchRequest(targetUid);
   render();
  }catch(e){setLobbyNotice("Could not send card-view request: "+e.message);}
@@ -4997,8 +5000,7 @@ async function voiceEnsurePeers(participants){
   if(!activeParticipants.some(p=>p&&p.id===uid&&p.joined)){
    try{pc.close();}catch(e){}
    voiceResetPeer(uid);voicePeerSessions.delete(uid);
-  }
- }
+  } }
 }
 async function joinVoiceChat(){
  if(!onlineMode||!roomRef||!roomPlayerId){voiceSetStatus("Voice chat is available only in an online game.");return;}
