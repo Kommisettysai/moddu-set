@@ -2970,6 +2970,41 @@ body:has(#game:not(.hidden)) main{
 #roundResults.moddu-results-screen .result-unmatched-row .results-card{border:1.5px solid #ff9b72!important;background:linear-gradient(155deg,#fff4e8,#ffd6bf)!important;color:#9d2e22!important;box-shadow:0 0 0 1px #ffb18b55,0 0 7px #ff754c88!important;animation:unmatchedFloat 2.8s ease-in-out infinite}
 #roundResults.moddu-results-screen .result-unmatched-row .results-card:nth-child(2n){animation-delay:.22s}
 #roundResults.moddu-results-screen .result-unmatched-row .results-card:nth-child(3n){animation-delay:.44s}
+/* Round points count-up and unmatched-card spotlight on results entry. */
+#roundResults.moddu-results-screen .results-hand .result-current{
+ position:relative!important;transform-origin:center!important;
+}
+#roundResults.moddu-results-screen .results-hand .result-current.round-points-pop{
+ animation:roundPointsPop 1.05s cubic-bezier(.16,.85,.25,1) both!important;
+ border-color:#ffe28a!important;color:#fff1bd!important;
+ box-shadow:0 0 0 2px #ffd65a55,0 0 13px #ffbd36aa,0 0 24px #ff9e2788!important;
+}
+#roundResults.moddu-results-screen .result-unmatched-row .results-card.unmatched-reveal-pop{
+ animation:unmatchedCardZoom .72s cubic-bezier(.16,.85,.25,1) both!important;
+ animation-delay:calc(var(--unmatched-index,0)*.11s)!important;
+ z-index:2!important;position:relative!important;
+ border-color:#ffbd75!important;
+ box-shadow:0 0 0 2px #ffbb7566,0 0 11px #ff865dcc,0 0 20px #ffb34d66!important;
+}
+#roundResults.moddu-results-screen .result-unmatched-row:not(:has(.results-card)) .result-unmatched-head strong{
+ animation:roundPointsPop 1s ease-out both;
+}
+@keyframes roundPointsPop{
+ 0%{transform:scale(.78);filter:brightness(.85);box-shadow:0 0 0 #ffd65a00}
+ 48%{transform:scale(1.28);filter:brightness(1.55);box-shadow:0 0 18px #ffcf55dd}
+ 72%{transform:scale(.96);filter:brightness(1.2)}
+ 100%{transform:scale(1);filter:brightness(1);box-shadow:0 0 8px #ffcf5555}
+}
+@keyframes unmatchedCardZoom{
+ 0%{opacity:.65;transform:translateY(9px) scale(.68);filter:brightness(.85)}
+ 55%{opacity:1;transform:translateY(-4px) scale(1.24);filter:brightness(1.5)}
+ 78%{transform:translateY(1px) scale(.96);filter:brightness(1.18)}
+ 100%{opacity:1;transform:translateY(0) scale(1);filter:brightness(1.08)}
+}
+@media(prefers-reduced-motion:reduce){
+ #roundResults.moddu-results-screen .result-current.round-points-pop,
+ #roundResults.moddu-results-screen .result-unmatched-row .results-card.unmatched-reveal-pop{animation:none!important}
+}
 #roundResults.moddu-results-screen .results-hand-head .hand-player-identity{display:flex!important;align-items:center!important}
 #roundResults.moddu-results-screen .showed-badge{display:inline-flex!important;align-items:center!important;padding:3px 6px!important;border-radius:20px!important;background:linear-gradient(180deg,#fff1a9,#e8b947)!important;color:#39270b!important;font-size:7px!important;font-weight:1000!important;white-space:nowrap!important;box-shadow:0 0 9px #ffdc6a99!important}
 #roundResults.moddu-results-screen .winner-hand.showed-hand{border-color:#ffe16b!important;box-shadow:0 0 0 2px #ffe16b55,0 0 17px #ffdc6a66!important}
@@ -4547,6 +4582,23 @@ function playShowButtonEffect(){
 function playShowResultsReveal(screen){
  if(!screen)return;
  screen.classList.remove("show-reveal");void screen.offsetWidth;screen.classList.add("show-reveal");
+ /* Animate each player's round points and unmatched cards when the results screen opens. */
+ screen.querySelectorAll(".results-hand .result-current").forEach((badge,index)=>{
+  const finalText=badge.textContent.trim(),finalValue=Number(finalText.replace(/[^0-9-]/g,""))||0;
+  badge.classList.remove("round-points-pop");void badge.offsetWidth;badge.classList.add("round-points-pop");
+  const start=performance.now(),duration=850;
+  const update=now=>{
+   const progress=Math.min(1,(now-start)/duration),eased=1-Math.pow(1-progress,3);
+   badge.textContent="+"+Math.round(finalValue*eased);
+   if(progress<1)requestAnimationFrame(update);else badge.textContent=finalText;
+  };
+  window.setTimeout(()=>requestAnimationFrame(update),index*140);
+ });
+ screen.querySelectorAll(".results-hand .result-unmatched-row .results-card").forEach((card,index)=>{
+  card.classList.remove("unmatched-reveal-pop");void card.offsetWidth;
+  card.style.setProperty("--unmatched-index",index);
+  card.classList.add("unmatched-reveal-pop");
+ });
 }
 let showCelebrationRunning=false;
 function runShowCelebration(onComplete,showData={}){
