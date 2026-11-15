@@ -3681,19 +3681,53 @@ body:has(#game:not(.hidden)) main{
  #game .player-strip .players>.player .profile-score{font-size:8px!important}
 }
 
-/* Highlight only the newest face-up discard (rightmost card in the fan). */
+
+/* Softer highlight for the newest face-up discard only. */
 #modduTablePanel #discardPile .discard-history-card.latest-discard{
- border:3px solid #ffe08a!important;
- border-radius:11px!important;
- outline:2px solid #ffe08a99!important;
- outline-offset:2px!important;
- box-shadow:0 0 0 3px #ffe08a2b,0 0 12px 4px #ffd45cbb,0 0 23px 7px #ffdf7a77,inset 0 0 7px #fff4c766!important;
+ border:2px solid #f5d98e!important;
+ border-radius:9px!important;
+ outline:1px solid #f5d98e66!important;
+ outline-offset:1px!important;
+ box-shadow:0 0 5px 2px #ffd45c66,inset 0 0 3px #fff4c733!important;
  z-index:20!important;
- animation:latestDiscardGlow 1.6s ease-in-out infinite alternate!important;
+ animation:none!important;
+ filter:none!important;
 }
-@keyframes latestDiscardGlow{
- from{filter:brightness(1);box-shadow:0 0 0 3px #ffe08a20,0 0 8px 3px #ffd45c88,0 0 16px 5px #ffdf7a55,inset 0 0 5px #fff4c744}
- to{filter:brightness(1.12);box-shadow:0 0 0 3px #ffe08a55,0 0 14px 5px #ffd45ccc,0 0 26px 9px #ffdf7a99,inset 0 0 9px #fff4c799}
+
+/* Compact player profiles: keep every player in one swipeable row. */
+#game .player-strip .players-heading{display:none!important}
+#game .player-strip .players{
+ display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;
+ gap:5px!important;overflow-x:auto!important;overflow-y:visible!important;
+ padding:3px 2px 5px!important;scrollbar-width:none!important;
+ -webkit-overflow-scrolling:touch!important;
+}
+#game .player-strip .players::-webkit-scrollbar{display:none!important}
+#game .player-strip .players>.player{
+ flex:0 0 82px!important;width:82px!important;min-width:82px!important;
+ min-height:0!important;padding:4px 2px!important;border-radius:9px!important;
+}
+#game .player-strip .players>.player .player-identity{
+ gap:2px!important;margin:0 0 2px!important;min-width:0!important;
+}
+#game .player-strip .players>.player .player-avatar{
+ width:25px!important;height:25px!important;flex-basis:25px!important;font-size:14px!important;
+}
+#game .player-strip .players>.player .player-name-wrap{
+ min-width:0!important;max-width:100%!important;overflow:hidden!important;
+}
+#game .player-strip .players>.player .player-name-wrap b{
+ display:block!important;max-width:100%!important;font-size:8px!important;
+ line-height:1.15!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
+}
+#game .player-strip .players>.player .profile-score{
+ display:block!important;margin-top:2px!important;font-size:8px!important;line-height:1.1!important;white-space:nowrap!important;
+}
+#game .player-strip .players>.player .player-card-count{
+ min-width:18px!important;height:18px!important;font-size:8px!important;left:-7px!important;top:0!important;
+}
+#game .player-strip .players>.player .profile-more{
+ width:16px!important;height:16px!important;min-width:16px!important;padding:0!important;font-size:9px!important;
 }
 </style></head>
 
