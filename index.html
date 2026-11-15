@@ -443,6 +443,13 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 @keyframes actionSlideIn{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
 .pile.action-pulse{animation:pilePulse .75s ease-in-out}
 @keyframes pilePulse{0%,100%{filter:none;transform:scale(1)}35%{filter:brightness(1.7);transform:translateY(-7px) scale(1.06)}}
+
+/* Quick, understated discard flight used for regular round discards */
+.discard-flight{position:fixed!important;z-index:9999!important;margin:0!important;pointer-events:none!important;transform-origin:center center!important;will-change:transform,opacity;box-shadow:0 12px 24px #0007!important}
+.discard-flight.is-moving{transition:transform .52s cubic-bezier(.2,.72,.25,1),opacity .52s ease!important}
+.discard-impact{animation:discardImpact .24s ease-out}
+@keyframes discardImpact{0%{filter:brightness(1.35);transform:scale(1.045)}100%{filter:none;transform:scale(1)}}
+
 .player.action-player{animation:playerActionPulse .9s ease-out}
 @keyframes playerActionPulse{0%,100%{filter:none}35%{filter:brightness(1.65);box-shadow:0 0 0 4px #65e6ff99,0 0 20px #65e6ff}}
 
@@ -3827,8 +3834,30 @@ function drawOpen(){
  render();
 }
 
+function animateRegularDiscard(sourceCard){
+ const target=document.getElementById("discardPile");
+ if(!sourceCard||!target||window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+ const from=sourceCard.getBoundingClientRect(),to=target.getBoundingClientRect();
+ if(!from.width||!from.height||!to.width||!to.height)return;
+ const ghost=sourceCard.cloneNode(true);
+ ghost.classList.remove("selected","picked-from-deck","picked-from-open");
+ ghost.classList.add("discard-flight");
+ ghost.style.left=from.left+"px";ghost.style.top=from.top+"px";
+ ghost.style.width=from.width+"px";ghost.style.height=from.height+"px";
+ document.body.appendChild(ghost);
+ const dx=to.left+to.width/2-(from.left+from.width/2);
+ const dy=to.top+to.height/2-(from.top+from.height/2);
+ requestAnimationFrame(()=>requestAnimationFrame(()=>{
+  ghost.classList.add("is-moving");
+  ghost.style.transform="translate("+dx+"px,"+(dy-12)+"px) rotate(9deg) scale(.72)";
+  ghost.style.opacity=".96";
+ }));
+ window.setTimeout(()=>{ghost.remove();target.classList.remove("discard-impact");void target.offsetWidth;target.classList.add("discard-impact");},560);
+}
 function discardSelected(){
  if(turn!==0||!drawn||selected<0)return;
+ const sourceCard=document.querySelectorAll("#hand .card")[selected];
+ animateRegularDiscard(sourceCard);
  let card=players[0].hand.splice(selected,1)[0];
  discard.push(card);lastDrawnCardId=null;lastDrawSource=null;
  drawn=false;selected=-1;arrangedGroups=[];
@@ -5760,7 +5789,7 @@ async function sendOnlineAction(a){if(eliminatedSpectator){message("You are watc
 const _soloDrawClosed=drawClosed,_soloDrawOpen=drawOpen,_soloDiscardSelected=discardSelected,_soloShowHand=showHand,_soloStartGame=startGame;
 function drawClosed(){if(!onlineMode)return _soloDrawClosed();if(turn!==0||drawn)return;sendOnlineAction({type:"drawClosed"});}
 function drawOpen(){if(!onlineMode)return _soloDrawOpen();if(turn!==0||drawn)return;sendOnlineAction({type:"drawOpen"});}
-function discardSelected(){if(!onlineMode)return _soloDiscardSelected();if(turn!==0||!drawn||selected<0)return;const c=players[0].hand[selected];if(c)sendOnlineAction({type:"discard",cardId:c.id});selected=-1;}
+function discardSelected(){if(!onlineMode)return _soloDiscardSelected();if(turn!==0||!drawn||selected<0)return;const c=players[0].hand[selected];if(c){animateRegularDiscard(document.querySelectorAll("#hand .card")[selected]);sendOnlineAction({type:"discard",cardId:c.id});}selected=-1;}
 function showHand(){
  if(!onlineMode)return _soloShowHand();
  if(!onlinePublic||onlinePublic.status!=="playing"||turn!==0||gameOver){message("You cannot show right now.");return;}
