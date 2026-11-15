@@ -3297,6 +3297,95 @@ body:has(#game:not(.hidden)) main{
 .show-card-reveal.active .show-reveal-card:nth-child(3n+2){animation-duration:.96s!important}
 @media(prefers-reduced-motion:reduce){.show-card-reveal.active .show-reveal-card{animation:none!important}}
 
+
+/* SHOW reveal: the player's name leads, then the real hand arrives as four readable sets. */
+.show-card-reveal{
+ position:fixed!important;inset:0!important;z-index:100005!important;
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ padding:14px 12px!important;overflow-y:auto!important;
+ background:radial-gradient(ellipse at 50% 48%,rgba(12,66,48,.96),rgba(3,25,20,.97) 76%)!important;
+ backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
+}
+.show-card-reveal .show-reveal-content{
+ width:min(560px,100%);display:flex;flex-direction:column;align-items:center;
+ gap:13px;padding:15px 10px 17px;border:1px solid #e7c76f;border-radius:22px;
+ background:linear-gradient(145deg,rgba(19,75,53,.9),rgba(5,39,29,.94));
+ box-shadow:0 18px 55px #0009,0 0 28px #f5d36b35,inset 0 1px #fff3;
+}
+.show-reveal-heading{width:100%;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+.show-reveal-crown{font-size:26px;line-height:1;color:#ffe28b;text-shadow:0 0 14px #ffd45b;animation:showCrownFloat 1.5s ease-in-out infinite}
+.show-reveal-player{
+ max-width:100%;padding:8px 16px;border:1px solid #f6d77d;border-radius:999px;
+ background:linear-gradient(110deg,#553616,#8e5b20,#4c3217);
+ color:#fff0b9;font:900 clamp(14px,4.4vw,22px) Georgia,serif;letter-spacing:.7px;
+ text-shadow:0 2px 5px #0009;box-shadow:0 0 18px #f5d36b55;
+}
+.show-reveal-caption{font:700 9px Georgia,serif;letter-spacing:2px;color:#d9d0a8}
+.show-reveal-stage{width:100%;display:flex;flex-direction:column;align-items:center;gap:8px}
+.show-reveal-set{width:100%;display:flex;flex-direction:column;align-items:center;gap:3px}
+.show-reveal-set-label{
+ padding:2px 13px;border:1px solid #d9bb66;border-radius:999px;
+ background:#153e2d;color:#ffe7a2;font:900 9px Georgia,serif;letter-spacing:1.3px;
+ box-shadow:0 2px 8px #0005;
+}
+.show-reveal-set-cards{min-height:58px;display:flex;align-items:center;justify-content:center;gap:5px}
+.show-reveal-card{
+ display:block;flex:0 0 auto;width:clamp(34px,8.2vw,43px);height:clamp(51px,12.2vw,64px);
+ opacity:0;transform:translate(var(--start-dx,0px),var(--start-dy,60vh)) scale(.72) rotate(-8deg);
+ transform-origin:center center;filter:drop-shadow(0 4px 6px #0009);
+}
+.show-card-reveal.active .show-reveal-card{
+ animation:showSetCardFlight .92s cubic-bezier(.18,.78,.2,1) forwards;
+ animation-delay:var(--card-delay,0s);
+}
+.show-reveal-card .results-card{
+ width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;
+ border-radius:6px!important;font-size:clamp(11px,2.8vw,14px)!important;
+ box-shadow:0 3px 8px #0009,0 0 7px #ffe29a55!important;
+}
+.show-reveal-card .results-card span{font-size:inherit!important}
+.show-reveal-card .results-card .bottom{font-size:8px!important}
+.show-reveal-curve-glow,.show-reveal-empty{display:none!important}
+@keyframes showSetCardFlight{
+ 0%{opacity:0;transform:translate(var(--start-dx,0px),var(--start-dy,60vh)) scale(.72) rotate(-9deg) rotateY(-24deg);filter:brightness(1.5) drop-shadow(0 0 12px #ffe18a)}
+ 18%{opacity:1}
+ 42%{opacity:1;transform:translate(0,var(--arc-dy,-26px)) scale(1.08) rotate(3deg) rotateY(12deg);filter:brightness(1.18) drop-shadow(0 7px 9px #0009)}
+ 72%{transform:translate(0,-3px) scale(1.035) rotate(-1deg) rotateY(-4deg)}
+ 88%{transform:translate(0,2px) scale(.985) rotate(1deg) rotateY(0)}
+ 100%{opacity:1;transform:translate(0,0) scale(1) rotate(0) rotateY(0);filter:brightness(1.06) drop-shadow(0 2px 5px #0008)}
+}
+@keyframes showCrownFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@media(max-width:390px){
+ .show-card-reveal{padding:9px 7px!important}
+ .show-reveal-content{gap:9px!important;padding:12px 7px!important;border-radius:17px!important}
+ .show-reveal-stage{gap:6px!important}
+ .show-reveal-set-cards{min-height:49px;gap:4px}
+ .show-reveal-card{width:clamp(30px,8.5vw,36px);height:clamp(45px,12.7vw,54px)}
+ .show-reveal-player{font-size:14px;padding:7px 11px}
+}
+@media(prefers-reduced-motion:reduce){
+ .show-reveal-crown,.show-card-reveal.active .show-reveal-card{animation:none!important}
+ .show-card-reveal.active .show-reveal-card{opacity:1!important;transform:none!important}
+}
+/* Slightly denser Moddu Set player strip and shorter table footprint on phones. */
+@media(max-width:600px){
+ #game .player-strip:not(.lc-player-strip){padding:6px 7px 5px!important;margin-bottom:6px!important}
+ #game .player-strip:not(.lc-player-strip) .players{gap:4px!important;padding:1px 0 3px!important}
+ #game .player-strip:not(.lc-player-strip) .player{min-height:72px!important;padding:4px 2px!important;border-radius:8px!important}
+ #game .player-strip:not(.lc-player-strip) .avatar-stack{min-width:26px!important}
+ #game .player-strip:not(.lc-player-strip) .player-avatar{width:26px!important;height:26px!important;min-width:26px!important;flex-basis:26px!important;font-size:15px!important}
+ #game .player-strip:not(.lc-player-strip) .avatar-count{min-width:14px!important;height:14px!important;font-size:7px!important;line-height:12px!important}
+ #game .player-strip:not(.lc-player-strip) .player-name-wrap b{font-size:8px!important}
+ #game .player-strip:not(.lc-player-strip) .profile-score{font-size:7px!important}
+ #modduTablePanel{padding:9px 9px 8px!important;margin-top:6px!important;margin-bottom:7px!important;border-radius:15px!important}
+ #modduTablePanel>h3{font-size:17px!important;margin:1px 0 5px!important}
+ #modduTablePanel .piles{gap:9px!important;margin:4px 0 5px!important}
+ #modduTablePanel .pile{width:78px!important;height:70px!important;border-radius:9px!important}
+ #modduTablePanel .pile small{font-size:8px!important;letter-spacing:.65px!important}
+ #modduTablePanel .card-stack,#modduTablePanel .discard-stack{transform:scale(.82);transform-origin:center center}
+ #modduTablePanel #message{margin:3px 0 0!important;font-size:10px!important;line-height:1.25!important}
+}
+
 </style></head>
 
 <body class="app-locked">
@@ -4708,59 +4797,42 @@ function runShowCelebration(onComplete,showData={}){
  showCelebrationRunning=true;
  const overlay=document.createElement("div");
  overlay.className="show-celebration-overlay show-card-reveal";
- const groups=Array.isArray(showData.groups)?showData.groups:[];
+ const groups=Array.isArray(showData.groups)?showData.groups.filter(group=>Array.isArray(group)&&group.length):[];
  const unmatched=Array.isArray(showData.unmatched)?showData.unmatched:[];
- const lanes=groups.filter(group=>Array.isArray(group)&&group.length).concat(unmatched.length?[unmatched]:[]);
- const allCards=lanes.flat();
- const weightedCount=allCards.length+Math.max(0,lanes.length-1)*.55;
- let position=0;
- const cardsHtml=lanes.map((lane,laneIndex)=>{
-  const laneHtml=lane.map(card=>{
-   const current=position++;
-   const x=weightedCount<=1?0:(current/(weightedCount-1)-.5)*100;
-   const normalized=x/50;
-   const y=-25+(normalized*normalized*48);
-   const rotation=normalized*12;
-   const delay=current*.105;
-   return '<span class="show-reveal-card" data-card-id="'+escapeLobbyText(card.id)+'" style="--card-x:'+x.toFixed(2)+'%;--card-y:'+y.toFixed(1)+'px;--card-rot:'+rotation.toFixed(1)+'deg;--card-delay:'+delay.toFixed(2)+'s">'+renderResultCard(card)+'</span>';
-  }).join("");
-  if(laneIndex<lanes.length-1)position+=.55;
-  return laneHtml;
- }).join("");
- overlay.innerHTML='<div class="show-reveal-curve-glow"></div><div class="show-reveal-stage">'+(cardsHtml||'<div class="show-reveal-empty"></div>')+'</div>';
- /* Capture the real 13-card hand before the overlay covers it. Each revealed card launches from its own hand position. */
+ const lanes=groups.concat(unmatched.length?[unmatched]:[]);
  const handSources=new Map([...document.querySelectorAll("#hand .card[data-card-id]")].map(el=>[el.dataset.cardId,el]));
+ const title=escapeLobbyText(showData.playerName||"Player");
+ const setsHtml=lanes.map((lane,laneIndex)=>{
+  const label=laneIndex===0?"PURE 4":laneIndex<groups.length?"3 SET":"UNMATCHED";
+  const cards=lane.map((card,cardIndex)=>{
+   const delay=laneIndex*.78+cardIndex*.11;
+   return '<span class="show-reveal-card" data-card-id="'+escapeLobbyText(card.id)+'" style="--card-delay:'+delay.toFixed(2)+'s">'+renderResultCard(card)+'</span>';
+  }).join("");
+  return '<section class="show-reveal-set"><span class="show-reveal-set-label">'+label+'</span><div class="show-reveal-set-cards">'+cards+'</div></section>';
+ }).join("");
+ overlay.innerHTML='<div class="show-reveal-content"><div class="show-reveal-heading"><span class="show-reveal-crown">♛</span><span class="show-reveal-player">'+title+' · SHOWING!</span><span class="show-reveal-caption">REVEALING THE WINNING HAND</span></div><div class="show-reveal-stage">'+(setsHtml||'<div class="show-reveal-empty"></div>')+'</div></div>';
  document.body.appendChild(overlay);
  requestAnimationFrame(()=>{
-  const stage=overlay.querySelector(".show-reveal-stage");
-  const stageRect=stage?.getBoundingClientRect();
-  if(stageRect){
-   overlay.querySelectorAll(".show-reveal-card[data-card-id]").forEach((flight,index)=>{
-    const source=handSources.get(flight.dataset.cardId);
-    if(!source)return;
-    const sourceRect=source.getBoundingClientRect();
-    const targetX=stageRect.left+stageRect.width/2+(Number.parseFloat(flight.style.getPropertyValue("--card-x"))/100)*stageRect.width;
-    const targetY=stageRect.top+stageRect.height/2+Number.parseFloat(flight.style.getPropertyValue("--card-y"));
-    const startDx=sourceRect.left+sourceRect.width/2-targetX;
-    const startDy=sourceRect.top+sourceRect.height/2-targetY;
-    flight.style.setProperty("--start-dx",startDx.toFixed(1)+"px");
-    flight.style.setProperty("--start-dy",startDy.toFixed(1)+"px");
-    flight.style.setProperty("--arc-mid-dx",(startDx*.62).toFixed(1)+"px");
-    flight.style.setProperty("--arc-mid-dy",(startDy*.62-42).toFixed(1)+"px");
-    flight.style.setProperty("--arc-near-dx",(startDx*.2).toFixed(1)+"px");
-    flight.style.setProperty("--arc-near-dy",(startDy*.2-24).toFixed(1)+"px");
-    flight.style.setProperty("--start-rot",(((index%5)-2)*3)+"deg");
-   });
-  }
+  overlay.querySelectorAll(".show-reveal-card[data-card-id]").forEach(flight=>{
+   const source=handSources.get(flight.dataset.cardId);
+   if(!source)return;
+   const sourceRect=source.getBoundingClientRect(),targetRect=flight.getBoundingClientRect();
+   const startDx=sourceRect.left+sourceRect.width/2-(targetRect.left+targetRect.width/2);
+   const startDy=sourceRect.top+sourceRect.height/2-(targetRect.top+targetRect.height/2);
+   flight.style.setProperty("--start-dx",startDx.toFixed(1)+"px");
+   flight.style.setProperty("--start-dy",startDy.toFixed(1)+"px");
+   flight.style.setProperty("--arc-dy",(Math.min(-26,startDy*.16)).toFixed(1)+"px");
+  });
   overlay.classList.add("active");
  });
- const revealDuration=Math.max(2850,allCards.length*105+1450);
+ const lastDelay=lanes.reduce((max,lane,index)=>Math.max(max,index*.78+Math.max(0,lane.length-1)*.11),0);
+ const revealDuration=Math.max(4100,(lastDelay+1.12)*1000+950);
  window.setTimeout(()=>{
   overlay.classList.add("fade-out");
   window.setTimeout(()=>{
    overlay.remove();showCelebrationRunning=false;
    if(typeof onComplete==="function")onComplete();
-  },360);
+  },420);
  },revealDuration);
 }
 function animateShowCardAction(discardedCard=null){
