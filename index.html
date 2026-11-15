@@ -665,7 +665,7 @@ body.app-locked{overflow:hidden}
 #game.spectator-mode .spectator-notice{display:block}
 #game.spectator-mode .spectator-hand-panel,#game.spectator-mode .game-actions-panel{display:none!important}
 #game.spectator-mode .pile{pointer-events:none;filter:saturate(.65);cursor:default}
-#game.spectator-mode #resultsHands{display:none!important}
+/* Spectators can see the public round reveal; their private hand remains hidden. */
 .spectator-notice{display:none;margin:0 0 10px;padding:11px 13px;border:1px solid #e7c77988;border-radius:12px;background:linear-gradient(145deg,#173f32,#0a2b21);color:#ffe6ad;text-align:center;font-size:12px;font-weight:800;letter-spacing:.3px}
 .spectator-result-note{padding:12px;border:1px solid #d9b66b55;border-radius:10px;background:#08291f;color:#d8e6d8;text-align:center;font-size:12px}
 
@@ -5316,7 +5316,7 @@ function openOnlineRoundResults(result){
  const list=(onlinePublic.players||[]).map(p=>({...p,cardCount:(result.hands[p.id]||[]).length})),winner=result.winnerUid;
  const resultOrder=list.map((p,i)=>({p,i,penalty:result.penalties[p.id]||0})).sort((a,b)=>(a.p.id===winner?-1:b.p.id===winner?1:a.penalty-b.penalty)||a.i-b.i);
  profiles.innerHTML=resultOrder.map(({p})=>{const penalty=result.penalties[p.id]||0,total=Number(result.totals[p.id])||0;const isEliminated=p.active===false||total>=Math.max(1,Number(onlinePublic.scoreLimit)||200);return '<div class="results-profile '+(p.id===winner?'show-winner':'')+'"><div class="results-identity"><span class="player-avatar">'+playerInitials(p.name)+'</span><span class="results-name"><strong>'+escapeLobbyText(p.name)+'</strong></span></div><span class="finish-rank">'+(p.id===winner?'🏆 ROUND WINNER':p.roundDropped?'⛔ DROPPED':isEliminated?'ELIMINATED':'ROUND COMPLETE')+'</span><span class="result-points">Total: '+total+'</span><span class="result-count">This round: +'+penalty+'</span></div>';}).join('');
- handsEl.innerHTML=renderRoundJokerReveal(result.specialJokerRank||result.specialRank||onlinePublic.specialRank||Object.values(result.specialRanks||{}).find(Boolean))+(eliminatedSpectator?'<div class="spectator-result-note">👀 You are watching this result. Other players’ cards are hidden.</div>':resultOrder.map(({p})=>{
+ handsEl.innerHTML=renderRoundJokerReveal(result.specialJokerRank||result.specialRank||onlinePublic.specialRank||Object.values(result.specialRanks||{}).find(Boolean))+resultOrder.map(({p})=>{
   const hand=result.hands[p.id]||[],penalty=result.penalties[p.id]||0,total=Number(result.totals[p.id])||0;
   const isEliminated=p.active===false||total>=Math.max(1,Number(onlinePublic.scoreLimit)||200);
   if(isEliminated){
