@@ -3680,6 +3680,21 @@ body:has(#game:not(.hidden)) main{
  #game .player-strip .players>.player .player-name-wrap b{font-size:8px!important}
  #game .player-strip .players>.player .profile-score{font-size:8px!important}
 }
+
+/* Highlight only the newest face-up discard (rightmost card in the fan). */
+#modduTablePanel #discardPile .discard-history-card.latest-discard{
+ border:3px solid #ffe08a!important;
+ border-radius:11px!important;
+ outline:2px solid #ffe08a99!important;
+ outline-offset:2px!important;
+ box-shadow:0 0 0 3px #ffe08a2b,0 0 12px 4px #ffd45cbb,0 0 23px 7px #ffdf7a77,inset 0 0 7px #fff4c766!important;
+ z-index:20!important;
+ animation:latestDiscardGlow 1.6s ease-in-out infinite alternate!important;
+}
+@keyframes latestDiscardGlow{
+ from{filter:brightness(1);box-shadow:0 0 0 3px #ffe08a20,0 0 8px 3px #ffd45c88,0 0 16px 5px #ffdf7a55,inset 0 0 5px #fff4c744}
+ to{filter:brightness(1.12);box-shadow:0 0 0 3px #ffe08a55,0 0 14px 5px #ffd45ccc,0 0 26px 9px #ffdf7a99,inset 0 0 9px #fff4c799}
+}
 </style></head>
 
 <body class="app-locked">
@@ -4626,7 +4641,7 @@ function renderDiscardHistory(){
  stack.innerHTML=recent.map((card,index)=>{
   const red=card&&["♥","♦"].includes(card.suit);
   const label=cardText(card);
-  return '<div class="discard-history-card '+(red?'red':'')+'" style="--stack-index:'+index+'" title="'+escapeLobbyText(label)+'">'+
+  return '<div class="discard-history-card '+(red?'red ':'')+(index===0?'latest-discard':'')+'" style="--stack-index:'+index+'" title="'+escapeLobbyText(label)+'">'+
    '<span>'+escapeLobbyText(card&&card.joker?'★':card&&card.rank||'?')+'</span>'+
    '<span class="discard-history-suit">'+escapeLobbyText(card&&card.joker?'★':card&&card.suit||'')+'</span>'+
    '<span class="discard-history-corner">'+escapeLobbyText(label)+'</span></div>';
