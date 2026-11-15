@@ -2939,6 +2939,59 @@ body:has(#game:not(.hidden)) main{
 #roundResults.moddu-results-screen .showed-badge{display:inline-flex!important;align-items:center!important;padding:3px 6px!important;border-radius:20px!important;background:linear-gradient(180deg,#fff1a9,#e8b947)!important;color:#39270b!important;font-size:7px!important;font-weight:1000!important;white-space:nowrap!important;box-shadow:0 0 9px #ffdc6a99!important}
 #roundResults.moddu-results-screen .winner-hand.showed-hand{border-color:#ffe16b!important;box-shadow:0 0 0 2px #ffe16b55,0 0 17px #ffdc6a66!important}
 #roundResults.moddu-results-screen.show-reveal .winner-hand{animation:showPlayerReveal .75s cubic-bezier(.2,.8,.2,1) both}
+/* The actual player who showed gets the only gold spotlight. Other players retain their own accent colours. */
+#roundResults.moddu-results-screen .results-hand:not(.showed-hand){transform:none!important;z-index:1!important}
+#roundResults.moddu-results-screen .results-hand.showed-hand{
+ position:relative!important;z-index:3!important;transform:translateY(-7px) scale(1.006)!important;
+ border:2px solid #ffe16b!important;
+ background:radial-gradient(ellipse at 50% 0%,#31502c 0%,#123b2d 58%,#0b3025 100%)!important;
+ box-shadow:0 0 0 2px #ffe16b66,0 0 12px #ffd95a99,0 0 28px #ffc83d66,inset 0 0 22px #ffdc6a20!important;
+}
+#roundResults.moddu-results-screen .results-hand.showed-hand::before{
+ content:"";position:absolute;inset:0;pointer-events:none;z-index:0;border-radius:inherit;
+ background:linear-gradient(112deg,transparent 18%,#fff4bd08 38%,#fff2b966 50%,#fff4bd08 62%,transparent 82%);
+ background-size:220% 100%;animation:showedGoldSweep 3.6s ease-in-out infinite;
+}
+#roundResults.moddu-results-screen .results-hand.showed-hand .results-hand-head,
+#roundResults.moddu-results-screen .results-hand.showed-hand .result-two-row{position:relative;z-index:1}
+#roundResults.moddu-results-screen .results-hand.showed-hand .hand-player-name{
+ font-size:14px!important;font-weight:1000!important;color:#fff0b2!important;
+ text-shadow:0 0 8px #ffd95a99,0 1px 2px #0009!important;
+}
+#roundResults.moddu-results-screen .results-hand.showed-hand .player-avatar{
+ width:29px!important;height:29px!important;flex-basis:29px!important;
+ border:2px solid #ffe16b!important;box-shadow:0 0 0 3px #ffe16b44,0 0 15px #ffda55cc!important;
+}
+#roundResults.moddu-results-screen .results-hand.showed-hand .showed-badge{
+ padding:4px 8px!important;font-size:8px!important;
+ box-shadow:0 0 0 1px #fff0a866,0 0 12px #ffd84dcc!important;
+ animation:showedBadgeShine 2.4s ease-in-out infinite;
+}
+#roundResults.moddu-results-screen .result-two-row .results-card{
+ width:clamp(18px,6.1vw,25px)!important;flex-basis:clamp(18px,6.1vw,25px)!important;
+ height:clamp(27px,9.15vw,37px)!important;font-size:8px!important;
+}
+@keyframes showedGoldSweep{0%,12%{background-position:150% 0}55%,100%{background-position:-150% 0}}
+@keyframes showedBadgeShine{0%,100%{filter:brightness(1);transform:translateY(0)}50%{filter:brightness(1.18);transform:translateY(-1px)}}
+#roundResults.moddu-results-screen.show-reveal .results-hand.showed-hand{
+ animation:showPlayerSpotlight 1.05s cubic-bezier(.18,.8,.22,1) both;
+}
+#roundResults.moddu-results-screen.show-reveal .results-hand.showed-hand .hand-player-name{
+ animation:showNameRise .72s .22s cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes showPlayerSpotlight{
+ 0%{opacity:.65;transform:translateY(13px) scale(.985);box-shadow:0 0 0 #ffe16b00}
+ 55%{opacity:1;transform:translateY(-11px) scale(1.012);box-shadow:0 0 0 3px #ffe16b88,0 0 34px #ffd95acc}
+ 78%{transform:translateY(-5px) scale(1.004)}
+ 100%{opacity:1;transform:translateY(-7px) scale(1.006);box-shadow:0 0 0 2px #ffe16b66,0 0 12px #ffd95a99,0 0 28px #ffc83d66,inset 0 0 22px #ffdc6a20}
+}
+@keyframes showNameRise{from{opacity:.45;transform:translateY(7px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(prefers-reduced-motion:reduce){
+ #roundResults.moddu-results-screen .results-hand.showed-hand,
+ #roundResults.moddu-results-screen .results-hand.showed-hand::before,
+ #roundResults.moddu-results-screen .results-hand.showed-hand .showed-badge{animation:none!important}
+}
+
 #roundResults.moddu-results-screen.show-reveal .winner-hand .results-card{animation:showCardReveal .45s ease-out both}
 #roundResults.moddu-results-screen.show-reveal .winner-hand .results-card:nth-child(2){animation-delay:.08s}
 #roundResults.moddu-results-screen.show-reveal .winner-hand .results-card:nth-child(3){animation-delay:.16s}
