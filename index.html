@@ -448,6 +448,16 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 .discard-flight{position:fixed!important;z-index:9999!important;margin:0!important;pointer-events:none!important;transform-origin:center center!important;will-change:transform,opacity;box-shadow:0 12px 24px #0007!important}
 .discard-flight.is-moving{transition:transform .52s cubic-bezier(.2,.72,.25,1),opacity .52s ease!important}
 .discard-impact{animation:discardImpact .24s ease-out}
+.pick-flight{position:fixed!important;z-index:9999!important;pointer-events:none!important;margin:0!important;will-change:transform,opacity;box-shadow:0 10px 22px #0008!important}
+.pick-flight.is-moving{transition:transform .52s cubic-bezier(.2,.72,.25,1),opacity .52s ease!important}
+.pick-flight.card{display:flex!important;flex-direction:column!important;justify-content:space-between!important;padding:5px!important;box-sizing:border-box!important}
+.pick-flight.card>span{display:block!important;line-height:1!important}
+.pick-flight.card.red{color:#d32f2f!important}
+.pick-flight.card.back{background:repeating-linear-gradient(45deg,#153f35,#153f35 5px,#28644d 5px,#28644d 10px)!important;border:2px solid #f0d38f!important;color:#f0d38f!important}
+.discard-flight.card{display:flex!important;flex-direction:column!important;justify-content:space-between!important;padding:5px!important;box-sizing:border-box!important;overflow:hidden!important}
+.discard-flight.card>span{display:block!important;line-height:1!important}
+.discard-flight.card.red{color:#d32f2f!important}
+
 @keyframes discardImpact{0%{filter:brightness(1.35);transform:scale(1.045)}100%{filter:none;transform:scale(1)}}
 
 .player.action-player{animation:playerActionPulse .9s ease-out}
@@ -3834,54 +3844,48 @@ function drawOpen(){
  render();
 }
 
-function animateRemoteDiscard(action,sourcePlayer){
- const target=document.getElementById("discardPile");
- if(!sourcePlayer||!target||window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;
- const from=sourcePlayer.getBoundingClientRect(),to=target.getBoundingClientRect();
- if(!from.width||!from.height||!to.width||!to.height)return;
- const card=document.createElement("div");
- card.className="card discard-flight";
- const label=String(action.cardLabel||"🂠");
- card.textContent=label;
- card.style.display="flex";card.style.alignItems="center";card.style.justifyContent="center";
- card.style.fontSize="20px";card.style.fontWeight="900";
- card.style.left=(from.left+from.width/2-24)+"px";
- card.style.top=(from.top+from.height/2-33)+"px";
- card.style.width="48px";card.style.height="66px";
- document.body.appendChild(card);
- const dx=to.left+to.width/2-(from.left+from.width/2);
- const dy=to.top+to.height/2-(from.top+from.height/2);
- requestAnimationFrame(()=>requestAnimationFrame(()=>{
-  card.classList.add("is-moving");
-  card.style.transform="translate("+dx+"px,"+(dy-12)+"px) rotate(9deg) scale(.72)";
-  card.style.opacity=".96";
- }));
- window.setTimeout(()=>{card.remove();target.classList.remove("discard-impact");void target.offsetWidth;target.classList.add("discard-impact");},560);
+function buildFlightCard(cardData,faceDown=false){
+ const el=document.createElement("div");
+ if(faceDown){el.className="card back pick-flight";el.textContent="★";return el;}
+ const c=cardData||{},red=["♥","♦"].includes(c.suit);
+ el.className="card pick-flight"+(red?" red":"");
+ el.innerHTML='<span>'+escapeLobbyText(c.joker?"★":c.rank||"?")+'</span><span style="text-align:center">'+escapeLobbyText(c.joker?"★":c.suit||"")+'</span><span style="text-align:right">'+escapeLobbyText(c.joker?"★":c.rank||"?")+'</span>';
+ return el;
 }
-function animateRegularDiscard(sourceCard){
- const target=document.getElementById("discardPile");
- if(!sourceCard||!target||window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;
- const from=sourceCard.getBoundingClientRect(),to=target.getBoundingClientRect();
+function animateCardFlight(fromEl,toEl,cardData,faceDown=false,kind="discard"){
+ if(!fromEl||!toEl||window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+ const from=fromEl.getBoundingClientRect(),to=toEl.getBoundingClientRect();
  if(!from.width||!from.height||!to.width||!to.height)return;
- const ghost=sourceCard.cloneNode(true);
- ghost.classList.remove("selected","picked-from-deck","picked-from-open");
- ghost.classList.add("discard-flight");
- ghost.style.left=from.left+"px";ghost.style.top=from.top+"px";
- ghost.style.width=from.width+"px";ghost.style.height=from.height+"px";
+ const w=faceDown?48:from.width,h=faceDown?66:from.height;
+ const ghost=buildFlightCard(cardData,faceDown);
+ ghost.classList.add(kind==="discard"?"discard-flight":"pick-flight");
+ ghost.style.left=(from.left+from.width/2-w/2)+"px";ghost.style.top=(from.top+from.height/2-h/2)+"px";
+ ghost.style.width=w+"px";ghost.style.height=h+"px";
  document.body.appendChild(ghost);
- const dx=to.left+to.width/2-(from.left+from.width/2);
- const dy=to.top+to.height/2-(from.top+from.height/2);
+ const dx=to.left+to.width/2-(from.left+from.width/2),dy=to.top+to.height/2-(from.top+from.height/2);
  requestAnimationFrame(()=>requestAnimationFrame(()=>{
   ghost.classList.add("is-moving");
-  ghost.style.transform="translate("+dx+"px,"+(dy-12)+"px) rotate(9deg) scale(.72)";
+  ghost.style.transform="translate("+dx+"px,"+(dy-12)+"px) rotate("+(kind==="discard"?9:-7)+"deg) scale(.72)";
   ghost.style.opacity=".96";
  }));
- window.setTimeout(()=>{ghost.remove();target.classList.remove("discard-impact");void target.offsetWidth;target.classList.add("discard-impact");},560);
+ window.setTimeout(()=>{ghost.remove();if(kind==="discard"){toEl.classList.remove("discard-impact");void toEl.offsetWidth;toEl.classList.add("discard-impact");}},560);
+}
+function animateRemoteDiscard(action,sourcePlayer){
+ animateCardFlight(sourcePlayer,document.getElementById("discardPile"),action.cardFace||null,false,"discard");
+}
+function animateRegularDiscard(sourceCard,cardData){
+ animateCardFlight(sourceCard,document.getElementById("discardPile"),cardData,false,"discard");
+}
+function animatePick(action,sourcePlayer){
+ const target=action.uid===roomPlayerId?document.getElementById("hand"):[...document.querySelectorAll("#players .player")].find(el=>el.dataset.playerId===action.uid);
+ const source=document.getElementById(action.type==="drawOpen"?"discardPile":"drawPile");
+ animateCardFlight(source,target,action.type==="drawOpen"?(action.cardFace||null):null,action.type==="drawClosed","pick");
 }
 function discardSelected(){
  if(turn!==0||!drawn||selected<0)return;
  const sourceCard=document.querySelectorAll("#hand .card")[selected];
- animateRegularDiscard(sourceCard);
+ const discardedCard=players[0].hand[selected];
+ animateRegularDiscard(sourceCard,discardedCard);
  let card=players[0].hand.splice(selected,1)[0];
  discard.push(card);lastDrawnCardId=null;lastDrawSource=null;
  drawn=false;selected=-1;arrangedGroups=[];
@@ -4702,6 +4706,7 @@ function showSharedAction(action){
  if(pile){pile.classList.remove("action-pulse");void pile.offsetWidth;pile.classList.add("action-pulse");}
  const profile=[...document.querySelectorAll("#players .player")].find(el=>el.querySelector("b")?.textContent===(action.name||""));
  if(action.type==="discard"&&action.uid!==roomPlayerId)animateRemoteDiscard(action,profile);
+ if(action.type==="drawOpen"||action.type==="drawClosed")animatePick(action,profile);
  if(profile){profile.classList.remove("action-player");void profile.offsetWidth;profile.classList.add("action-player");}
 }
 
@@ -5497,10 +5502,10 @@ async function processOnlineAction(uid,a){
   if(hand.length!==13){p.message="Draw blocked: a player must have exactly 13 cards before drawing. Current count: "+hand.length+". The host should restart this round if the hand is out of sync.";p.players[playerIndex].cardCount=hand.length;await roomRef.child("public").set(p);return;}
   if(a.type==="drawOpen"){if(!pile.length)return;hand.push(pile.pop());}
   else{if(!d.length&&pile.length>1){const top=pile.pop();d=shuffle(pile);pile=[top];}if(!d.length)return;hand.push(d.pop());}
-  h[uid]=hand;p.players[playerIndex].cardCount=hand.length;p.players[playerIndex].roundDrawCount=(p.players[playerIndex].roundDrawCount||0)+1;p.drawnByUid=uid;p.drawnCardId=hand[hand.length-1].id;p.discardDeadline=null;p.lastAction={type:a.type,uid,name:player.name,cardId:hand[hand.length-1].id,cardLabel:a.type==="drawOpen"?cardText(hand[hand.length-1]):null,at:Date.now()};p.message=a.type==="drawOpen"?player.name+" picked "+cardText(hand[hand.length-1])+" from the open discard pile.":player.name+" drew a face-down card from the draw deck.";
+  h[uid]=hand;p.players[playerIndex].cardCount=hand.length;p.players[playerIndex].roundDrawCount=(p.players[playerIndex].roundDrawCount||0)+1;p.drawnByUid=uid;p.drawnCardId=hand[hand.length-1].id;p.discardDeadline=null;p.lastAction={type:a.type,uid,name:player.name,cardId:hand[hand.length-1].id,cardLabel:a.type==="drawOpen"?cardText(hand[hand.length-1]):null,cardFace:a.type==="drawOpen"?{rank:hand[hand.length-1].rank,suit:hand[hand.length-1].suit,joker:!!hand[hand.length-1].joker}:null,at:Date.now()};p.message=a.type==="drawOpen"?player.name+" picked "+cardText(hand[hand.length-1])+" from the open discard pile.":player.name+" drew a face-down card from the draw deck.";
  }else if(a.type==="discard"){
   if(p.drawnByUid!==uid||hand.length!==14){p.message="Discard blocked: a drawn hand must contain exactly 14 cards. Current count: "+hand.length+".";p.players[playerIndex].cardCount=hand.length;await roomRef.child("public").set(p);return;}const i=hand.findIndex(c=>c.id===a.cardId);if(i<0)return;
-  const timedOut=!!(p.discardDeadline&&Date.now()>=p.discardDeadline);const discardId=(a.automatic||timedOut)?p.drawnCardId:a.cardId;const discardIndex=hand.findIndex(c=>c.id===discardId);if(discardIndex<0)return;const discarded=hand.splice(discardIndex,1)[0];pile.push(discarded);h[uid]=hand;p.players[playerIndex].cardCount=hand.length;p.lastAction={type:"discard",uid,name:player.name,cardId:discarded.id,cardLabel:cardText(discarded),at:Date.now()};p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;p.pickDeadline=null;a.automatic=!!(a.automatic||timedOut);
+  const timedOut=!!(p.discardDeadline&&Date.now()>=p.discardDeadline);const discardId=(a.automatic||timedOut)?p.drawnCardId:a.cardId;const discardIndex=hand.findIndex(c=>c.id===discardId);if(discardIndex<0)return;const discarded=hand.splice(discardIndex,1)[0];pile.push(discarded);h[uid]=hand;p.players[playerIndex].cardCount=hand.length;p.lastAction={type:"discard",uid,name:player.name,cardId:discarded.id,cardLabel:cardText(discarded),cardFace:{rank:discarded.rank,suit:discarded.suit,joker:!!discarded.joker},at:Date.now()};p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;p.pickDeadline=null;a.automatic=!!(a.automatic||timedOut);
   if(hand.length===13&&hasNaturalFour(hand)&&!player.unlocked){
    p.players[playerIndex].eligible=true;
    if(!special){
@@ -5814,7 +5819,7 @@ async function sendOnlineAction(a){if(eliminatedSpectator){message("You are watc
 const _soloDrawClosed=drawClosed,_soloDrawOpen=drawOpen,_soloDiscardSelected=discardSelected,_soloShowHand=showHand,_soloStartGame=startGame;
 function drawClosed(){if(!onlineMode)return _soloDrawClosed();if(turn!==0||drawn)return;sendOnlineAction({type:"drawClosed"});}
 function drawOpen(){if(!onlineMode)return _soloDrawOpen();if(turn!==0||drawn)return;sendOnlineAction({type:"drawOpen"});}
-function discardSelected(){if(!onlineMode)return _soloDiscardSelected();if(turn!==0||!drawn||selected<0)return;const c=players[0].hand[selected];if(c){animateRegularDiscard(document.querySelectorAll("#hand .card")[selected]);sendOnlineAction({type:"discard",cardId:c.id});}selected=-1;}
+function discardSelected(){if(!onlineMode)return _soloDiscardSelected();if(turn!==0||!drawn||selected<0)return;const c=players[0].hand[selected];if(c){animateRegularDiscard(document.querySelectorAll("#hand .card")[selected],c);sendOnlineAction({type:"discard",cardId:c.id});}selected=-1;}
 function showHand(){
  if(!onlineMode)return _soloShowHand();
  if(!onlinePublic||onlinePublic.status!=="playing"||turn!==0||gameOver){message("You cannot show right now.");return;}
