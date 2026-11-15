@@ -3729,6 +3729,75 @@ body:has(#game:not(.hidden)) main{
 #game .player-strip .players>.player .profile-more{
  width:16px!important;height:16px!important;min-width:16px!important;padding:0!important;font-size:9px!important;
 }
+
+/* Final player-header correction: round, voice and target share one row. */
+#game>.player-strip>.table-status{
+ display:grid!important;
+ grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)!important;
+ align-items:center!important;
+ gap:7px!important;
+ margin:0 0 8px!important;
+}
+#game>.player-strip>#topVoiceControls{
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ gap:4px!important;min-width:0!important;white-space:nowrap!important;
+}
+#game>.player-strip>#topVoiceControls #voiceMuteBtn{
+ min-height:30px!important;padding:5px 8px!important;font-size:9px!important;
+}
+#game>.player-strip>.table-status>#roundInfo{justify-self:start!important;white-space:nowrap!important}
+#game>.player-strip>.table-status>#targetScoreInfo{justify-self:end!important}
+#game>.player-strip>.player-tools-row{
+ display:flex!important;justify-content:flex-end!important;align-items:center!important;
+ min-height:0!important;margin:0 0 8px!important;padding:0!important;
+}
+#game>.player-strip>.player-tools-row #turnInfo{justify-self:auto!important}
+#game>.player-strip>.players-heading{display:none!important}
+/* Compact single-row profiles. All players remain reachable by horizontal swipe. */
+#game>.player-strip>.players{
+ display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;
+ justify-content:flex-start!important;align-items:stretch!important;
+ gap:5px!important;width:100%!important;overflow-x:auto!important;overflow-y:hidden!important;
+ padding:4px 2px 6px!important;margin:0!important;scrollbar-width:none!important;
+ -webkit-overflow-scrolling:touch!important;
+}
+#game>.player-strip>.players::-webkit-scrollbar{display:none!important}
+#game>.player-strip>.players>.player{
+ display:flex!important;flex:0 0 82px!important;width:82px!important;min-width:82px!important;
+ max-width:82px!important;min-height:90px!important;height:auto!important;
+ box-sizing:border-box!important;padding:5px 3px!important;margin:0!important;
+}
+#game>.player-strip>.players>.player .player-identity{
+ display:flex!important;flex-direction:column!important;align-items:center!important;
+ gap:3px!important;margin:0 0 2px!important;width:100%!important;
+}
+#game>.player-strip>.players>.player .avatar-stack{min-width:30px!important}
+#game>.player-strip>.players>.player .player-avatar{
+ width:29px!important;height:29px!important;min-width:29px!important;flex-basis:29px!important;
+}
+#game>.player-strip>.players>.player .player-name-wrap{width:100%!important;max-width:100%!important}
+#game>.player-strip>.players>.player .player-name-wrap b{
+ font-size:8px!important;line-height:1.15!important;white-space:nowrap!important;
+ overflow:hidden!important;text-overflow:ellipsis!important;
+}
+#game>.player-strip>.players>.player .profile-score,
+body.hide-player-scores #game>.player-strip>.players>.player .profile-score{
+ display:block!important;visibility:visible!important;opacity:1!important;
+ margin:3px 0 0!important;font-size:8px!important;line-height:1.15!important;
+ white-space:nowrap!important;color:#ffe09a!important;
+}
+#game>.player-strip>.players>.player .player-card-count{
+ min-width:17px!important;height:17px!important;font-size:8px!important;
+}
+#game>.player-strip>.players>.player .profile-more{
+ width:17px!important;height:20px!important;min-width:17px!important;
+ top:5px!important;right:4px!important;font-size:9px!important;
+}
+@media(max-width:450px){
+ #game>.player-strip>.table-status{gap:4px!important}
+ #game>.player-strip>#topVoiceControls #voiceMuteBtn{padding:5px 6px!important;font-size:8px!important}
+ #game>.player-strip>.players>.player{flex-basis:78px!important;width:78px!important;min-width:78px!important;max-width:78px!important}
+}
 </style></head>
 
 <body class="app-locked">
@@ -3896,9 +3965,8 @@ body:has(#game:not(.hidden)) main{
 
 <div class="game-brand"><div class="game-room-code" style="display:none"><span>GAME CODE</span><strong id="gameRoomCode">------</strong><button type="button" onclick="copyGameRoomCode()">Copy</button></div><div class="sai-brand"><span class="sai-brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 3 43 14v20L24 45 5 34V14L24 3Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M31 15c-2-2-5-3-8-3-5 0-8 2-8 6 0 9 17 4 17 12 0 4-4 7-9 7-4 0-8-2-10-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M35 15v20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="sai-brand-copy"><strong>SAI</strong></span></div><button class="leave-table-top" type="button" onclick="exitCurrentTable()">↗ Leave table</button></div>
 <div class="panel player-strip">
-<div class="table-status"><span id="roundInfo">Round 1</span><span id="targetScoreInfo" class="target-score-pill">TARGET 200</span></div>
-<div class="player-tools-row"><div id="topVoiceControls" class="top-voice-controls" aria-label="Voice controls"><button type="button" id="voiceMuteBtn" class="voice-secondary" onclick="toggleVoiceControl()">🎙️ Join voice</button><span id="topVoiceCount" class="top-voice-count">0</span><span id="topVoiceStatus" class="top-voice-status" aria-live="polite"></span></div><button type="button" id="scoresToggle" class="scores-toggle" onclick="togglePlayerScores()" aria-pressed="true">▥ Hide scores</button><span id="turnInfo" class="turn-pill"></span></div>
-<div class="players-heading"><h3>Players</h3></div>
+<div class="table-status"><span id="roundInfo">Round 1</span><div id="topVoiceControls" class="top-voice-controls" aria-label="Voice controls"><button type="button" id="voiceMuteBtn" class="voice-secondary" onclick="toggleVoiceControl()">🎙️ Join voice</button><span id="topVoiceCount" class="top-voice-count">0</span><span id="topVoiceStatus" class="top-voice-status" aria-live="polite"></span></div><span id="targetScoreInfo" class="target-score-pill">TARGET 200</span></div>
+<div class="player-tools-row"><span id="turnInfo" class="turn-pill"></span></div>
 <div class="players" id="players"></div>
 </div>
 <section id="leastCountView" class="least-count-view hidden" aria-label="Least Count game">
