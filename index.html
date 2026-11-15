@@ -3356,7 +3356,7 @@ async function loadFriends(){
   document.getElementById("friendCount").textContent=friendIds.length?"("+friendIds.length+")":"";
   if(!friendIds.length){if(friendsEl)friendsEl.innerHTML='<p class="friend-empty">No friends added yet. Search for a username above.</p>';await renderRoomFriendInvites([],[]);return;}
   const profiles=await Promise.all(friendIds.map(uid=>db.ref("users/"+uid).get()));
-  if(friendsEl)friendsEl.innerHTML=profiles.map((snap,i)=>{const profile=snap.val()||{username:"player",displayName:"Player"};return friendRowMarkup(friendIds[i],profile,'<span>Friend ✓</span>'+(profile.activeRoom&&profile.activeRoom.status==="waiting"?' <button onclick="requestToJoinFriend(\\\''+friendIds[i]+'\\\')">Request to join</button>':''));}).join("");
+  if(friendsEl)friendsEl.innerHTML=profiles.map((snap,i)=>{const profile=snap.val()||{username:"player",displayName:"Player"};return friendRowMarkup(friendIds[i],profile,'<span>Friend ✓</span>'+(profile.activeRoom&&profile.activeRoom.status==="waiting"?' <button onclick="requestToJoinFriend(\\''+friendIds[i]+'\\')">Request to join</button>':''));}).join("");
   await renderRoomFriendInvites(friendIds,profiles.map(x=>x.val()||{}));
  }catch(e){if(requestsEl)requestsEl.innerHTML='<p class="friend-empty">Could not load friend data: '+escapeLobbyText(e.message)+'</p>';}
 }
@@ -3382,7 +3382,7 @@ async function loadJoinRequests(){
  const el=document.getElementById("joinRequestsList");if(!el)return;
  try{
   const snap=await firebase.database().ref("joinRequests/"+authUser.uid).get(),items=Object.entries(snap.val()||{}).filter(([,v])=>v.roomCode===roomCode);
-  el.innerHTML=items.length?items.map(([id,v])=>'<div class="friend-row"><div><strong>'+escapeLobbyText(v.requesterName||"Friend")+'</strong><small>Wants to join your table</small></div><button onclick="approveJoinRequest(\\\''+id+'\\\',\\\''+v.requesterUid+'\\\')">Approve</button> <button onclick="declineJoinRequest(\\\''+id+'\\\')">Decline</button></div>').join(""):'<p class="lobby-hint">No pending requests.</p>';
+  el.innerHTML=items.length?items.map(([id,v])=>'<div class="friend-row"><div><strong>'+escapeLobbyText(v.requesterName||"Friend")+'</strong><small>Wants to join your table</small></div><button onclick="approveJoinRequest(\\''+id+'\\',\\''+v.requesterUid+'\\')">Approve</button> <button onclick="declineJoinRequest(\\''+id+'\\')">Decline</button></div>').join(""):'<p class="lobby-hint">No pending requests.</p>';
  }catch(e){el.textContent="Could not load join requests: "+e.message;}
 }
 async function approveJoinRequest(requestId,requesterUid){
@@ -4768,7 +4768,7 @@ function renderCardWatchRequestNotice(){
   el=document.createElement("div");el.id="cardWatchRequestsNotice";el.className="card-watch-modal-overlay";
   el.setAttribute("role","presentation");document.body.appendChild(el);
  }
- el.innerHTML='<section class="card-watch-modal" role="dialog" aria-modal="true" aria-labelledby="cardWatchModalTitle"><div class="card-watch-modal-icon">👀</div><div class="card-watch-modal-eyebrow">PLAYER REQUEST</div><h2 id="cardWatchModalTitle">Someone wants to see your cards</h2><p class="card-watch-modal-intro">Choose whether to share your cards. You stay in control.</p><div class="card-watch-modal-list">'+entries.map(([uid,req])=>{const p=currentOnlinePlayer(uid);return '<article class="card-watch-request-card"><div class="card-watch-request-avatar">👤</div><div class="card-watch-request-copy"><strong>'+escapeLobbyText(p?.name||"A player")+'</strong><span>wants permission to view your cards</span></div><div class="card-watch-request-actions"><button type="button" class="card-watch-accept" onclick="respondToCardWatch(\\''+escapeLobbyText(uid)+'\\',true)">Accept</button><button type="button" class="card-watch-decline" onclick="respondToCardWatch(\\''+escapeLobbyText(uid)+'\\',false)">Decline</button></div></article>';}).join("")+'</div><div class="card-watch-modal-foot">Your cards are shared only if you accept.</div></section>';
+ el.innerHTML='<section class="card-watch-modal" role="dialog" aria-modal="true" aria-labelledby="cardWatchModalTitle"><div class="card-watch-modal-icon">👀</div><div class="card-watch-modal-eyebrow">PLAYER REQUEST</div><h2 id="cardWatchModalTitle">Someone wants to see your cards</h2><p class="card-watch-modal-intro">Choose whether to share your cards. You stay in control.</p><div class="card-watch-modal-list">'+entries.map(([uid,req])=>{const p=currentOnlinePlayer(uid);return '<article class="card-watch-request-card"><div class="card-watch-request-avatar">👤</div><div class="card-watch-request-copy"><strong>'+escapeLobbyText(p?.name||"A player")+'</strong><span>wants permission to view your cards</span></div><div class="card-watch-request-actions"><button type="button" class="card-watch-accept" onclick="respondToCardWatch(\''+escapeLobbyText(uid)+'\',true)">Accept</button><button type="button" class="card-watch-decline" onclick="respondToCardWatch(\''+escapeLobbyText(uid)+'\',false)">Decline</button></div></article>';}).join("")+'</div><div class="card-watch-modal-foot">Your cards are shared only if you accept.</div></section>';
 }
 function cardWatchButtonMarkup(player){
  if(!onlineMode||!canWatchCardsThisRound()||player.id===roomPlayerId||player.active===false||player.roundDropped)return "";
