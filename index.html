@@ -4491,10 +4491,10 @@ function runShowCelebration(onComplete,discardedCard=null,directShow=false){
 function animateShowCardAction(discardedCard=null){
  const handEl=document.getElementById("hand"),pile=document.getElementById("discardPile");
  if(discardedCard){
-  const cards=[...document.querySelectorAll("#hand .card")];
-  const source=cards.find(el=>el.classList.contains("selected"))||cards[selected]||handEl;
-  animateCardFlight(source,pile,discardedCard,false,"discard");
+  /* Use the hand area as the launch point after validation; the flight card keeps the exact selected card face. */
+  animateCardFlight(handEl,pile,discardedCard,false,"discard");
  }else{
+  /* Decorative flourish only: the open card is not added to the hand or removed from the pile. */
   const top=onlineMode?(onlinePublic?.discard||[]).slice(-1)[0]:(discard||[]).slice(-1)[0];
   animateCardFlight(pile,handEl,top||null,false,"pick");
  }
@@ -4509,8 +4509,6 @@ function showHand(){
   infoToast("You must have 13 cards to show, or select your 14th card as the discard.");return;
  }
  if(hand.length!==13){infoToast("A valid SHOW needs exactly 13 cards after the discard.");return;}
- playShowButtonEffect();
- animateShowCardAction(showDiscard);
  if(showDiscard){
   players[0].hand=hand;
   discard.push(showDiscard);
@@ -4534,6 +4532,8 @@ function showHand(){
  })){
   infoToast("One or more three-card sets are invalid. Check your joker use.");return;
  }
+ playShowButtonEffect();
+ animateShowCardAction(showDiscard);
  arrangedGroups=groups.map(g=>g.map(c=>c.id));
  winningGroups=arrangedGroups.map(g=>g.slice());
  const results=[];
@@ -6166,7 +6166,12 @@ function showHand(){
  if(discardCardId)players[0].hand=original.filter(c=>c.id!==discardCardId);
  autoArrange(false);
  const groups=arrangedGroups.map(g=>g.slice());
+ const proposedHand=players[0].hand.slice();
  players[0].hand=original;
+ const validationError=validateOnlineShow(proposedHand,groups,players[0]);
+ if(validationError){message(validationError);return;}
+ playShowButtonEffect();
+ animateShowCardAction(discardCardId?original.find(c=>c.id===discardCardId):null);
  sendOnlineAction({type:"show",discardCardId,groups});
 }
 function startGame(){if(!onlineMode)return _soloStartGame();message("Leave the online table before starting a solo game.");}
