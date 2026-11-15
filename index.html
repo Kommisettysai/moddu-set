@@ -2789,6 +2789,25 @@ body:has(#game:not(.hidden)) main{
  }
 }
 
+ 
+.card-watch-modal-overlay{position:fixed;inset:0;z-index:12000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(1,17,13,.82);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+.card-watch-modal{width:min(460px,100%);max-height:min(82vh,720px);overflow:auto;padding:26px 22px 20px;border:1px solid #d9bd76;border-radius:24px;background:radial-gradient(ellipse at 50% 0%,#285b43 0%,#123c2f 48%,#082a21 100%);color:#f7e8b6;box-shadow:0 24px 80px rgba(0,0,0,.55),0 0 26px rgba(225,190,104,.18);text-align:center}
+.card-watch-modal-icon{width:58px;height:58px;margin:0 auto 12px;display:grid;place-items:center;border-radius:50%;border:1px solid #e4c875;background:rgba(236,199,111,.13);font-size:28px;box-shadow:0 0 22px rgba(231,193,104,.2)}
+.card-watch-modal-eyebrow{font-size:10px;font-weight:800;letter-spacing:3px;color:#e5c878}
+.card-watch-modal h2{margin:8px 0 7px;font-family:Georgia,serif;font-size:clamp(21px,5vw,27px);line-height:1.2;color:#fff0c3}
+.card-watch-modal-intro{margin:0 auto 18px;max-width:310px;font-size:13px;line-height:1.5;color:#c2d5c8}
+.card-watch-modal-list{display:grid;gap:10px;text-align:left}
+.card-watch-request-card{display:grid;grid-template-columns:40px minmax(0,1fr);gap:10px;align-items:center;padding:13px;border:1px solid rgba(224,199,137,.35);border-radius:15px;background:rgba(3,27,21,.55)}
+.card-watch-request-avatar{width:38px;height:38px;display:grid;place-items:center;border-radius:50%;background:rgba(231,196,116,.14);font-size:20px}
+.card-watch-request-copy{min-width:0;display:flex;flex-direction:column;gap:3px}
+.card-watch-request-copy strong{font-size:14px;color:#fff0c3;overflow-wrap:anywhere}
+.card-watch-request-copy span{font-size:11px;line-height:1.35;color:#bdd0c4}
+.card-watch-request-actions{grid-column:1/-1;display:flex;gap:9px;margin-top:3px}
+.card-watch-request-actions button{flex:1;min-height:42px;border-radius:12px;font-weight:800;font-size:13px}
+.card-watch-accept{border:1px solid #f0d58e;background:linear-gradient(135deg,#ffe6a1,#d7a94e);color:#17392d;box-shadow:0 3px 0 #987333}
+.card-watch-decline{border:1px solid rgba(207,220,209,.5);background:rgba(255,255,255,.06);color:#e8e4d4}
+.card-watch-modal-foot{margin-top:16px;padding-top:13px;border-top:1px solid rgba(223,199,142,.2);font-size:11px;color:#b5cabc}
+@media(max-width:420px){.card-watch-modal{padding:22px 16px 17px;border-radius:20px}.card-watch-request-card{padding:11px}}
 </style>
 <style>
 .card-watch-see{margin:5px 0 2px;padding:6px 16px;border:1px solid #e7c46e;border-radius:18px;background:linear-gradient(135deg,#ffe5a0,#d9a94d);color:#183d31;font-weight:800;letter-spacing:1px}
@@ -4742,12 +4761,14 @@ function syncIncomingCardWatchRequests(){
  incomingCardWatchRef.on("value",incomingCardWatchListener);
 }
 function renderCardWatchRequestNotice(){
- let el=document.getElementById("cardWatchRequestsNotice");
- if(!el&&Object.keys(incomingCardWatchRequests).length){el=document.createElement("div");el.id="cardWatchRequestsNotice";el.className="card-watch-requests";document.getElementById("game")?.prepend(el);}
- if(!el)return;
  const entries=Object.entries(incomingCardWatchRequests);
- if(!entries.length){el.remove();return;}
- el.innerHTML='<strong>Card-view requests</strong>'+entries.map(([uid,req])=>{const p=currentOnlinePlayer(uid);return '<div><span>'+escapeLobbyText(p?.name||"A player")+' wants to see your cards.</span><button type="button" onclick="respondToCardWatch(\''+escapeLobbyText(uid)+'\',true)">Accept</button><button type="button" class="secondary" onclick="respondToCardWatch(\''+escapeLobbyText(uid)+'\',false)">Decline</button></div>';}).join("");
+ let el=document.getElementById("cardWatchRequestsNotice");
+ if(!entries.length){el?.remove();return;}
+ if(!el){
+  el=document.createElement("div");el.id="cardWatchRequestsNotice";el.className="card-watch-modal-overlay";
+  el.setAttribute("role","presentation");document.body.appendChild(el);
+ }
+ el.innerHTML='<section class="card-watch-modal" role="dialog" aria-modal="true" aria-labelledby="cardWatchModalTitle"><div class="card-watch-modal-icon">👀</div><div class="card-watch-modal-eyebrow">PLAYER REQUEST</div><h2 id="cardWatchModalTitle">Someone wants to see your cards</h2><p class="card-watch-modal-intro">Choose whether to share your cards. You stay in control.</p><div class="card-watch-modal-list">'+entries.map(([uid,req])=>{const p=currentOnlinePlayer(uid);return '<article class="card-watch-request-card"><div class="card-watch-request-avatar">👤</div><div class="card-watch-request-copy"><strong>'+escapeLobbyText(p?.name||"A player")+'</strong><span>wants permission to view your cards</span></div><div class="card-watch-request-actions"><button type="button" class="card-watch-accept" onclick="respondToCardWatch(\\''+escapeLobbyText(uid)+'\\',true)">Accept</button><button type="button" class="card-watch-decline" onclick="respondToCardWatch(\\''+escapeLobbyText(uid)+'\\',false)">Decline</button></div></article>';}).join("")+'</div><div class="card-watch-modal-foot">Your cards are shared only if you accept.</div></section>';
 }
 function cardWatchButtonMarkup(player){
  if(!onlineMode||!canWatchCardsThisRound()||player.id===roomPlayerId||player.active===false||player.roundDropped)return "";
