@@ -5137,12 +5137,12 @@ function applyOnlinePublic(){
  if(st.status==="roundComplete"&&st.roundResult)openOnlineRoundResults(st.roundResult);
  if(st.status==="gameComplete"){openOnlineGameComplete(st.champion||"A player");const me=(st.players||[]).find(p=>p.id===roomPlayerId);if(me)saveCompletedGame("multiplayer","room_"+(roomCode||"unknown"),st.championUid===roomPlayerId,(st.players||[]).filter(p=>p.id!==roomPlayerId).map(p=>p.name));}
  if(st.specialRank)highlightSpecialJoker();
- if(eliminatedSpectator){
+ if(canWatchCardsThisRound()){
   if(cardWatchLockRef&&cardWatchLockListener)cardWatchLockRef.off("value",cardWatchLockListener);
   cardWatchLockRef=roomRef.child("private/cardWatchLocks/"+roomPlayerId);
   cardWatchLockListener=snap=>{const lock=snap.val();if(lock&&Number(lock.round)===cardWatchRound()){cardWatchState={...(cardWatchState||{}),...lock,status:cardWatchState?.status||"pending"};listenToOwnCardWatchRequest(lock.targetUid);}else{cardWatchState=null;closeCardWatchViewer();}render();};
   cardWatchLockRef.off("value");cardWatchLockRef.on("value",cardWatchLockListener);
- }else{cardWatchState=null;closeCardWatchViewer();}
+ }else{if(cardWatchLockRef&&cardWatchLockListener)cardWatchLockRef.off("value",cardWatchLockListener);cardWatchLockRef=cardWatchLockListener=null;cardWatchState=null;closeCardWatchViewer();}
  syncIncomingCardWatchRequests();
  updateDiscardCountdown();
 }
