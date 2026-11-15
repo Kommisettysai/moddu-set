@@ -445,10 +445,10 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 @keyframes pilePulse{0%,100%{filter:none;transform:scale(1)}35%{filter:brightness(1.7);transform:translateY(-7px) scale(1.06)}}
 
 /* Quick, understated discard flight used for regular round discards */
-.discard-flight{position:fixed!important;z-index:9999!important;margin:0!important;pointer-events:none!important;transform-origin:center center!important;will-change:transform,opacity;box-shadow:0 12px 24px #0007!important}
+.discard-flight{position:fixed!important;z-index:9999!important;margin:0!important;pointer-events:none!important;box-sizing:border-box!important;aspect-ratio:2/3!important;flex:0 0 auto!important;transform-origin:center center!important;will-change:transform,opacity;box-shadow:0 12px 24px #0007!important}
 .discard-flight.is-moving{transition:transform .52s cubic-bezier(.2,.72,.25,1),opacity .52s ease!important}
 .discard-impact{animation:discardImpact .24s ease-out}
-.pick-flight{position:fixed!important;z-index:9999!important;pointer-events:none!important;margin:0!important;will-change:transform,opacity;box-shadow:0 10px 22px #0008!important}
+.pick-flight{position:fixed!important;z-index:9999!important;pointer-events:none!important;margin:0!important;box-sizing:border-box!important;aspect-ratio:2/3!important;flex:0 0 auto!important;will-change:transform,opacity;box-shadow:0 10px 22px #0008!important}
 .pick-flight.is-moving{transition:transform .52s cubic-bezier(.2,.72,.25,1),opacity .52s ease!important}
 .pick-flight.card{display:flex!important;flex-direction:column!important;justify-content:space-between!important;padding:5px!important;box-sizing:border-box!important}
 .pick-flight.card>span{display:block!important;line-height:1!important}
@@ -3932,7 +3932,12 @@ function animateCardFlight(fromEl,toEl,cardData,faceDown=false,kind="discard"){
  if(!fromEl||!toEl||window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;
  const from=fromEl.getBoundingClientRect(),to=toEl.getBoundingClientRect();
  if(!from.width||!from.height||!to.width||!to.height)return;
- const w=faceDown?48:from.width,h=faceDown?66:from.height;
+ /* The flight must be a playing card, not inherit the rectangular size of a player panel or pile. */
+ const sample=fromEl.matches(".card")?fromEl:(document.querySelector("#hand .card")||document.querySelector(".discard-history-card")||toEl.querySelector?.(".card"));
+ const sampleRect=sample?.getBoundingClientRect();
+ const ratio=sampleRect&&sampleRect.width>0&&sampleRect.height>0?sampleRect.width/sampleRect.height:(2/3);
+ const w=sampleRect&&sampleRect.width>0?sampleRect.width:Math.min(54,Math.max(44,window.innerWidth*.12));
+ const h=w/ratio;
  const ghost=buildFlightCard(cardData,faceDown);
  ghost.classList.add(kind==="discard"?"discard-flight":"pick-flight");
  ghost.style.left=(from.left+from.width/2-w/2)+"px";ghost.style.top=(from.top+from.height/2-h/2)+"px";
