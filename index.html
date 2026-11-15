@@ -5311,7 +5311,7 @@ async function restartCurrentGame(confirmed=false){
  const footer=document.querySelector("#roundResults .results-footer");
  const button=footer?.querySelector(".rematch-btn"),status=footer?.querySelector(".rematch-status");
  const setStatus=t=>{if(status)status.textContent=t;};
- if(button){button.disabled=true;button.textContent="Preparing new game…";}
+ if(button){button.disabled=true;button.textContent="STARTING NEW GAME…";}
  setStatus("Preparing a fresh game for everyone…");
  try{
   const hostSnap=await roomRef.child("hostId").get();
@@ -5328,9 +5328,10 @@ async function restartCurrentGame(confirmed=false){
   const freshPlayers=participants.map(x=>({...x,score:0,active:true,status:"Ready",cardCount:13,roundDrawCount:0,roundDropped:false,dropPenalty:0,unlocked:false,eligible:false,rejoinNextRound:false,rejoinPenalty:0,specialRank:null}));
   const next={status:"playing",gameNumber:(Number(p.gameNumber)||1)+1,round:1,scoreLimit:Math.max(1,Number(p.scoreLimit)||200),turnUid:starter.id,roundStarterUid:starter.id,deckCount:d.length,discard:[first],drawnByUid:null,drawnCardId:null,pickDeadline:starter.isBot?null:Date.now()+60000,discardDeadline:null,specialRank:null,rematchVotes:{},players:freshPlayers,message:"The host restarted the game. Everyone's scores are reset. "+starter.name+"'s turn."};
   await roomRef.child("private").set({deck:d,hands,specialRank:null,specialRanks:{}});
-  const actionSnap=await roomRef.child("actions").get();
-  const actionIds=Object.keys(actionSnap.val()||{});
-  await Promise.all(actionIds.map(uid=>roomRef.child("actions/"+uid).remove()));
+  // Avoid deleting each action here: rules only let a player remove their own
+  // action, so a departed lobby member can cause PERMISSION_DENIED mid-restart.
+  // Normal pending actions are already consumed by the host action listener.
+  setStatus("Dealing new cards…");
   await roomRef.child("public").set(next);
   onlinePublic=next;drawn=false;selected=-1;selectedIndices=[];arrangedGroups=[];winningGroups=[];lastDrawnCardId=null;lastDrawSource=null;closeHostRestartPrompt();
   closeGameConfirm();
@@ -5349,7 +5350,7 @@ async function restartCurrentGame(confirmed=false){
   console.error("Could not restart the game:",e);
   const detail=String(e?.code||e?.message||e||"Unknown error");
   setStatus("Restart failed: "+detail);
-  if(button){button.disabled=false;button.textContent="↻ RETRY RESTART";}
+  if(button){button.disabled=false;button.textContent="↻ TRY AGAIN";}
   message("Could not restart the game: "+detail);
  }
 }
@@ -6555,8 +6556,8 @@ function openOnlineGameComplete(champion){
  const footer=screen.querySelector(".results-footer");
  if(footer){
   const canRestart=!!(onlineMode&&isRoomHost&&roomRef);
-  footer.innerHTML=(canRestart?'<button class="rematch-btn" onclick="requestRestartCurrentGame()">↻ RESTART NEW GAME</button>':'')+
-   '<p class="rematch-status">'+(canRestart?'Host can start a fresh game for everyone using the button above.':'Waiting for the host to start a new game.')+'</p>';
+  footer.innerHTML=(canRestart?'<button class="rematch-btn" onclick="requestRestartCurrentGame()">↻ START NEW GAME</button>':'')+
+   '<p class="rematch-status">'+(canRestart?'Start a fresh game for everyone. All scores will reset to zero.':'Waiting for the host to start a new game.')+'</p>';
  }
  screen.classList.remove("hidden");
  screen.scrollTop=0;
