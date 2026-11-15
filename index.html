@@ -5691,7 +5691,9 @@ async function restartCurrentGame(confirmed=false){
  if(button){button.disabled=true;button.textContent="STARTING NEW GAME…";}
  setStatus("Preparing a fresh game for everyone…");
  try{
-  const hostSnap=await roomRef.child("hostId").get();
+  // Room-root reads are intentionally blocked by database.rules.json.
+  // The same host UID is exposed in the readable lobby node, so verify there.
+  const hostSnap=await roomRef.child("lobby/hostId").get();
   isRoomHost=!!authUser&&hostSnap.val()===authUser.uid;
   if(!isRoomHost)throw new Error("Only the current host can restart this game. Please refresh the game.");
   const snap=await roomRef.child("public").get(),p=snap.val();
