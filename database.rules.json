@@ -26,12 +26,19 @@
           ".write": "auth != null && root.child('rooms').child($roomCode).child('hostId').val() === auth.uid",
           "hands": {
             "$playerId": {
-              ".read": "auth != null && (auth.uid === $playerId || root.child('rooms').child($roomCode).child('hostId').val() === auth.uid)"
+              ".read": "auth != null && (auth.uid === $playerId || root.child('rooms').child($roomCode).child('hostId').val() === auth.uid || (root.child('rooms').child($roomCode).child('private').child('cardWatchLocks').child(auth.uid).child('targetUid').val() === $playerId && root.child('rooms').child($roomCode).child('private').child('cardWatchLocks').child(auth.uid).child('round').val() === root.child('rooms').child($roomCode).child('public').child('round').val() && root.child('rooms').child($roomCode).child('cardWatchRequests').child($playerId).child(auth.uid).child('status').val() === 'accepted' && root.child('rooms').child($roomCode).child('cardWatchRequests').child($playerId).child(auth.uid).child('round').val() === root.child('rooms').child($roomCode).child('public').child('round').val()))"
             }
           },
           "specialRanks": {
             "$playerId": {
               ".read": "auth != null && (auth.uid === $playerId || root.child('rooms').child($roomCode).child('hostId').val() === auth.uid)"
+            }
+          },
+          "cardWatchLocks": {
+            "$viewerUid": {
+              ".read": "auth != null && (auth.uid === $viewerUid || auth.uid === data.child('targetUid').val())",
+              ".write": "auth != null && auth.uid === $viewerUid && root.child('rooms').child($roomCode).child('lobby').child('players').child(auth.uid).exists() && newData.child('viewerUid').val() === auth.uid && newData.child('targetUid').isString() && newData.child('round').val() === root.child('rooms').child($roomCode).child('public').child('round').val() && ((!data.exists()) || data.child('round').val() < newData.child('round').val())",
+              ".validate": "newData.hasChildren(['viewerUid','targetUid','round','createdAt']) && newData.child('viewerUid').val() === auth.uid && newData.child('createdAt').isNumber()"
             }
           }
         },
@@ -76,6 +83,16 @@
         "players": {
           "$playerId": {
             ".write": "auth != null && ((auth.uid === $playerId && root.child('rooms').child($roomCode).child('status').val() === 'waiting') || (root.child('rooms').child($roomCode).child('hostId').val() === auth.uid && root.child('rooms').child($roomCode).child('status').val() === 'waiting' && root.child('friends').child(auth.uid).child($playerId).exists()))"
+          }
+        },
+        "cardWatchRequests": {
+          "$targetUid": {
+            ".read": "auth != null && auth.uid === $targetUid",
+            "$viewerUid": {
+              ".read": "auth != null && (auth.uid === $viewerUid || auth.uid === $targetUid)",
+              ".write": "auth != null && ((auth.uid === $viewerUid && !data.exists() && newData.child('viewerUid').val() === auth.uid && newData.child('targetUid').val() === $targetUid && newData.child('status').val() === 'pending' && root.child('rooms').child($roomCode).child('private').child('cardWatchLocks').child(auth.uid).child('targetUid').val() === $targetUid && root.child('rooms').child($roomCode).child('private').child('cardWatchLocks').child(auth.uid).child('round').val() === root.child('rooms').child($roomCode).child('public').child('round').val()) || (auth.uid === $targetUid && data.exists() && data.child('status').val() === 'pending' && newData.child('targetUid').val() === data.child('targetUid').val() && newData.child('viewerUid').val() === data.child('viewerUid').val() && newData.child('round').val() === data.child('round').val() && newData.child('requestedAt').val() === data.child('requestedAt').val() && (newData.child('status').val() === 'accepted' || newData.child('status').val() === 'declined')))",
+              " .validate": "newData.hasChildren(['targetUid','viewerUid','round','status','requestedAt']) && newData.child('targetUid').val() === $targetUid && newData.child('viewerUid').val() === $viewerUid && newData.child('round').isNumber() && (newData.child('status').val() === 'pending' || newData.child('status').val() === 'accepted' || newData.child('status').val() === 'declined') && newData.child('requestedAt').isNumber()"
+            }
           }
         }
       }
