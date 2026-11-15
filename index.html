@@ -3823,7 +3823,7 @@ function drawClosed(){
  if(turn!==0||drawn)return;
  recycleDeck();
  if(deck.length===0){message("No cards available.");return;}
- const pickedCard=deck.pop();players[0].hand.push(pickedCard);lastDrawnCardId=pickedCard.id;lastDrawSource="deck";
+ const pickedCard=deck.pop();animateSoloPick("drawPile",null,true);players[0].hand.push(pickedCard);lastDrawnCardId=pickedCard.id;lastDrawSource="deck";
  players[0].roundDrawCount=(players[0].roundDrawCount||0)+1;
  drawn=true;
  selected=-1;
@@ -3835,7 +3835,7 @@ function drawClosed(){
 function drawOpen(){
  if(turn!==0||drawn)return;
  if(discard.length===0)return;
- const pickedCard=discard.pop();players[0].hand.push(pickedCard);lastDrawnCardId=pickedCard.id;lastDrawSource="open";
+ const pickedCard=discard[discard.length-1];animateSoloPick("discardPile",pickedCard,false);discard.pop();players[0].hand.push(pickedCard);lastDrawnCardId=pickedCard.id;lastDrawSource="open";
  players[0].roundDrawCount=(players[0].roundDrawCount||0)+1;
  drawn=true;
  selected=-1;
@@ -3880,6 +3880,9 @@ function animatePick(action,sourcePlayer){
  const target=action.uid===roomPlayerId?document.getElementById("hand"):[...document.querySelectorAll("#players .player")].find(el=>el.dataset.playerId===action.uid);
  const source=document.getElementById(action.type==="drawOpen"?"discardPile":"drawPile");
  animateCardFlight(source,target,action.type==="drawOpen"?(action.cardFace||null):null,action.type==="drawClosed","pick");
+}
+function animateSoloPick(sourceId,cardData,faceDown=false){
+ animateCardFlight(document.getElementById(sourceId),document.getElementById("hand"),cardData,faceDown,"pick");
 }
 function discardSelected(){
  if(turn!==0||!drawn||selected<0)return;
