@@ -3909,6 +3909,93 @@ body.hide-player-scores #game .player-strip #players > .player .profile-score{
  }
 }
 
+
+/* Remove the entire YOUR TURN row and give the player profiles that space. */
+#game .player-strip .player-tools-row,
+#game .player-strip #turnInfo{
+ display:none!important;
+}
+/* Four readable profiles per row; remaining players wrap to row two. */
+#game .player-strip #players,
+#game .player-strip .players{
+ display:grid!important;
+ grid-template-columns:repeat(4,minmax(0,1fr))!important;
+ grid-auto-rows:minmax(0,auto)!important;
+ gap:6px!important;
+ width:100%!important;
+ min-width:0!important;
+ overflow:visible!important;
+ padding:3px 1px 4px!important;
+ margin:0!important;
+}
+#game .player-strip #players>.player,
+#game .player-strip .players>.player{
+ display:flex!important;
+ flex:initial!important;
+ width:auto!important;
+ min-width:0!important;
+ max-width:none!important;
+ min-height:82px!important;
+ height:auto!important;
+ box-sizing:border-box!important;
+ flex-direction:column!important;
+ align-items:center!important;
+ justify-content:flex-start!important;
+ gap:2px!important;
+ padding:5px 3px!important;
+ margin:0!important;
+ border-radius:11px!important;
+}
+#game .player-strip #players>.player .player-identity,
+#game .player-strip .players>.player .player-identity{
+ display:flex!important;flex-direction:column!important;
+ align-items:center!important;justify-content:flex-start!important;
+ gap:3px!important;width:100%!important;margin:0 0 2px!important;
+}
+#game .player-strip #players>.player .avatar-stack,
+#game .player-strip .players>.player .avatar-stack{min-width:28px!important}
+#game .player-strip #players>.player .player-avatar,
+#game .player-strip .players>.player .player-avatar{
+ width:29px!important;height:29px!important;min-width:29px!important;
+ flex:0 0 29px!important;font-size:16px!important;
+}
+#game .player-strip #players>.player .player-name-wrap,
+#game .player-strip .players>.player .player-name-wrap{
+ display:block!important;width:100%!important;max-width:100%!important;
+ min-width:0!important;text-align:center!important;overflow:hidden!important;
+}
+#game .player-strip #players>.player .player-name-wrap b,
+#game .player-strip .players>.player .player-name-wrap b{
+ display:block!important;width:100%!important;max-width:100%!important;
+ font:700 8px/1.15 Georgia,serif!important;text-align:center!important;
+ white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
+}
+#game .player-strip #players>.player .profile-score,
+#game .player-strip .players>.player .profile-score,
+body.hide-player-scores #game .player-strip #players>.player .profile-score{
+ display:block!important;visibility:visible!important;opacity:1!important;
+ margin:3px 0 0!important;font:700 8px/1.15 Georgia,serif!important;
+ white-space:nowrap!important;color:#ffe09a!important;
+}
+#game .player-strip #players>.player .player-card-count,
+#game .player-strip .players>.player .player-card-count{
+ min-width:17px!important;height:17px!important;font-size:8px!important;
+ left:-5px!important;top:0!important;
+}
+#game .player-strip #players>.player .profile-more,
+#game .player-strip .players>.player .profile-more{
+ width:16px!important;height:18px!important;min-width:16px!important;
+ top:4px!important;right:3px!important;padding:0!important;font-size:8px!important;
+}
+@media(max-width:380px){
+ #game .player-strip #players,
+ #game .player-strip .players{gap:4px!important}
+ #game .player-strip #players>.player,
+ #game .player-strip .players>.player{min-height:78px!important;padding:4px 2px!important}
+ #game .player-strip #players>.player .player-name-wrap b,
+ #game .player-strip .players>.player .player-name-wrap b{font-size:7px!important}
+}
+
 </style></head>
 
 <body class="app-locked">
