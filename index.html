@@ -3281,6 +3281,22 @@ body:has(#game:not(.hidden)) main{
  #roundResults.moddu-results-screen .result-current.round-points-pop,
  #roundResults.moddu-results-screen .result-unmatched-row .results-card.unmatched-reveal-pop{animation:none!important}
 }
+
+/* A real card-deal arc: each card rises from its exact hand position, bends over, then lands. */
+.show-card-reveal.active .show-reveal-card{animation:showSnakeCardFlight 1.02s cubic-bezier(.2,.76,.18,1) forwards!important;animation-delay:var(--card-delay,0s)!important;transform-style:preserve-3d!important}
+@keyframes showSnakeCardFlight{
+ 0%{opacity:0;transform:translate(calc(-50% + var(--start-dx,0px)),var(--start-dy,42vh)) rotate(var(--start-rot,0deg)) rotateY(-18deg) scale(.72);filter:brightness(1.35) drop-shadow(0 0 10px #ffe18a)}
+ 14%{opacity:1}
+ 34%{opacity:1;transform:translate(calc(-50% + var(--arc-mid-dx,0px)),var(--arc-mid-dy,0px)) rotate(calc(var(--card-rot)*.55)) rotateY(12deg) scale(1.08);filter:brightness(1.16) drop-shadow(0 7px 9px #0008)}
+ 66%{opacity:1;transform:translate(calc(-50% + var(--arc-near-dx,0px)),var(--arc-near-dy,0px)) rotate(calc(var(--card-rot)*1.15)) rotateY(-5deg) scale(1.04)}
+ 84%{transform:translate(-50%,calc(var(--card-y) - 5px)) rotate(calc(var(--card-rot)*.92)) rotateY(0deg) scale(1.035)}
+ 100%{opacity:1;transform:translate(-50%,var(--card-y)) rotate(var(--card-rot)) rotateY(0deg) scale(1);filter:brightness(1.06) drop-shadow(0 2px 5px #0007)}
+}
+.show-reveal-card .results-card{backface-visibility:hidden!important}
+.show-card-reveal.active .show-reveal-card:nth-child(3n){animation-duration:1.08s!important}
+.show-card-reveal.active .show-reveal-card:nth-child(3n+2){animation-duration:.96s!important}
+@media(prefers-reduced-motion:reduce){.show-card-reveal.active .show-reveal-card{animation:none!important}}
+
 </style></head>
 
 <body class="app-locked">
@@ -4705,7 +4721,7 @@ function runShowCelebration(onComplete,showData={}){
    const normalized=x/50;
    const y=-25+(normalized*normalized*48);
    const rotation=normalized*12;
-   const delay=current*.13;
+   const delay=current*.105;
    return '<span class="show-reveal-card" data-card-id="'+escapeLobbyText(card.id)+'" style="--card-x:'+x.toFixed(2)+'%;--card-y:'+y.toFixed(1)+'px;--card-rot:'+rotation.toFixed(1)+'deg;--card-delay:'+delay.toFixed(2)+'s">'+renderResultCard(card)+'</span>';
   }).join("");
   if(laneIndex<lanes.length-1)position+=.55;
@@ -4725,14 +4741,20 @@ function runShowCelebration(onComplete,showData={}){
     const sourceRect=source.getBoundingClientRect();
     const targetX=stageRect.left+stageRect.width/2+(Number.parseFloat(flight.style.getPropertyValue("--card-x"))/100)*stageRect.width;
     const targetY=stageRect.top+stageRect.height/2+Number.parseFloat(flight.style.getPropertyValue("--card-y"));
-    flight.style.setProperty("--start-dx",(sourceRect.left+sourceRect.width/2-targetX).toFixed(1)+"px");
-    flight.style.setProperty("--start-dy",(sourceRect.top+sourceRect.height/2-targetY).toFixed(1)+"px");
+    const startDx=sourceRect.left+sourceRect.width/2-targetX;
+    const startDy=sourceRect.top+sourceRect.height/2-targetY;
+    flight.style.setProperty("--start-dx",startDx.toFixed(1)+"px");
+    flight.style.setProperty("--start-dy",startDy.toFixed(1)+"px");
+    flight.style.setProperty("--arc-mid-dx",(startDx*.62).toFixed(1)+"px");
+    flight.style.setProperty("--arc-mid-dy",(startDy*.62-42).toFixed(1)+"px");
+    flight.style.setProperty("--arc-near-dx",(startDx*.2).toFixed(1)+"px");
+    flight.style.setProperty("--arc-near-dy",(startDy*.2-24).toFixed(1)+"px");
     flight.style.setProperty("--start-rot",(((index%5)-2)*3)+"deg");
    });
   }
   overlay.classList.add("active");
  });
- const revealDuration=Math.max(2700,allCards.length*130+1250);
+ const revealDuration=Math.max(2850,allCards.length*105+1450);
  window.setTimeout(()=>{
   overlay.classList.add("fade-out");
   window.setTimeout(()=>{
@@ -4950,8 +4972,11 @@ function startNextRound(){
 let pendingGameConfirmAction=null;
 function showGameConfirm(title,body,action,confirmLabel="Confirm"){
  const modal=document.getElementById("gameConfirmModal");if(!modal)return;
- // Keep the confirmation overlay outside transformed game containers so fixed positioning is viewport-centred on mobile.
+ // The results screen is itself a top-level overlay. Keep confirmation above it on mobile.
  if(modal.parentElement!==document.body)document.body.appendChild(modal);
+ modal.style.setProperty("position","fixed","important");
+ modal.style.setProperty("z-index","100020","important");
+ modal.style.setProperty("display","flex","important");
  document.getElementById("gameConfirmTitle").textContent=title;
  document.getElementById("gameConfirmMessage").textContent=body;
  document.getElementById("gameConfirmAction").textContent=confirmLabel;
@@ -4982,7 +5007,8 @@ async function restartCurrentGame(confirmed=false){
  setStatus("Preparing a fresh game for everyone…");
  try{
   const hostSnap=await roomRef.child("hostId").get();
-  if(!authUser||hostSnap.val()!==authUser.uid||!isRoomHost)throw new Error("Only the current host can restart this game. Please refresh the game.");
+  isRoomHost=!!authUser&&hostSnap.val()===authUser.uid;
+  if(!isRoomHost)throw new Error("Only the current host can restart this game. Please refresh the game.");
   const snap=await roomRef.child("public").get(),p=snap.val();
   if(!p||!Array.isArray(p.players))throw new Error("Could not read the current players.");
   if(p.status!=="gameComplete"&&p.status!=="restartRequested")throw new Error("The game is not in the completed state. Refresh the page and try again.");
@@ -4999,6 +5025,9 @@ async function restartCurrentGame(confirmed=false){
   await Promise.all(actionIds.map(uid=>roomRef.child("actions/"+uid).remove()));
   await roomRef.child("public").set(next);
   onlinePublic=next;drawn=false;selected=-1;selectedIndices=[];arrangedGroups=[];winningGroups=[];lastDrawnCardId=null;lastDrawSource=null;closeHostRestartPrompt();
+  closeGameConfirm();
+  const completedScreen=document.getElementById("roundResults");
+  if(completedScreen){completedScreen.classList.add("hidden");completedScreen.classList.remove("game-complete-screen","moddu-results-screen");completedScreen.dataset.showCelebrationKey="";completedScreen.dataset.showCelebrationDone="";}
   applyOnlinePublic();
   const ownHandSnap=await roomRef.child("private/hands/"+roomPlayerId).get();
   const ownHand=ownHandSnap.val()||[];
