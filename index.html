@@ -3489,6 +3489,49 @@ body:has(#game:not(.hidden)) main{
  #modduTablePanel .discard-stack{height:58px!important;flex-basis:58px!important}
 }
 
+
+/* Discard pile: keep the three-card stack neatly inside the compact mobile tile. */
+#modduTablePanel #discardPile.discard-pile{
+  position:relative!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:0!important;
+  padding:2px 2px 13px!important;
+  overflow:hidden!important;
+  isolation:isolate;
+}
+#modduTablePanel #discardPile .discard-stack{
+  position:relative!important;
+  width:42px!important;
+  height:54px!important;
+  flex:0 0 54px!important;
+  margin:0 auto!important;
+  transform:none!important;
+}
+#modduTablePanel #discardPile .discard-history-card{
+  top:calc(var(--stack-index)*3px)!important;
+  left:50%!important;
+  width:38px!important;
+  height:49px!important;
+  padding:3px!important;
+  transform:translateX(-50%)!important;
+  border-radius:6px!important;
+  font-size:11px!important;
+  box-shadow:0 2px 5px #0008!important;
+}
+#modduTablePanel #discardPile .discard-history-card .discard-history-suit{font-size:13px!important}
+#modduTablePanel #discardPile .discard-history-card .discard-history-corner{font-size:8px!important}
+#modduTablePanel #discardPile>small{
+  position:absolute!important;
+  left:1px!important;right:1px!important;bottom:3px!important;
+  margin:0!important;text-align:center!important;
+  font-size:7px!important;line-height:9px!important;
+  letter-spacing:.35px!important;white-space:nowrap!important;
+  z-index:6!important;
+}
+
 </style></head>
 
 <body class="app-locked">
