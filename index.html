@@ -2905,6 +2905,53 @@ body:has(#game:not(.hidden)) main{
  outline:1px solid #ffe0a2!important;outline-offset:1px!important;
 }
 #roundResults.moddu-results-screen .results-winning-group{background:#092f2388!important}
+/* Two compact card rows: every player's sets stay together above unmatched cards. */
+#roundResults.moddu-results-screen .round-joker-reveal{width:100%!important;box-sizing:border-box!important;justify-content:space-between!important;padding:8px 12px!important;margin:2px 0 8px!important;min-height:70px!important}
+#roundResults.moddu-results-screen .round-joker-copy strong{font-size:22px!important}
+#roundResults.moddu-results-screen .round-joker-copy>span{font-size:9px!important}
+#roundResults.moddu-results-screen .round-joker-copy small{font-size:9px!important}
+#roundResults.moddu-results-screen .round-joker-card{width:44px!important;height:63px!important;flex:0 0 44px!important;border-radius:7px!important}
+#roundResults.moddu-results-screen .round-joker-card span{font-size:19px!important}
+#roundResults.moddu-results-screen .round-joker-card small{font-size:7px!important}
+#roundResults.moddu-results-screen .results-breakdown,
+#roundResults.moddu-results-screen .results-winning-groups{display:block!important}
+#roundResults.moddu-results-screen .result-two-row{display:grid!important;grid-template-rows:auto auto!important;gap:5px!important;min-width:0!important}
+#roundResults.moddu-results-screen .result-set-row,
+#roundResults.moddu-results-screen .result-unmatched-row{min-width:0!important;border-radius:8px!important;padding:4px 5px!important;box-sizing:border-box!important}
+#roundResults.moddu-results-screen .result-set-row{background:#0c382c!important;border:1px solid #65c995!important}
+#roundResults.moddu-results-screen .result-unmatched-row{background:linear-gradient(110deg,#54251f,#321b20)!important;border:1px solid #ff956f!important;box-shadow:inset 0 0 0 1px #ffb18b22,0 0 8px #ff775533!important}
+#roundResults.moddu-results-screen .result-row-label{display:block!important;font-size:7px!important;letter-spacing:.55px!important;line-height:1.1!important;color:#d9e9d8!important;margin:0 0 3px!important}
+#roundResults.moddu-results-screen .result-set-groups{display:flex!important;flex-wrap:nowrap!important;align-items:flex-end!important;gap:5px!important;min-width:0!important;overflow:visible!important}
+#roundResults.moddu-results-screen .result-set-group{display:flex!important;flex-direction:column!important;gap:2px!important;min-width:0!important;flex:0 1 auto!important}
+#roundResults.moddu-results-screen .result-set-label{font-size:6px!important;line-height:1!important;color:#e5d39d!important;white-space:nowrap!important}
+#roundResults.moddu-results-screen .result-set-group .results-card-grid,
+#roundResults.moddu-results-screen .result-unmatched-row .results-card-grid{display:flex!important;flex-wrap:nowrap!important;gap:2px!important;min-width:0!important}
+#roundResults.moddu-results-screen .result-two-row .results-card{width:clamp(17px,5.7vw,23px)!important;flex:0 1 clamp(17px,5.7vw,23px)!important;height:clamp(26px,8.1vw,34px)!important;padding:2px!important;border-radius:4px!important;font-size:7px!important;box-shadow:0 1px 3px #0005!important}
+#roundResults.moddu-results-screen .result-two-row .results-card .bottom{font-size:.62em!important}
+#roundResults.moddu-results-screen .result-unmatched-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:5px!important;margin-bottom:3px!important}
+#roundResults.moddu-results-screen .result-unmatched-head .result-row-label{margin:0!important;color:#ffc0a5!important}
+#roundResults.moddu-results-screen .result-unmatched-head strong{font-size:7px!important;color:#ffd4a8!important;white-space:nowrap!important}
+#roundResults.moddu-results-screen .result-unmatched-row .results-card{border:1.5px solid #ff9b72!important;background:linear-gradient(155deg,#fff4e8,#ffd6bf)!important;color:#9d2e22!important;box-shadow:0 0 0 1px #ffb18b55,0 0 7px #ff754c88!important;animation:unmatchedFloat 2.8s ease-in-out infinite}
+#roundResults.moddu-results-screen .result-unmatched-row .results-card:nth-child(2n){animation-delay:.22s}
+#roundResults.moddu-results-screen .result-unmatched-row .results-card:nth-child(3n){animation-delay:.44s}
+#roundResults.moddu-results-screen .results-hand-head .hand-player-identity{display:flex!important;align-items:center!important}
+#roundResults.moddu-results-screen .showed-badge{display:inline-flex!important;align-items:center!important;padding:3px 6px!important;border-radius:20px!important;background:linear-gradient(180deg,#fff1a9,#e8b947)!important;color:#39270b!important;font-size:7px!important;font-weight:1000!important;white-space:nowrap!important;box-shadow:0 0 9px #ffdc6a99!important}
+#roundResults.moddu-results-screen .winner-hand.showed-hand{border-color:#ffe16b!important;box-shadow:0 0 0 2px #ffe16b55,0 0 17px #ffdc6a66!important}
+#roundResults.moddu-results-screen.show-reveal .winner-hand{animation:showPlayerReveal .75s cubic-bezier(.2,.8,.2,1) both}
+#roundResults.moddu-results-screen.show-reveal .winner-hand .results-card{animation:showCardReveal .45s ease-out both}
+#roundResults.moddu-results-screen.show-reveal .winner-hand .results-card:nth-child(2){animation-delay:.08s}
+#roundResults.moddu-results-screen.show-reveal .winner-hand .results-card:nth-child(3){animation-delay:.16s}
+#roundResults.moddu-results-screen.show-reveal .winner-hand .results-card:nth-child(4){animation-delay:.24s}
+#showBtn.show-pressing{animation:showButtonBurst .72s ease-out!important;filter:brightness(1.22)!important}
+@keyframes unmatchedFloat{0%,100%{transform:translateY(0);filter:brightness(1)}50%{transform:translateY(-2px);filter:brightness(1.12)}}
+@keyframes showPlayerReveal{0%{opacity:0;transform:translateY(18px) scale(.985);box-shadow:0 0 0 #ffe16b00}65%{opacity:1;transform:translateY(-2px) scale(1.005);box-shadow:0 0 24px #ffe16b99}100%{opacity:1;transform:none;box-shadow:0 0 17px #ffdc6a66}}
+@keyframes showCardReveal{from{opacity:.3;transform:translateY(7px) scale(.92)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes showButtonBurst{0%{box-shadow:0 0 0 0 #ffe16b00}35%{box-shadow:0 0 0 5px #ffe16b99,0 0 25px #ffd65d}100%{box-shadow:0 0 0 0 #ffe16b00}}
+@media(max-width:390px){
+ #roundResults.moddu-results-screen .result-two-row .results-card{width:clamp(16px,5.25vw,20px)!important;flex-basis:clamp(16px,5.25vw,20px)!important;height:clamp(24px,7.8vw,30px)!important}
+ #roundResults.moddu-results-screen .round-joker-reveal{min-height:64px!important}
+}
+
 #roundResults.moddu-results-screen .results-footer{position:sticky!important;bottom:0!important;padding:5px 0 2px!important;background:linear-gradient(transparent,#08251d 35%)!important}
 #roundResults.moddu-results-screen .results-footer button{min-height:40px!important;padding:8px 12px!important;font-size:13px!important}
 @media(max-width:390px){
@@ -4285,6 +4332,26 @@ function renderScoringBreakdown(hand,player,penalty){
  const counted='<div class="results-breakdown-section counted"><span class="results-breakdown-title">COUNTED CARDS · +'+penalty+' POINTS</span>'+(breakdown.counted.length?'<div class="results-card-grid">'+breakdown.counted.map(c=>renderResultCard(c,"unmatched")).join('')+'</div>':'<span class="empty-breakdown">None. No unmatched-card penalty.</span>')+'</div>';
  return '<div class="results-breakdown">'+(sets||'<div class="results-breakdown-section matched"><span class="results-breakdown-title">MATCHED SETS</span><span class="empty-breakdown">No valid sets found.</span></div>')+counted+'</div>';
 }
+function renderTwoRowResult(groups,counted,penalty,emptyMessage="No unmatched cards"){
+ const setMarkup=(groups||[]).map((group,i)=>{
+  const cards=(group||[]).map(renderResultCard).join("");
+  return '<div class="result-set-group"><span class="result-set-label">SET '+(i+1)+'</span><div class="results-card-grid">'+cards+'</div></div>';
+ }).join("");
+ const unmatched=(counted||[]).map(c=>renderResultCard(c,"unmatched")).join("");
+ return '<div class="result-two-row"><div class="result-set-row"><span class="result-row-label">MATCHED SETS</span><div class="result-set-groups">'+(setMarkup||'<span class="empty-breakdown">No matched sets</span>')+'</div></div><div class="result-unmatched-row"><div class="result-unmatched-head"><span class="result-row-label">UNMATCHED CARDS</span><strong>+'+penalty+' PTS</strong></div><div class="results-card-grid">'+(unmatched||'<span class="empty-breakdown">'+emptyMessage+'</span>')+'</div></div></div>';
+}
+function renderPlayerTwoRow(hand,player,penalty){
+ const breakdown=bestScoringBreakdown(hand,player);
+ return renderTwoRowResult(breakdown.groups,breakdown.counted,penalty);
+}
+function playShowButtonEffect(){
+ const button=document.getElementById("showBtn");
+ if(button){button.classList.remove("show-pressing");void button.offsetWidth;button.classList.add("show-pressing");}
+}
+function playShowResultsReveal(screen){
+ if(!screen)return;
+ screen.classList.remove("show-reveal");void screen.offsetWidth;screen.classList.add("show-reveal");
+}
 function showHand(){
  if(!players.length||turn!==0||gameOver){infoToast("You cannot show right now.");return;}
  let hand=[...players[0].hand],showDiscard=null;
@@ -4295,6 +4362,7 @@ function showHand(){
   infoToast("You must have 13 cards to show, or select your 14th card as the discard.");return;
  }
  if(hand.length!==13){infoToast("A valid SHOW needs exactly 13 cards after the discard.");return;}
+ playShowButtonEffect();
  if(showDiscard){
   players[0].hand=hand;
   discard.push(showDiscard);
@@ -4408,13 +4476,14 @@ function openRoundResults(results,winnerIndex=0){
  const resultOrder=players.map((p,i)=>({p,i,penalty:penalties[i]})).sort((a,b)=>(a.i===winnerIndex?-1:b.i===winnerIndex?1:a.penalty-b.penalty)||a.i-b.i);
  profiles.innerHTML="";
  hands.innerHTML=renderRoundJokerReveal(specialRank)+resultOrder.map(({p,i,penalty})=>{
-  const groupsHtml=p.roundDropped?'<div class="results-breakdown-section counted"><span class="results-breakdown-title">DROPPED · FIXED +'+penalty+' POINTS</span></div>':i===winnerIndex&&winningGroups.length?'<div class="results-winning-groups">'+winningGroups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>p.hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':renderScoringBreakdown(p.hand,p,penalty);
-  return '<div class="results-hand '+(i===winnerIndex?'winner-hand':'')+'"><div class="results-hand-head"><div class="hand-player-identity"><span class="player-avatar">'+playerInitials(p.name)+'</span><strong class="hand-player-name">'+(i===winnerIndex?'🏆 ':'')+escapeLobbyText(p.name)+'</strong></div><span class="results-total">Total: '+(Number(p.score)||0)+'</span><span class="result-current">+'+penalty+'</span></div>'+groupsHtml+'</div>';
+  const groupsHtml=p.roundDropped?'<div class="result-two-row"><div class="result-unmatched-row"><div class="result-unmatched-head"><span class="result-row-label">DROPPED</span><strong>FIXED +'+penalty+' PTS</strong></div></div></div>':i===winnerIndex&&winningGroups.length?renderTwoRowResult(winningGroups.map(ids=>ids.map(id=>p.hand.find(c=>c.id===id)).filter(Boolean)),[],penalty):renderPlayerTwoRow(p.hand,p,penalty);
+  return '<div class="results-hand '+(i===winnerIndex?'winner-hand showed-hand':'')+'"><div class="results-hand-head"><div class="hand-player-identity"><span class="player-avatar">'+playerInitials(p.name)+'</span><strong class="hand-player-name">'+escapeLobbyText(p.name)+'</strong>'+(i===winnerIndex?'<span class="showed-badge">🏆 SHOWED</span>':'')+'</div><span class="results-total">Total: '+(Number(p.score)||0)+'</span><span class="result-current">+'+penalty+'</span></div>'+groupsHtml+'</div>';
  }).join('');
  const kicker=screen.querySelector(".results-kicker");if(kicker)kicker.textContent="🏆 ROUND "+round+" · RESULTS";
  const title=screen.querySelector(".results-header h2");if(title)title.textContent="Round Results";
  document.getElementById("resultsSummary").textContent=players[winnerIndex].name+" showed successfully. All hands are now revealed.";
  screen.classList.remove("hidden");
+ playShowResultsReveal(screen);
 }
 function closeResults(){
  const screen=document.getElementById("roundResults");
@@ -5659,8 +5728,8 @@ function openOnlineRoundResults(result){
    return '<div class="results-hand eliminated-result-row"><div class="results-hand-head"><div class="hand-player-identity"><span class="player-avatar">'+playerInitials(p.name)+'</span><strong class="hand-player-name">'+escapeLobbyText(p.name)+'</strong></div><span class="eliminated-result-badge">⛔ ELIMINATED</span></div></div>';
   }
   const resultPlayer={...p,unlocked:!!p.unlocked,specialRank:(result.specialRanks||{})[p.id]||null};
-  const winning=p.roundDropped?'<div class="results-breakdown-section counted"><span class="results-breakdown-title">DROPPED · FIXED +'+penalty+' POINTS</span></div>':p.id===winner?(result.groups&&result.groups.length?'<div class="results-winning-groups">'+result.groups.map((ids,g)=>'<div class="results-winning-group"><span>'+(g===0?'PURE FOUR-SET':'THREE-CARD SET')+'</span><div class="results-card-grid">'+ids.map(id=>hand.find(c=>c.id===id)).filter(Boolean).map(renderResultCard).join('')+'</div></div>').join('')+'</div>':'<div class="results-breakdown-section counted"><span class="results-breakdown-title">🏆 ROUND WINNER · ALL OTHER PLAYERS DROPPED</span></div>'):renderScoringBreakdown(hand,resultPlayer,penalty);
-  return '<div class="results-hand '+(p.id===winner?'winner-hand':'')+'"><div class="results-hand-head"><div class="hand-player-identity"><span class="player-avatar">'+playerInitials(p.name)+'</span><strong class="hand-player-name">'+(p.id===winner?'🏆 ':'')+escapeLobbyText(p.name)+'</strong></div><span class="results-total">Total: '+total+'</span><span class="result-current">+'+penalty+'</span></div>'+winning+'</div>';
+  const winning=p.roundDropped?'<div class="result-two-row"><div class="result-unmatched-row"><div class="result-unmatched-head"><span class="result-row-label">DROPPED</span><strong>FIXED +'+penalty+' PTS</strong></div></div></div>':p.id===winner?(result.groups&&result.groups.length?renderTwoRowResult(result.groups.map(ids=>ids.map(id=>hand.find(c=>c.id===id)).filter(Boolean)),[],penalty):'<div class="result-two-row"><div class="result-unmatched-row"><div class="result-unmatched-head"><span class="result-row-label">🏆 ROUND WINNER</span><strong>ALL OTHER PLAYERS DROPPED</strong></div></div></div>'):renderPlayerTwoRow(hand,resultPlayer,penalty);
+  return '<div class="results-hand '+(p.id===winner?'winner-hand showed-hand':'')+'"><div class="results-hand-head"><div class="hand-player-identity"><span class="player-avatar">'+playerInitials(p.name)+'</span><strong class="hand-player-name">'+escapeLobbyText(p.name)+'</strong>'+(p.id===winner?'<span class="showed-badge">🏆 SHOWED</span>':'')+'</div><span class="results-total">Total: '+total+'</span><span class="result-current">+'+penalty+'</span></div>'+winning+'</div>';
  }).join('');
  const kicker=screen.querySelector(".results-kicker");if(kicker)kicker.textContent="🏆 ROUND "+(onlinePublic.round||1)+" · RESULTS";
  const title=screen.querySelector(".results-header h2");if(title)title.textContent="Round Results";
@@ -5668,6 +5737,7 @@ function openOnlineRoundResults(result){
  const footer=screen.querySelector(".results-footer");
  if(footer)footer.innerHTML=isRoomHost?'<button onclick="startOnlineNextRound()">Start next round →</button>':'<p>Waiting for the host to start the next round…</p><button onclick="closeResults()">Back to table</button>';
  screen.classList.remove("hidden");
+ playShowResultsReveal(screen);
 }
 
 function openOnlineGameComplete(champion){
@@ -5918,6 +5988,7 @@ function showHand(){
   if(selected<0||selected>=hand.length){message("Select one of your 14 cards to discard before SHOW.");return;}
   discardCardId=hand[selected].id;
  }else if(hand.length!==13){message("Your hand has "+hand.length+" cards. A SHOW needs 13 cards, or 14 with one selected to discard.");return;}
+ playShowButtonEffect();
  const original=players[0].hand;
  if(discardCardId)players[0].hand=original.filter(c=>c.id!==discardCardId);
  autoArrange(false);
