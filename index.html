@@ -5698,7 +5698,10 @@ async function restartCurrentGame(confirmed=false){
   if(!isRoomHost)throw new Error("Only the current host can restart this game. Please refresh the game.");
   const snap=await roomRef.child("public").get(),p=snap.val();
   if(!p||!Array.isArray(p.players))throw new Error("Could not read the current players.");
-  if(p.status!=="gameComplete"&&p.status!=="restartRequested")throw new Error("The game is not in the completed state. Refresh the page and try again.");
+  // The results-page rematch and in-game host restart share this function.
+  // Results page calls it after gameComplete; Game Actions calls it during playing.
+  if(!["playing","gameComplete","restartRequested"].includes(p.status))
+   throw new Error("This game cannot be restarted from its current state. Refresh and try again.");
   const participants=p.players.filter(x=>x&&x.id);
   if(participants.length<2)throw new Error("At least two players are required.");
   const d=shuffle(makeDeck(participants.length)),hands={};
