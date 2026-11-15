@@ -3414,7 +3414,7 @@ async function loadIncomingRoomInvites(){
  try{
   const snap=await firebase.database().ref("roomInvites/"+authUser.uid).get(),items=Object.entries(snap.val()||{});
   if(count)count.textContent=items.length?"("+items.length+")":"";
-  el.innerHTML=items.length?items.map(([id,v])=>'<div class="friend-row"><div><strong>'+escapeLobbyText(v.requesterName||"Friend")+'</strong><small>Wants to join your table</small></div><button data-request-id="'+escapeLobbyText(id)+'" data-requester-uid="'+escapeLobbyText(v.requesterUid)+'" onclick="approveJoinRequest(this.dataset.requestId,this.dataset.requesterUid)">Approve</button> <button data-request-id="'+escapeLobbyText(id)+'" onclick="declineJoinRequest(this.dataset.requestId)">Decline</button></div>').join(""):'<p class="lobby-hint">No pending requests.</p>';
+   if(el)el.innerHTML=items.length?items.map(([id,v])=>'<div class="friend-row"><div><strong>'+escapeLobbyText(v.inviterName||"Friend")+'</strong><small>Invited you to table '+escapeLobbyText(v.roomCode||"")+'</small></div><div><button data-invite-id="'+escapeLobbyText(id)+'" onclick="acceptRoomInvite(this.dataset.inviteId)">Accept</button> <button data-invite-id="'+escapeLobbyText(id)+'" onclick="declineRoomInvite(this.dataset.inviteId)">Decline</button></div></div>').join(""):'<p class="friend-empty">No game invitations.</p>';
  }catch(e){if(el)el.innerHTML='<p class="friend-empty">Could not load invitations: '+escapeLobbyText(e.message)+'</p>';}
 }
 async function renderRoomFriendInvites(friendIds,profiles){
