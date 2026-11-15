@@ -2841,6 +2841,82 @@ body:has(#game:not(.hidden)) main{
 .card-watch-requests>div{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin-top:7px}
 .card-watch-requests button{border:0;border-radius:16px;padding:6px 12px;background:#e8c16c;color:#183a2d;font-weight:700}
 .card-watch-requests button.secondary{background:transparent;border:1px solid #a8b8a9;color:#e5e2cf}
+/* Moddu Set results only. Least Count keeps its existing lc-results-screen design. */
+#roundResults.moddu-results-screen{
+ position:fixed!important;inset:0!important;z-index:99999!important;
+ display:block!important;width:100%!important;height:100dvh!important;min-height:100dvh!important;
+ overflow-x:hidden!important;overflow-y:auto!important;box-sizing:border-box!important;
+ overscroll-behavior:contain!important;padding:5px 9px 8px!important;
+ background:radial-gradient(ellipse at 50% 0%,#1a5941 0,#0d382b 48%,#08251d 100%)!important;
+}
+#roundResults.moddu-results-screen.hidden{display:none!important}
+#roundResults.moddu-results-screen .results-header{padding:1px 3px 5px!important}
+#roundResults.moddu-results-screen .results-kicker{font-size:8px!important;letter-spacing:1.5px!important}
+#roundResults.moddu-results-screen .results-header h2{font-size:21px!important;line-height:1.05!important;margin:2px 0 4px!important}
+#roundResults.moddu-results-screen #resultsSummary{display:none!important}
+#roundResults.moddu-results-screen .round-joker-reveal{margin:0 auto 5px!important;padding:5px 9px!important;min-height:0!important;border-radius:10px!important;gap:8px!important}
+#roundResults.moddu-results-screen .round-joker-copy{gap:1px!important}
+#roundResults.moddu-results-screen .round-joker-copy>span{font-size:7px!important;letter-spacing:1px!important}
+#roundResults.moddu-results-screen .round-joker-copy strong{font-size:15px!important}
+#roundResults.moddu-results-screen .round-joker-copy small{font-size:7px!important}
+#roundResults.moddu-results-screen .round-joker-card{width:31px!important;height:43px!important;flex-basis:31px!important;border-radius:5px!important}
+#roundResults.moddu-results-screen .round-joker-card span{font-size:13px!important}
+#roundResults.moddu-results-screen .round-joker-card small{font-size:5px!important}
+#roundResults.moddu-results-screen .results-hands{display:flex!important;flex-direction:column!important;gap:5px!important;margin:0!important}
+#roundResults.moddu-results-screen .results-hand{margin:0!important;padding:6px 7px!important;border-radius:11px!important;border-width:1.5px!important;box-shadow:0 2px 7px #0003!important}
+#roundResults.moddu-results-screen .results-hand.winner-hand{border-width:2px!important}
+#roundResults.moddu-results-screen .results-hand-head{gap:5px!important;margin:0 0 5px!important;padding:0 0 4px!important;flex-wrap:nowrap!important}
+#roundResults.moddu-results-screen .results-hand-head .hand-player-identity{flex:1 1 auto!important;min-width:0!important;gap:5px!important}
+#roundResults.moddu-results-screen .results-hand-head .player-avatar{width:23px!important;height:23px!important;flex:0 0 23px!important;font-size:11px!important}
+#roundResults.moddu-results-screen .results-hand-head .hand-player-name{font-size:11px!important}
+#roundResults.moddu-results-screen .results-hand-head .results-total,
+#roundResults.moddu-results-screen .results-hand-head .result-current{font-size:8px!important;padding:3px 5px!important;line-height:1!important}
+#roundResults.moddu-results-screen .results-winning-groups,
+#roundResults.moddu-results-screen .results-breakdown{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:4px!important}
+#roundResults.moddu-results-screen .results-winning-group,
+#roundResults.moddu-results-screen .results-breakdown-section{min-width:0!important;padding:4px!important;border-radius:7px!important}
+#roundResults.moddu-results-screen .results-winning-group>span,
+#roundResults.moddu-results-screen .results-breakdown-title{font-size:6px!important;letter-spacing:.35px!important;margin:0 0 3px!important;line-height:1.1!important}
+#roundResults.moddu-results-screen .results-winning-group .results-card-grid,
+#roundResults.moddu-results-screen .results-breakdown-section .results-card-grid{display:flex!important;flex-wrap:nowrap!important;gap:3px!important;overflow:visible!important}
+#roundResults.moddu-results-screen .results-winning-group .results-card,
+#roundResults.moddu-results-screen .results-breakdown-section.matched .results-card{
+ width:clamp(21px,6.1vw,27px)!important;flex:0 0 clamp(21px,6.1vw,27px)!important;
+ height:clamp(31px,8.8vw,39px)!important;padding:2px!important;border-radius:4px!important;
+ font-size:8px!important;box-shadow:0 1px 2px #0004!important;
+}
+#roundResults.moddu-results-screen .results-card .bottom{font-size:.65em!important}
+#roundResults.moddu-results-screen .results-breakdown-section.counted{
+ grid-column:1/-1!important;display:flex!important;align-items:center!important;flex-wrap:wrap!important;
+ gap:4px!important;padding:4px 6px!important;background:linear-gradient(110deg,#54251f,#321b20)!important;
+ border:1px solid #ff956f!important;box-shadow:inset 0 0 0 1px #ffb18b22,0 0 7px #ff775533!important;
+}
+#roundResults.moddu-results-screen .results-breakdown-section.counted .results-breakdown-title{
+ flex:0 0 100%!important;color:#ffc0a5!important;margin:0 0 1px!important;font-size:7px!important;
+}
+#roundResults.moddu-results-screen .results-breakdown-section.counted .results-card-grid{gap:4px!important}
+#roundResults.moddu-results-screen .results-breakdown-section.counted .results-card{
+ width:clamp(25px,7vw,31px)!important;flex:0 0 clamp(25px,7vw,31px)!important;
+ height:clamp(36px,10vw,44px)!important;border:2px solid #ff9b72!important;
+ background:linear-gradient(155deg,#fff4e8,#ffd6bf)!important;color:#9d2e22!important;
+ box-shadow:0 0 0 1px #ffb18b55,0 0 8px #ff754c88!important;
+}
+#roundResults.moddu-results-screen .results-breakdown-section.counted .results-card.unmatched{
+ outline:1px solid #ffe0a2!important;outline-offset:1px!important;
+}
+#roundResults.moddu-results-screen .results-winning-group{background:#092f2388!important}
+#roundResults.moddu-results-screen .results-footer{position:sticky!important;bottom:0!important;padding:5px 0 2px!important;background:linear-gradient(transparent,#08251d 35%)!important}
+#roundResults.moddu-results-screen .results-footer button{min-height:40px!important;padding:8px 12px!important;font-size:13px!important}
+@media(max-width:390px){
+ #roundResults.moddu-results-screen{padding:4px 6px 6px!important}
+ #roundResults.moddu-results-screen .results-hand{padding:5px!important}
+ #roundResults.moddu-results-screen .results-hand-head .hand-player-name{font-size:10px!important}
+ #roundResults.moddu-results-screen .results-hand-head .results-total,
+ #roundResults.moddu-results-screen .results-hand-head .result-current{font-size:7px!important;padding:3px 4px!important}
+ #roundResults.moddu-results-screen .results-winning-group .results-card,
+ #roundResults.moddu-results-screen .results-breakdown-section.matched .results-card{width:21px!important;flex-basis:21px!important;height:31px!important}
+}
+
 </style></head>
 
 <body class="app-locked">
@@ -5859,80 +5935,3 @@ function leaveRoom(showLobby=true){
 
 </body>
   </html>
-  
-
-/* Moddu Set results only. Least Count keeps its existing lc-results-screen design. */
-#roundResults.moddu-results-screen{
- position:fixed!important;inset:0!important;z-index:99999!important;
- display:block!important;width:100%!important;height:100dvh!important;min-height:100dvh!important;
- overflow-x:hidden!important;overflow-y:auto!important;box-sizing:border-box!important;
- overscroll-behavior:contain!important;padding:5px 9px 8px!important;
- background:radial-gradient(ellipse at 50% 0%,#1a5941 0,#0d382b 48%,#08251d 100%)!important;
-}
-#roundResults.moddu-results-screen.hidden{display:none!important}
-#roundResults.moddu-results-screen .results-header{padding:1px 3px 5px!important}
-#roundResults.moddu-results-screen .results-kicker{font-size:8px!important;letter-spacing:1.5px!important}
-#roundResults.moddu-results-screen .results-header h2{font-size:21px!important;line-height:1.05!important;margin:2px 0 4px!important}
-#roundResults.moddu-results-screen #resultsSummary{display:none!important}
-#roundResults.moddu-results-screen .round-joker-reveal{margin:0 auto 5px!important;padding:5px 9px!important;min-height:0!important;border-radius:10px!important;gap:8px!important}
-#roundResults.moddu-results-screen .round-joker-copy{gap:1px!important}
-#roundResults.moddu-results-screen .round-joker-copy>span{font-size:7px!important;letter-spacing:1px!important}
-#roundResults.moddu-results-screen .round-joker-copy strong{font-size:15px!important}
-#roundResults.moddu-results-screen .round-joker-copy small{font-size:7px!important}
-#roundResults.moddu-results-screen .round-joker-card{width:31px!important;height:43px!important;flex-basis:31px!important;border-radius:5px!important}
-#roundResults.moddu-results-screen .round-joker-card span{font-size:13px!important}
-#roundResults.moddu-results-screen .round-joker-card small{font-size:5px!important}
-#roundResults.moddu-results-screen .results-hands{display:flex!important;flex-direction:column!important;gap:5px!important;margin:0!important}
-#roundResults.moddu-results-screen .results-hand{margin:0!important;padding:6px 7px!important;border-radius:11px!important;border-width:1.5px!important;box-shadow:0 2px 7px #0003!important}
-#roundResults.moddu-results-screen .results-hand.winner-hand{border-width:2px!important}
-#roundResults.moddu-results-screen .results-hand-head{gap:5px!important;margin:0 0 5px!important;padding:0 0 4px!important;flex-wrap:nowrap!important}
-#roundResults.moddu-results-screen .results-hand-head .hand-player-identity{flex:1 1 auto!important;min-width:0!important;gap:5px!important}
-#roundResults.moddu-results-screen .results-hand-head .player-avatar{width:23px!important;height:23px!important;flex:0 0 23px!important;font-size:11px!important}
-#roundResults.moddu-results-screen .results-hand-head .hand-player-name{font-size:11px!important}
-#roundResults.moddu-results-screen .results-hand-head .results-total,
-#roundResults.moddu-results-screen .results-hand-head .result-current{font-size:8px!important;padding:3px 5px!important;line-height:1!important}
-#roundResults.moddu-results-screen .results-winning-groups,
-#roundResults.moddu-results-screen .results-breakdown{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:4px!important}
-#roundResults.moddu-results-screen .results-winning-group,
-#roundResults.moddu-results-screen .results-breakdown-section{min-width:0!important;padding:4px!important;border-radius:7px!important}
-#roundResults.moddu-results-screen .results-winning-group>span,
-#roundResults.moddu-results-screen .results-breakdown-title{font-size:6px!important;letter-spacing:.35px!important;margin:0 0 3px!important;line-height:1.1!important}
-#roundResults.moddu-results-screen .results-winning-group .results-card-grid,
-#roundResults.moddu-results-screen .results-breakdown-section .results-card-grid{display:flex!important;flex-wrap:nowrap!important;gap:3px!important;overflow:visible!important}
-#roundResults.moddu-results-screen .results-winning-group .results-card,
-#roundResults.moddu-results-screen .results-breakdown-section.matched .results-card{
- width:clamp(21px,6.1vw,27px)!important;flex:0 0 clamp(21px,6.1vw,27px)!important;
- height:clamp(31px,8.8vw,39px)!important;padding:2px!important;border-radius:4px!important;
- font-size:8px!important;box-shadow:0 1px 2px #0004!important;
-}
-#roundResults.moddu-results-screen .results-card .bottom{font-size:.65em!important}
-#roundResults.moddu-results-screen .results-breakdown-section.counted{
- grid-column:1/-1!important;display:flex!important;align-items:center!important;flex-wrap:wrap!important;
- gap:4px!important;padding:4px 6px!important;background:linear-gradient(110deg,#54251f,#321b20)!important;
- border:1px solid #ff956f!important;box-shadow:inset 0 0 0 1px #ffb18b22,0 0 7px #ff775533!important;
-}
-#roundResults.moddu-results-screen .results-breakdown-section.counted .results-breakdown-title{
- flex:0 0 100%!important;color:#ffc0a5!important;margin:0 0 1px!important;font-size:7px!important;
-}
-#roundResults.moddu-results-screen .results-breakdown-section.counted .results-card-grid{gap:4px!important}
-#roundResults.moddu-results-screen .results-breakdown-section.counted .results-card{
- width:clamp(25px,7vw,31px)!important;flex:0 0 clamp(25px,7vw,31px)!important;
- height:clamp(36px,10vw,44px)!important;border:2px solid #ff9b72!important;
- background:linear-gradient(155deg,#fff4e8,#ffd6bf)!important;color:#9d2e22!important;
- box-shadow:0 0 0 1px #ffb18b55,0 0 8px #ff754c88!important;
-}
-#roundResults.moddu-results-screen .results-breakdown-section.counted .results-card.unmatched{
- outline:1px solid #ffe0a2!important;outline-offset:1px!important;
-}
-#roundResults.moddu-results-screen .results-winning-group{background:#092f2388!important}
-#roundResults.moddu-results-screen .results-footer{position:sticky!important;bottom:0!important;padding:5px 0 2px!important;background:linear-gradient(transparent,#08251d 35%)!important}
-#roundResults.moddu-results-screen .results-footer button{min-height:40px!important;padding:8px 12px!important;font-size:13px!important}
-@media(max-width:390px){
- #roundResults.moddu-results-screen{padding:4px 6px 6px!important}
- #roundResults.moddu-results-screen .results-hand{padding:5px!important}
- #roundResults.moddu-results-screen .results-hand-head .hand-player-name{font-size:10px!important}
- #roundResults.moddu-results-screen .results-hand-head .results-total,
- #roundResults.moddu-results-screen .results-hand-head .result-current{font-size:7px!important;padding:3px 4px!important}
- #roundResults.moddu-results-screen .results-winning-group .results-card,
- #roundResults.moddu-results-screen .results-breakdown-section.matched .results-card{width:21px!important;flex-basis:21px!important;height:31px!important}
-}
