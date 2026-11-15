@@ -2851,6 +2851,41 @@ body:has(#game:not(.hidden)) main{
 }
 #roundResults.moddu-results-screen.hidden{display:none!important}
 #roundResults.moddu-results-screen .results-header{padding:1px 3px 5px!important}
+/* Single-line Moddu results header: round title on the left, real joker card on the right. */
+#roundResults.moddu-results-screen .results-header.moddu-compact-results-header{
+ display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;
+ gap:8px!important;min-height:58px!important;padding:3px 5px 7px!important;margin:0 0 5px!important;
+ text-align:left!important;box-sizing:border-box!important;
+}
+#roundResults.moddu-results-screen .moddu-compact-results-header .results-brand,
+#roundResults.moddu-results-screen .moddu-compact-results-header h2,
+#roundResults.moddu-results-screen .moddu-compact-results-header #resultsSummary,
+#roundResults.moddu-results-screen .moddu-compact-results-header #lcShowCallout{display:none!important}
+#roundResults.moddu-results-screen .moddu-compact-results-header .results-kicker{
+ display:block!important;flex:1 1 auto!important;min-width:0!important;margin:0!important;
+ font-size:clamp(12px,3.7vw,17px)!important;line-height:1.2!important;letter-spacing:1.15px!important;
+ text-align:left!important;white-space:nowrap!important;
+}
+#roundResults.moddu-results-screen .moddu-compact-results-header .round-joker-reveal{
+ display:flex!important;flex:0 0 auto!important;align-items:center!important;justify-content:center!important;
+ width:auto!important;min-height:0!important;height:auto!important;margin:0!important;padding:0!important;
+ border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;
+}
+#roundResults.moddu-results-screen .moddu-compact-results-header .round-joker-copy{display:none!important}
+#roundResults.moddu-results-screen .moddu-compact-results-header .round-joker-card{
+ display:flex!important;width:37px!important;height:54px!important;flex:0 0 37px!important;
+ border-radius:7px!important;box-shadow:0 0 10px #f5d16a66!important;
+}
+#roundResults.moddu-results-screen .moddu-compact-results-header .round-joker-card span{font-size:17px!important}
+#roundResults.moddu-results-screen .moddu-compact-results-header .round-joker-card small{font-size:6px!important}
+#roundResults.moddu-results-screen .results-hands{gap:5px!important}
+#roundResults.moddu-results-screen .results-hand{padding:5px 6px!important}
+#roundResults.moddu-results-screen .results-hand-head{margin-bottom:4px!important;padding-bottom:3px!important}
+@media(max-width:390px){
+ #roundResults.moddu-results-screen .moddu-compact-results-header{min-height:51px!important;padding:1px 3px 5px!important;margin-bottom:3px!important}
+ #roundResults.moddu-results-screen .moddu-compact-results-header .results-kicker{font-size:12px!important;letter-spacing:.8px!important}
+ #roundResults.moddu-results-screen .moddu-compact-results-header .round-joker-card{width:33px!important;height:49px!important;flex-basis:33px!important}
+}
 #roundResults.moddu-results-screen .results-kicker{font-size:8px!important;letter-spacing:1.5px!important}
 #roundResults.moddu-results-screen .results-header h2{font-size:21px!important;line-height:1.05!important;margin:2px 0 4px!important}
 #roundResults.moddu-results-screen #resultsSummary{display:none!important}
@@ -4594,6 +4629,15 @@ function renderRoundJokerReveal(rank){
  const safeRank=escapeLobbyText(rank);
  return '<div class="round-joker-reveal"><div class="round-joker-copy"><span>ROUND SPECIAL JOKER</span><strong>'+safeRank+' ★</strong><small>This was revealed during this round</small></div><div class="results-card joker round-joker-card"><span>'+safeRank+'★</span><small>SPECIAL JOKER</small></div></div>';
 }
+function composeModduResultsHeader(screen){
+ if(!screen||!screen.classList.contains("moddu-results-screen"))return;
+ const header=screen.querySelector(".results-header");
+ const joker=screen.querySelector("#resultsHands .round-joker-reveal");
+ if(header&&joker){
+  header.classList.add("moddu-compact-results-header");
+  header.appendChild(joker);
+ }
+}
 function prepareRoundResultsOverlay(screen){
  if(!screen)return;
  /* Keep the reveal outside #game so transformed game panels cannot turn fixed positioning into inline flow. */
@@ -4629,6 +4673,7 @@ function openRoundResults(results,winnerIndex=0,showEffect=false,showDiscardCard
  }).join('');
  const kicker=screen.querySelector(".results-kicker");if(kicker)kicker.textContent="🏆 ROUND "+round+" · RESULTS";
  const title=screen.querySelector(".results-header h2");if(title)title.textContent="Round Results";
+ composeModduResultsHeader(screen);
  document.getElementById("resultsSummary").textContent=players[winnerIndex].name+" showed successfully. All hands are now revealed.";
  if(showEffect){
   screen.classList.add("hidden");
@@ -5889,6 +5934,7 @@ function openOnlineRoundResults(result){
  }).join('');
  const kicker=screen.querySelector(".results-kicker");if(kicker)kicker.textContent="🏆 ROUND "+(onlinePublic.round||1)+" · RESULTS";
  const title=screen.querySelector(".results-header h2");if(title)title.textContent="Round Results";
+ composeModduResultsHeader(screen);
  document.getElementById("resultsSummary").textContent=result.winnerUid?(result.groups&&result.groups.length?result.winnerName+" showed successfully. All hands are revealed and scores are updated.":result.winnerName+" wins this round because the other player(s) dropped. Drop penalties have been added; eligible players return next round."):"All players dropped this round. Drop penalties have been added to their scores.";
  const footer=screen.querySelector(".results-footer");
  if(footer)footer.innerHTML=isRoomHost?'<button onclick="startOnlineNextRound()">Start next round →</button>':'<p>Waiting for the host to start the next round…</p><button onclick="closeResults()">Back to table</button>';
