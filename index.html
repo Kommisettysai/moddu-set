@@ -5955,6 +5955,15 @@ async function startOnlineRoom(){
 }
 function enterOnlineGame(state){
  if(!roomRef||!roomPlayerId)return;
+ // Restore the top-row mic control whenever a game is entered. leaveVoiceChat()
+ // hides this button, so a newly created table in the same page session must unhide it.
+ const topVoiceControls=document.getElementById("topVoiceControls");
+ const topVoiceButton=document.getElementById("voiceMuteBtn");
+ topVoiceControls?.classList.remove("hidden");
+ if(topVoiceButton){topVoiceButton.classList.remove("hidden");topVoiceButton.disabled=false;}
+ const topVoiceStatus=document.getElementById("topVoiceStatus");
+ if(topVoiceStatus)topVoiceStatus.textContent="";
+ if(typeof voiceUpdateTopControls==="function")voiceUpdateTopControls();
  if(activeGameType==="leastCount"||state?.gameType==="leastCount"){enterLeastCountGame(state);return;}
  onlineMode=true;onlinePublic=state;const gameCodeEl=document.getElementById("gameRoomCode");if(gameCodeEl){gameCodeEl.textContent=roomCode||"------";gameCodeEl.closest(".game-room-code").style.display=roomCode?"flex":"none";}eliminatedSpectator=false;document.getElementById("setup").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");document.getElementById("game").classList.remove("hidden");document.getElementById("voicePanel")?.classList.remove("hidden");
  const notice=document.createElement("div");notice.id="spectatorNotice";notice.className="spectator-notice";notice.textContent="👀 You are eliminated. You can watch the game and request read-only access to one active player’s cards.";document.getElementById("game").prepend(notice);
