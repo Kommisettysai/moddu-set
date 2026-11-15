@@ -3360,7 +3360,7 @@ async function loadFriends(){
   document.getElementById("friendCount").textContent=friendIds.length?"("+friendIds.length+")":"";
   if(!friendIds.length){if(friendsEl)friendsEl.innerHTML='<p class="friend-empty">No friends added yet. Search for a username above.</p>';await renderRoomFriendInvites([],[]);return;}
   const profiles=await Promise.all(friendIds.map(uid=>db.ref("users/"+uid).get()));
-  if(friendsEl)friendsEl.innerHTML=profiles.map((snap,i)=>{const profile=snap.val()||{username:"player",displayName:"Player"};return friendRowMarkup(friendIds[i],profile,'<span>Friend ✓</span>'+(profile.activeRoom&&profile.activeRoom.status==="waiting"?' <button onclick="requestToJoinFriend(\\''+friendIds[i]+'\\')">Request to join</button>':''));}).join("");
+  if(friendsEl)friendsEl.innerHTML=profiles.map((snap,i)=>{const profile=snap.val()||{username:"player",displayName:"Player"};const invite=profile.activeRoom&&profile.activeRoom.status==="waiting"?' <button type="button" data-friend-uid="'+escapeLobbyText(friendIds[i])+'" onclick="requestToJoinFriend(this.dataset.friendUid)">Request to join</button>':"";return friendRowMarkup(friendIds[i],profile,'<span>Friend ✓</span>'+invite);}).join("");
   await renderRoomFriendInvites(friendIds,profiles.map(x=>x.val()||{}));
  }catch(e){if(requestsEl)requestsEl.innerHTML='<p class="friend-empty">Could not load friend data: '+escapeLobbyText(e.message)+'</p>';}
 }
@@ -3386,7 +3386,7 @@ async function loadJoinRequests(){
  const el=document.getElementById("joinRequestsList");if(!el)return;
  try{
   const snap=await firebase.database().ref("joinRequests/"+authUser.uid).get(),items=Object.entries(snap.val()||{}).filter(([,v])=>v.roomCode===roomCode);
-  el.innerHTML=items.length?items.map(([id,v])=>'<div class="friend-row"><div><strong>'+escapeLobbyText(v.requesterName||"Friend")+'</strong><small>Wants to join your table</small></div><button onclick="approveJoinRequest(\\''+id+'\\',\\''+v.requesterUid+'\\')">Approve</button> <button onclick="declineJoinRequest(\\''+id+'\\')">Decline</button></div>').join(""):'<p class="lobby-hint">No pending requests.</p>';
+  el.innerHTML=items.length?items.map(([id,v])=>'<div class="friend-row"><div><strong>'+escapeLobbyText(v.requesterName||"Friend")+'</strong><small>Wants to join your table</small></div><button data-request-id="'+escapeLobbyText(id)+'" data-requester-uid="'+escapeLobbyText(v.requesterUid)+'" onclick="approveJoinRequest(this.dataset.requestId,this.dataset.requesterUid)">Approve</button> <button data-request-id="'+escapeLobbyText(id)+'" onclick="declineJoinRequest(this.dataset.requestId)">Decline</button></div>').join(""):'<p class="lobby-hint">No pending requests.</p>';
  }catch(e){el.textContent="Could not load join requests: "+e.message;}
 }
 async function approveJoinRequest(requestId,requesterUid){
@@ -3414,7 +3414,7 @@ async function loadIncomingRoomInvites(){
  try{
   const snap=await firebase.database().ref("roomInvites/"+authUser.uid).get(),items=Object.entries(snap.val()||{});
   if(count)count.textContent=items.length?"("+items.length+")":"";
-  if(el)el.innerHTML=items.length?items.map(([id,v])=>'<div class="friend-row"><div><strong>'+escapeLobbyText(v.inviterName||"Friend")+'</strong><small>Invited you to table '+escapeLobbyText(v.roomCode||"")+'</small></div><div><button onclick="acceptRoomInvite(\''+id+'\')">Accept</button> <button onclick="declineRoomInvite(\''+id+'\')">Decline</button></div></div>').join(""):'<p class="friend-empty">No game invitations.</p>';
+  el.innerHTML=items.length?items.map(([id,v])=>'<div class="friend-row"><div><strong>'+escapeLobbyText(v.requesterName||"Friend")+'</strong><small>Wants to join your table</small></div><button data-request-id="'+escapeLobbyText(id)+'" data-requester-uid="'+escapeLobbyText(v.requesterUid)+'" onclick="approveJoinRequest(this.dataset.requestId,this.dataset.requesterUid)">Approve</button> <button data-request-id="'+escapeLobbyText(id)+'" onclick="declineJoinRequest(this.dataset.requestId)">Decline</button></div>').join(""):'<p class="lobby-hint">No pending requests.</p>';
  }catch(e){if(el)el.innerHTML='<p class="friend-empty">Could not load invitations: '+escapeLobbyText(e.message)+'</p>';}
 }
 async function renderRoomFriendInvites(friendIds,profiles){
