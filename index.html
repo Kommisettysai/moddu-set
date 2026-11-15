@@ -3618,6 +3618,68 @@ body:has(#game:not(.hidden)) main{
   #modduTablePanel #discardTimer{width:46px!important;flex-basis:46px!important}
 }
 
+
+/* Isolated player-profile layout update: no other game UI is changed. */
+#game .player-strip .players-heading{display:none!important}
+#game .player-strip .players{
+ display:flex!important;
+ flex-direction:row!important;
+ flex-wrap:nowrap!important;
+ justify-content:flex-start!important;
+ align-items:stretch!important;
+ gap:6px!important;
+ overflow-x:auto!important;
+ overflow-y:visible!important;
+ padding:3px 2px 6px!important;
+ scrollbar-width:none!important;
+ -webkit-overflow-scrolling:touch!important;
+}
+#game .player-strip .players::-webkit-scrollbar{display:none!important}
+#game .player-strip .players>.player{
+ flex:0 0 calc((100% - 18px)/4)!important;
+ min-width:0!important;
+ max-width:none!important;
+ min-height:0!important;
+ padding:6px 3px!important;
+}
+#game .player-strip .players>.player .player-identity{
+ min-width:0!important;
+ gap:4px!important;
+ margin-bottom:3px!important;
+}
+#game .player-strip .players>.player .player-avatar{
+ width:32px!important;
+ height:32px!important;
+ flex-basis:32px!important;
+ font-size:18px!important;
+}
+#game .player-strip .players>.player .player-name-wrap{
+ display:block!important;
+ width:100%!important;
+ min-width:0!important;
+ overflow:hidden!important;
+}
+#game .player-strip .players>.player .player-name-wrap b{
+ display:block!important;
+ width:100%!important;
+ overflow:hidden!important;
+ text-overflow:ellipsis!important;
+ white-space:nowrap!important;
+ font-size:9px!important;
+}
+#game .player-strip .players>.player .profile-score{
+ display:block!important;
+ margin-top:3px!important;
+ font-size:9px!important;
+ line-height:1.15!important;
+ white-space:nowrap!important;
+}
+@media(max-width:450px){
+ #game .player-strip .players>.player{flex-basis:calc((100% - 18px)/4)!important}
+ #game .player-strip .players>.player .player-avatar{width:29px!important;height:29px!important;flex-basis:29px!important;font-size:16px!important}
+ #game .player-strip .players>.player .player-name-wrap b{font-size:8px!important}
+ #game .player-strip .players>.player .profile-score{font-size:8px!important}
+}
 </style></head>
 
 <body class="app-locked">
