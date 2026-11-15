@@ -2790,7 +2790,24 @@ body:has(#game:not(.hidden)) main{
 }
 
 </style>
-</head>
+<style>
+.card-watch-see{margin:5px 0 2px;padding:6px 16px;border:1px solid #e7c46e;border-radius:18px;background:linear-gradient(135deg,#ffe5a0,#d9a94d);color:#183d31;font-weight:800;letter-spacing:1px}
+.card-watch-locked{display:block;margin-top:5px;color:#d9c58e;font-size:10px;letter-spacing:.8px}
+.card-watch-overlay{position:fixed;inset:0;z-index:10050;background:#031b16eF;display:flex;align-items:center;justify-content:center;padding:18px}
+.card-watch-dialog{width:min(620px,100%);max-height:85vh;overflow:auto;background:#0d392d;border:1px solid #d9bd76;border-radius:18px;padding:18px;color:#f4e5b4;box-shadow:0 18px 70px #0009}
+.card-watch-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.card-watch-head small{letter-spacing:2px;color:#c8b57d}
+.card-watch-head h3{margin:5px 0;font-size:22px}
+.card-watch-head button{border:0;background:transparent;color:#f4e5b4;font-size:30px}
+.card-watch-dialog p{color:#c4d4c9;font-size:13px}
+.card-watch-cards{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;padding:14px 0}
+.card-watch-cards .results-card{width:54px;height:78px;flex:0 0 54px}
+.card-watch-requests{margin:10px 0;padding:12px;border:1px solid #d8bd75;border-radius:12px;background:#123d30;color:#f3e3b0}
+.card-watch-requests>strong{display:block;margin-bottom:8px}
+.card-watch-requests>div{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin-top:7px}
+.card-watch-requests button{border:0;border-radius:16px;padding:6px 12px;background:#e8c16c;color:#183a2d;font-weight:700}
+.card-watch-requests button.secondary{background:transparent;border:1px solid #a8b8a9;color:#e5e2cf}
+</style></head>
 
 <body class="app-locked">
 <div id="appLockScreen" role="dialog" aria-modal="true" aria-labelledby="appLockTitle">
@@ -3705,7 +3722,7 @@ function render(){
   if(players[0]){
 document.getElementById("handCount").textContent=players[0].hand.length;const unmatchedEl=document.getElementById("handUnmatched");if(unmatchedEl)unmatchedEl.textContent="In hand: "+bestUnmatchedScore(players[0].hand||[],players[0])+" pts";
    if(playersEl){
-playersEl.innerHTML=players.map((p,i)=>{const eliminated=p.active===false||p.status==="Eliminated";return '<div class="player '+(i===turn&&!eliminated?'active turn-owner ':'')+(p.unlocked?'joker-seen ':'')+(p.roundDropped?'dropped-player ':'')+(eliminated?'eliminated-player':'')+'" data-player-id="'+escapeLobbyText(p.id)+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+(Number(p.score)||0)+'</span>'+(eliminated?'<span class="player-eliminated">ELIMINATED</span>':p.roundDropped?'<span class="player-dropped">DROPPED</span>':'')+'</div>';}).join('');
+playersEl.innerHTML=players.map((p,i)=>{const eliminated=p.active===false||p.status==="Eliminated";return '<div class="player '+(i===turn&&!eliminated?'active turn-owner ':'')+(p.unlocked?'joker-seen ':'')+(p.roundDropped?'dropped-player ':'')+(eliminated?'eliminated-player':'')+'" data-player-id="'+escapeLobbyText(p.id)+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+(Number(p.score)||0)+'</span>'+(eliminated?'<span class="player-eliminated">ELIMINATED</span>':p.roundDropped?'<span class="player-dropped">DROPPED</span>':'')+cardWatchButtonMarkup(p)+'</div>';}).join('');
    }
    if(handEl){
     try{handEl.innerHTML=renderHandLayout();}
@@ -3722,7 +3739,7 @@ playersEl.innerHTML=players.map((p,i)=>{const eliminated=p.active===false||p.sta
  }catch(error){
   console.error("Game render error:",error);
   if(playersEl&&players.length){
-   playersEl.innerHTML=players.map((p,i)=>{const eliminated=p.active===false||p.status==="Eliminated";return '<div class="player '+(i===turn&&!eliminated?'active turn-owner ':'')+(p.unlocked?'joker-seen ':'')+(eliminated?'eliminated-player':'')+'" data-player-id="'+escapeLobbyText(p.id)+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+(Number(p.score)||0)+'</span>'+(eliminated?'<span class="player-eliminated">ELIMINATED</span>':p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+'</div>';}).join('');
+   playersEl.innerHTML=players.map((p,i)=>{const eliminated=p.active===false||p.status==="Eliminated";return '<div class="player '+(i===turn&&!eliminated?'active turn-owner ':'')+(p.unlocked?'joker-seen ':'')+(eliminated?'eliminated-player':'')+'" data-player-id="'+escapeLobbyText(p.id)+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+(Number(p.score)||0)+'</span>'+(eliminated?'<span class="player-eliminated">ELIMINATED</span>':p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+cardWatchButtonMarkup(p)+'</div>';}).join('');
   }
   if(handEl&&players[0]){
    handEl.innerHTML=players[0].hand.map((c,i)=>cardMarkup(c,i)).join('');
@@ -4331,19 +4348,43 @@ let onlineMode=false,onlinePublic=null,onlinePublicRef=null,onlineHandRef=null,o
 let lastTurnAlertKey=null;
 let onlineChatRef=null,onlineChatListener=null,chatIsOpen=false,chatHasOpened=false,chatUnreadCount=0,lastChatSentAt=0,mutedChatSenders=new Set();
 let locallyShownChatMessages=new Set();
+let cardWatchLockRef=null,cardWatchLockListener=null,cardWatchRequestRef=null,cardWatchRequestListener=null;
+let incomingCardWatchRef=null,incomingCardWatchListener=null,watchedHandRef=null,watchedHandListener=null;
+let cardWatchState=null,incomingCardWatchRequests={};
 let eliminatedSpectator=false;
 let discardClockInterval=null,hostDiscardTimeout=null,scheduledDiscardKey=null;
 let onlinePublicListener=null,onlineHandListener=null,onlineActionListener=null,onlineLobbyListener=null,rejoinPublicListener=null,onlineRejoinListener=null,onlineBusy={},onlineBotBusy=false;
 function onlineMembers(l){return Object.values(l.players||{}).sort((a,b)=>(a.joinedAt||0)-(b.joinedAt||0));}
 function createRoom(){
- const name=lobbyName();if(!name)return;if(!firebaseReady||!authUser){setLobbyNotice("Firebase sign-in is still loading.");return;}
+ const name=lobbyName();if(!name)return;
+ if(!firebaseReady||!authUser){setLobbyNotice("Firebase sign-in is still loading. Please wait and try again.");return;}
+ const button=document.getElementById("createTableBtn");if(button){button.disabled=true;button.textContent="Creating table…";}
  activeGameType=document.getElementById("gameTypeSelect")?.value==="leastCount"?"leastCount":"modduSet";
  const maxPlayers=activeGameType==="leastCount"?8:6;
  const settings=activeGameType==="leastCount"?{cardsPerHand:5,scoreLimit:200,badShowCost:40,matchDrop:false}:{};
- (async()=>{try{let code=makeRoomCode(),ref=firebase.database().ref("rooms/"+code),snap=await ref.child("lobby").get();while(snap.exists()){code=makeRoomCode();ref=firebase.database().ref("rooms/"+code);snap=await ref.child("lobby").get();}
- roomCode=code;roomRef=ref;roomPlayerId=authUser.uid;isRoomHost=true;saveActiveRoom();
- await ref.set({hostId:authUser.uid,lobby:{code,hostId:authUser.uid,status:"waiting",gameType:activeGameType,maxPlayers,scoreLimit:200,settings,players:{[authUser.uid]:{id:authUser.uid,name,ready:true,joinedAt:firebase.database.ServerValue.TIMESTAMP}}},public:{},private:{deck:[],hands:{},discardPile:[],specialRank:null,specialRanks:{}},actions:{}});
- showWaitingRoom();}catch(e){setLobbyNotice("Could not create room: "+e.message);}})();
+ (async()=>{
+  try{
+   let created=false,lastError=null,code="",ref=null;
+   for(let attempt=0;attempt<12&&!created;attempt++){
+    code=makeRoomCode();ref=firebase.database().ref("rooms/"+code);
+    const lobbySnap=await ref.child("lobby").get();
+    if(lobbySnap.exists())continue;
+    try{
+     await ref.set({hostId:authUser.uid,lobby:{code,hostId:authUser.uid,status:"waiting",gameType:activeGameType,maxPlayers,scoreLimit:200,settings,players:{[authUser.uid]:{id:authUser.uid,name,ready:true,joinedAt:firebase.database.ServerValue.TIMESTAMP}}},public:{},private:{deck:[],hands:{},discardPile:[],specialRank:null,specialRanks:{}},actions:{}});
+     created=true;
+    }catch(writeError){
+     lastError=writeError;
+     if(writeError.code!=="PERMISSION_DENIED"&&writeError.code!=="permission_denied")throw writeError;
+     // A legacy room can exist without a lobby. The root create rule rejects that code.
+    }
+   }
+   if(!created)throw lastError||new Error("Could not find an unused room code. Please try again.");
+   roomCode=code;roomRef=ref;roomPlayerId=authUser.uid;isRoomHost=true;saveActiveRoom();
+   await firebase.database().ref("users/"+authUser.uid+"/activeRoom").set({code,status:"waiting",updatedAt:firebase.database.ServerValue.TIMESTAMP}).catch(()=>{});
+   showWaitingRoom();
+  }catch(e){setLobbyNotice("Could not create room: "+e.message);}
+  finally{if(button){button.disabled=false;button.textContent="＋ Create a private table";}}
+ })();
 }
 async function joinRoom(){
  const name=lobbyName();if(!name)return;
@@ -4597,6 +4638,99 @@ function renderPlayerRecentReactions(){
 }
 function closePlayerReactionPopup(){const popup=document.getElementById("playerReactionPopup");if(popup)popup.remove();}
 function sendPlayerReactionFromPopup(value,type){const text=String(value||"").trim().slice(0,100);if(!text)return;closePlayerReactionPopup();rememberPlayerReaction(text,type);writeGameChat(type,text);}
+function cardWatchRound(){return Math.max(1,Number(onlinePublic?.round)||1);}
+function currentOnlinePlayer(uid){return (onlinePublic?.players||[]).find(p=>p.id===uid)||null;}
+function closeCardWatchViewer(){
+ if(watchedHandRef&&watchedHandListener)watchedHandRef.off("value",watchedHandListener);
+ watchedHandRef=null;watchedHandListener=null;
+ document.getElementById("cardWatchViewer")?.remove();
+}
+function showCardWatchViewer(targetName,hand){
+ let overlay=document.getElementById("cardWatchViewer");
+ if(!overlay){overlay=document.createElement("div");overlay.id="cardWatchViewer";overlay.className="card-watch-overlay";document.body.appendChild(overlay);}
+ overlay.innerHTML='<div class="card-watch-dialog" role="dialog" aria-modal="true"><div class="card-watch-head"><div><small>READ-ONLY VIEW</small><h3>'+escapeLobbyText(targetName)+'’s cards</h3></div><button type="button" onclick="closeCardWatchViewer()" aria-label="Close">×</button></div><p>You can view these cards only. Game actions are disabled.</p><div class="card-watch-cards">'+(hand||[]).map(c=>renderResultCard(c)).join("")+'</div></div>';
+}
+function syncCardWatchViewer(){
+ if(!cardWatchState||cardWatchState.status!=="accepted")return;
+ const target=currentOnlinePlayer(cardWatchState.targetUid);
+ if(!target||target.active===false||cardWatchState.round!==cardWatchRound()){closeCardWatchViewer();return;}
+ if(!watchedHandRef){
+  watchedHandRef=roomRef.child("private/hands/"+cardWatchState.targetUid);
+  watchedHandListener=snap=>{if(!snap.exists())return;showCardWatchViewer(target.name,snap.val()||[]);};
+  watchedHandRef.on("value",watchedHandListener);
+ }
+}
+async function requestCardWatch(targetUid){
+ if(!onlineMode||!eliminatedSpectator||!roomRef||!roomPlayerId||!targetUid||targetUid===roomPlayerId)return;
+ const target=currentOnlinePlayer(targetUid);
+ if(!target||target.active===false){setLobbyNotice("You can request cards only from an active player.");return;}
+ const roundNo=cardWatchRound(),lockRef=roomRef.child("private/cardWatchLocks/"+roomPlayerId),requestRef=roomRef.child("cardWatchRequests/"+targetUid+"/"+roomPlayerId);
+ try{
+  const existing=await lockRef.get(),lock=existing.val();
+  if(lock&&Number(lock.round)===roundNo){
+   if(lock.targetUid!==targetUid){setLobbyNotice("You already chose one player for this round. You cannot switch players.");return;}
+   const oldRequest=await requestRef.get();
+   if(oldRequest.exists()&&oldRequest.val().status==="accepted"){cardWatchState=oldRequest.val();syncCardWatchViewer();return;}
+   setLobbyNotice(oldRequest.val()?.status==="declined"?"Your request was declined. You cannot request another player this round.":"Your request is already pending.");
+   return;
+  }
+  await lockRef.set({targetUid,round:roundNo,viewerUid:roomPlayerId,createdAt:firebase.database.ServerValue.TIMESTAMP});
+  await requestRef.set({targetUid,viewerUid:roomPlayerId,round:roundNo,status:"pending",requestedAt:firebase.database.ServerValue.TIMESTAMP});
+  cardWatchState={targetUid,viewerUid:roomPlayerId,round:roundNo,status:"pending"};
+  setLobbyNotice("Request sent. Waiting for "+target.name+" to approve.");
+  listenToOwnCardWatchRequest(targetUid);
+  render();
+ }catch(e){setLobbyNotice("Could not send card-view request: "+e.message);}
+}
+function listenToOwnCardWatchRequest(targetUid){
+ if(cardWatchRequestRef&&cardWatchRequestListener)cardWatchRequestRef.off("value",cardWatchRequestListener);
+ cardWatchRequestRef=roomRef.child("cardWatchRequests/"+targetUid+"/"+roomPlayerId);
+ cardWatchRequestListener=snap=>{
+  cardWatchState=snap.val()||null;
+  if(cardWatchState?.status==="accepted"){setLobbyNotice("Request approved. You can view this player's cards.");syncCardWatchViewer();}
+  else if(cardWatchState?.status==="declined"){closeCardWatchViewer();setLobbyNotice("Your card-view request was declined.");}
+  render();
+ };
+ cardWatchRequestRef.on("value",cardWatchRequestListener);
+}
+async function respondToCardWatch(viewerUid,accept){
+ if(!onlineMode||!roomRef||!roomPlayerId)return;
+ const me=currentOnlinePlayer(roomPlayerId);
+ if(!me||me.active===false)return;
+ const req=incomingCardWatchRequests[viewerUid];
+ if(!req||req.status!=="pending"||req.round!==cardWatchRound())return;
+ try{
+  await roomRef.child("cardWatchRequests/"+roomPlayerId+"/"+viewerUid).update({status:accept?"accepted":"declined",respondedAt:firebase.database.ServerValue.TIMESTAMP});
+  setLobbyNotice(accept?"You approved the card-view request.":"You declined the card-view request.");
+ }catch(e){setLobbyNotice("Could not update request: "+e.message);}
+}
+function syncIncomingCardWatchRequests(){
+ if(!roomRef||!roomPlayerId)return;
+ if(incomingCardWatchRef&&incomingCardWatchListener)incomingCardWatchRef.off("value",incomingCardWatchListener);
+ incomingCardWatchRef=roomRef.child("cardWatchRequests/"+roomPlayerId);
+ incomingCardWatchListener=snap=>{
+  incomingCardWatchRequests={};
+  const me=currentOnlinePlayer(roomPlayerId),all=snap.val()||{};
+  if(me&&me.active!==false)Object.entries(all).forEach(([uid,req])=>{if(req&&req.status==="pending"&&Number(req.round)===cardWatchRound())incomingCardWatchRequests[uid]=req;});
+  renderCardWatchRequestNotice();
+ };
+ incomingCardWatchRef.on("value",incomingCardWatchListener);
+}
+function renderCardWatchRequestNotice(){
+ let el=document.getElementById("cardWatchRequestsNotice");
+ if(!el&&Object.keys(incomingCardWatchRequests).length){el=document.createElement("div");el.id="cardWatchRequestsNotice";el.className="card-watch-requests";document.getElementById("game")?.prepend(el);}
+ if(!el)return;
+ const entries=Object.entries(incomingCardWatchRequests);
+ if(!entries.length){el.remove();return;}
+ el.innerHTML='<strong>Card-view requests</strong>'+entries.map(([uid,req])=>{const p=currentOnlinePlayer(uid);return '<div><span>'+escapeLobbyText(p?.name||"A player")+' wants to see your cards.</span><button type="button" onclick="respondToCardWatch(\''+escapeLobbyText(uid)+'\',true)">Accept</button><button type="button" class="secondary" onclick="respondToCardWatch(\''+escapeLobbyText(uid)+'\',false)">Decline</button></div>';}).join("");
+}
+function cardWatchButtonMarkup(player){
+ if(!onlineMode||!eliminatedSpectator||player.id===roomPlayerId||player.active===false)return "";
+ const lock=cardWatchState&&Number(cardWatchState.round)===cardWatchRound()?cardWatchState:null;
+ if(lock&&lock.targetUid!==player.id)return '<span class="card-watch-locked">ONE PLAYER PER ROUND</span>';
+ if(lock&&lock.targetUid===player.id)return '<span class="card-watch-locked">'+(lock.status==="accepted"?"APPROVED":lock.status==="declined"?"DECLINED":"REQUEST SENT")+'</span>';
+ return '<button type="button" class="card-watch-see" onclick="requestCardWatch(\''+escapeLobbyText(player.id)+'\')">SEE</button>';
+}
 function openPlayerMessage(event){
  if(event){event.preventDefault();event.stopPropagation();}
  if(!onlineMode||!roomRef||!roomPlayerId)return;
@@ -5001,12 +5135,19 @@ function applyOnlinePublic(){
  if(st.status==="roundComplete"&&st.roundResult)openOnlineRoundResults(st.roundResult);
  if(st.status==="gameComplete"){openOnlineGameComplete(st.champion||"A player");const me=(st.players||[]).find(p=>p.id===roomPlayerId);if(me)saveCompletedGame("multiplayer","room_"+(roomCode||"unknown"),st.championUid===roomPlayerId,(st.players||[]).filter(p=>p.id!==roomPlayerId).map(p=>p.name));}
  if(st.specialRank)highlightSpecialJoker();
+ if(eliminatedSpectator){
+  if(cardWatchLockRef&&cardWatchLockListener)cardWatchLockRef.off("value",cardWatchLockListener);
+  cardWatchLockRef=roomRef.child("private/cardWatchLocks/"+roomPlayerId);
+  cardWatchLockListener=snap=>{const lock=snap.val();if(lock&&Number(lock.round)===cardWatchRound()){cardWatchState={...(cardWatchState||{}),...lock,status:cardWatchState?.status||"pending"};listenToOwnCardWatchRequest(lock.targetUid);}else{cardWatchState=null;closeCardWatchViewer();}render();};
+  cardWatchLockRef.off("value");cardWatchLockRef.on("value",cardWatchLockListener);
+ }else{cardWatchState=null;closeCardWatchViewer();}
+ syncIncomingCardWatchRequests();
  updateDiscardCountdown();
 }
 function returnToLobbyForRecovery(){
  const code=roomCode;
  leaveVoiceChat();
- if(onlineChatRef&&onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);
+ if(onlineChatRef&&onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);if(cardWatchLockRef&&cardWatchLockListener)cardWatchLockRef.off("value",cardWatchLockListener);if(cardWatchRequestRef&&cardWatchRequestListener)cardWatchRequestRef.off("value",cardWatchRequestListener);if(incomingCardWatchRef&&incomingCardWatchListener)incomingCardWatchRef.off("value",incomingCardWatchListener);closeCardWatchViewer();cardWatchLockRef=cardWatchRequestRef=incomingCardWatchRef=null;cardWatchLockListener=cardWatchRequestListener=incomingCardWatchListener=null;cardWatchState=null;incomingCardWatchRequests={};document.getElementById("cardWatchRequestsNotice")?.remove();
  if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);
  if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);
  if(onlineSpecialRef)onlineSpecialRef.off("value");
