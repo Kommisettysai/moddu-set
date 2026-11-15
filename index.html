@@ -3153,7 +3153,7 @@ body:has(#game:not(.hidden)) main{
 .show-reveal-card .results-card .bottom{font-size:7px!important}
 .show-reveal-empty{display:none!important}
 @keyframes showSnakeCardFlight{
- 0%{opacity:0;transform:translate(-50%,42vh) rotate(0deg) scale(.72);filter:brightness(1.5) drop-shadow(0 0 12px #ffe18a)}
+ 0%{opacity:0;transform:translate(calc(-50% + var(--start-dx,0px)),var(--start-dy,42vh)) rotate(var(--start-rot,0deg)) scale(.72);filter:brightness(1.5) drop-shadow(0 0 12px #ffe18a)}
  22%{opacity:1}
  58%{opacity:1;transform:translate(-50%,calc(var(--card-y) - 18px)) rotate(calc(var(--card-rot)*1.25)) scale(1.08)}
  78%{transform:translate(-50%,calc(var(--card-y) + 3px)) rotate(calc(var(--card-rot)*.92)) scale(.97)}
@@ -4355,7 +4355,7 @@ function cardMarkup(c,i){
  const specialMatch=!!(players[0]?.unlocked&&specialRank&&!c.joker&&c.rank===specialRank);
  const pickedSource=c.id===lastDrawnCardId?lastDrawSource:null;
  const pickedClass=pickedSource==="deck"?"picked-from-deck":pickedSource==="open"?"picked-from-open":"";
- return `<div class="card ${red?"red":""} ${specialMatch?"special-rank-card":""} ${pickedClass} ${(drawn?selected===i:selectedIndices.includes(i))?"selected":""}" draggable="true" ondragstart="dragCard(event,${i})" onclick="selectCard(${i})">
+ return `<div class="card ${red?"red":""} ${specialMatch?"special-rank-card":""} ${pickedClass} ${(drawn?selected===i:selectedIndices.includes(i))?"selected":""}" data-card-id="${escapeLobbyText(c.id)}" draggable="true" ondragstart="dragCard(event,${i})" onclick="selectCard(${i})">
  <span>${c.joker?"★":c.rank}</span><span style="text-align:center">${c.suit}</span><span style="text-align:right">${c.joker?"★":c.rank}</span></div>`;
 }
 let draggedCardIndex=null;
@@ -4618,14 +4618,32 @@ function runShowCelebration(onComplete,showData={}){
    const y=-25+(normalized*normalized*48);
    const rotation=normalized*12;
    const delay=current*.13;
-   return '<span class="show-reveal-card" style="--card-x:'+x.toFixed(2)+'%;--card-y:'+y.toFixed(1)+'px;--card-rot:'+rotation.toFixed(1)+'deg;--card-delay:'+delay.toFixed(2)+'s">'+renderResultCard(card)+'</span>';
+   return '<span class="show-reveal-card" data-card-id="'+escapeLobbyText(card.id)+'" style="--card-x:'+x.toFixed(2)+'%;--card-y:'+y.toFixed(1)+'px;--card-rot:'+rotation.toFixed(1)+'deg;--card-delay:'+delay.toFixed(2)+'s">'+renderResultCard(card)+'</span>';
   }).join("");
   if(laneIndex<lanes.length-1)position+=.55;
   return laneHtml;
  }).join("");
  overlay.innerHTML='<div class="show-reveal-curve-glow"></div><div class="show-reveal-stage">'+(cardsHtml||'<div class="show-reveal-empty"></div>')+'</div>';
+ /* Capture the real 13-card hand before the overlay covers it. Each revealed card launches from its own hand position. */
+ const handSources=new Map([...document.querySelectorAll("#hand .card[data-card-id]")].map(el=>[el.dataset.cardId,el]));
  document.body.appendChild(overlay);
- requestAnimationFrame(()=>overlay.classList.add("active"));
+ requestAnimationFrame(()=>{
+  const stage=overlay.querySelector(".show-reveal-stage");
+  const stageRect=stage?.getBoundingClientRect();
+  if(stageRect){
+   overlay.querySelectorAll(".show-reveal-card[data-card-id]").forEach((flight,index)=>{
+    const source=handSources.get(flight.dataset.cardId);
+    if(!source)return;
+    const sourceRect=source.getBoundingClientRect();
+    const targetX=stageRect.left+stageRect.width/2+(Number.parseFloat(flight.style.getPropertyValue("--card-x"))/100)*stageRect.width;
+    const targetY=stageRect.top+stageRect.height/2+Number.parseFloat(flight.style.getPropertyValue("--card-y"));
+    flight.style.setProperty("--start-dx",(sourceRect.left+sourceRect.width/2-targetX).toFixed(1)+"px");
+    flight.style.setProperty("--start-dy",(sourceRect.top+sourceRect.height/2-targetY).toFixed(1)+"px");
+    flight.style.setProperty("--start-rot",(((index%5)-2)*3)+"deg");
+   });
+  }
+  overlay.classList.add("active");
+ });
  const revealDuration=Math.max(2700,allCards.length*130+1250);
  window.setTimeout(()=>{
   overlay.classList.add("fade-out");
