@@ -4348,7 +4348,7 @@ let onlineMode=false,onlinePublic=null,onlinePublicRef=null,onlineHandRef=null,o
 let lastTurnAlertKey=null;
 let onlineChatRef=null,onlineChatListener=null,chatIsOpen=false,chatHasOpened=false,chatUnreadCount=0,lastChatSentAt=0,mutedChatSenders=new Set();
 let locallyShownChatMessages=new Set();
-let cardWatchLockRef=null,cardWatchLockListener=null,cardWatchRequestRef=null,cardWatchRequestListener=null;
+let cardWatchLockRef=null,cardWatchLockListener=null,cardWatchRequestRef=null,cardWatchRequestListener=null,cardWatchViewerDismissed=false;
 let incomingCardWatchRef=null,incomingCardWatchListener=null,watchedHandRef=null,watchedHandListener=null;
 let cardWatchState=null,incomingCardWatchRequests={};
 let eliminatedSpectator=false;
@@ -4641,6 +4641,7 @@ function sendPlayerReactionFromPopup(value,type){const text=String(value||"").tr
 function cardWatchRound(){return Math.max(1,Number(onlinePublic?.round)||1);}
 function currentOnlinePlayer(uid){return (onlinePublic?.players||[]).find(p=>p.id===uid)||null;}
 function closeCardWatchViewer(){
+ cardWatchViewerDismissed=true;
  if(watchedHandRef&&watchedHandListener)watchedHandRef.off("value",watchedHandListener);
  watchedHandRef=null;watchedHandListener=null;
  document.getElementById("cardWatchViewer")?.remove();
@@ -4651,12 +4652,12 @@ function showCardWatchViewer(targetName,hand){
  overlay.innerHTML='<div class="card-watch-dialog" role="dialog" aria-modal="true"><div class="card-watch-head"><div><small>READ-ONLY VIEW</small><h3>'+escapeLobbyText(targetName)+'’s cards</h3></div><button type="button" onclick="closeCardWatchViewer()" aria-label="Close">×</button></div><p>You can view these cards only. Game actions are disabled.</p><div class="card-watch-cards">'+(hand||[]).map(c=>renderResultCard(c)).join("")+'</div></div>';
 }
 function syncCardWatchViewer(){
- if(!cardWatchState||cardWatchState.status!=="accepted")return;
+ if(cardWatchViewerDismissed||!cardWatchState||cardWatchState.status!=="accepted")return;
  const target=currentOnlinePlayer(cardWatchState.targetUid);
  if(!target||target.active===false||cardWatchState.round!==cardWatchRound()){closeCardWatchViewer();return;}
  if(!watchedHandRef){
   watchedHandRef=roomRef.child("private/hands/"+cardWatchState.targetUid);
-  watchedHandListener=snap=>{if(!snap.exists())return;showCardWatchViewer(target.name,snap.val()||[]);};
+  watchedHandListener=snap=>{if(!snap.exists()||cardWatchViewerDismissed)return;showCardWatchViewer(target.name,snap.val()||[]);};
   watchedHandRef.on("value",watchedHandListener);
  }
 }
@@ -4674,6 +4675,7 @@ async function requestCardWatch(targetUid){
    setLobbyNotice(oldRequest.val()?.status==="declined"?"Your request was declined. You cannot request another player this round.":"Your request is already pending.");
    return;
   }
+  cardWatchViewerDismissed=false;
   await lockRef.set({targetUid,round:roundNo,viewerUid:roomPlayerId,createdAt:firebase.database.ServerValue.TIMESTAMP});
   await requestRef.set({targetUid,viewerUid:roomPlayerId,round:roundNo,status:"pending",requestedAt:firebase.database.ServerValue.TIMESTAMP});
   cardWatchState={targetUid,viewerUid:roomPlayerId,round:roundNo,status:"pending"};
