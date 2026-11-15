@@ -4320,25 +4320,47 @@ function requestRestartCurrentGame(){
 async function restartCurrentGame(confirmed=false){
  if(!confirmed){requestRestartCurrentGame();return;}
  if(!onlineMode){startGame();return;}
- if(!isRoomHost||!roomRef){message("Only the host can restart the online game.");return;}
+ if(!roomRef){message("The game room connection is missing. Refresh and rejoin the room.");return;}
+ const footer=document.querySelector("#roundResults .results-footer");
+ const button=footer?.querySelector(".rematch-btn"),status=footer?.querySelector(".rematch-status");
+ const setStatus=t=>{if(status)status.textContent=t;};
+ if(button){button.disabled=true;button.textContent="Preparing new game…";}
+ setStatus("Preparing a fresh game for everyone…");
  try{
-  const snap=await roomRef.child("public").get(),p=snap.val();if(!p||!Array.isArray(p.players))throw new Error("Could not read the current players.");
-  const participants=p.players;
+  const hostSnap=await roomRef.child("hostId").get();
+  if(!authUser||hostSnap.val()!==authUser.uid||!isRoomHost)throw new Error("Only the current host can restart this game. Please refresh the game.");
+  const snap=await roomRef.child("public").get(),p=snap.val();
+  if(!p||!Array.isArray(p.players))throw new Error("Could not read the current players.");
+  if(p.status!=="gameComplete"&&p.status!=="restartRequested")throw new Error("The game is not in the completed state. Refresh the page and try again.");
+  const participants=p.players.filter(x=>x&&x.id);
   if(participants.length<2)throw new Error("At least two players are required.");
-  const d=shuffle(makeDeck(participants.length)),hands={};participants.forEach(x=>hands[x.id]=d.splice(0,13));
+  const d=shuffle(makeDeck(participants.length)),hands={};
+  participants.forEach(x=>hands[x.id]=d.splice(0,13));
   const first=d.pop(),starter=participants[Math.floor(Math.random()*participants.length)];
   const freshPlayers=participants.map(x=>({...x,score:0,active:true,status:"Ready",cardCount:13,roundDrawCount:0,roundDropped:false,dropPenalty:0,unlocked:false,eligible:false,rejoinNextRound:false,rejoinPenalty:0,specialRank:null}));
   const next={status:"playing",gameNumber:(Number(p.gameNumber)||1)+1,round:1,scoreLimit:Math.max(1,Number(p.scoreLimit)||200),turnUid:starter.id,roundStarterUid:starter.id,deckCount:d.length,discard:[first],drawnByUid:null,drawnCardId:null,pickDeadline:starter.isBot?null:Date.now()+60000,discardDeadline:null,specialRank:null,rematchVotes:{},players:freshPlayers,message:"The host restarted the game. Everyone's scores are reset. "+starter.name+"'s turn."};
   await roomRef.child("private").set({deck:d,hands,specialRank:null,specialRanks:{}});
-  const actionSnap=await roomRef.child("actions").get();await Promise.all(Object.keys(actionSnap.val()||{}).map(uid=>roomRef.child("actions/"+uid).remove()));
-  await roomRef.child("public").set(next);onlinePublic=next;drawn=false;selected=-1;selectedIndices=[];arrangedGroups=[];winningGroups=[];lastDrawnCardId=null;lastDrawSource=null;closeHostRestartPrompt();applyOnlinePublic();
-  // Explicitly reload the host's own private hand after restart. Do not rely only on the realtime listener callback.
+  const actionSnap=await roomRef.child("actions").get();
+  const actionIds=Object.keys(actionSnap.val()||{});
+  await Promise.all(actionIds.map(uid=>roomRef.child("actions/"+uid).remove()));
+  await roomRef.child("public").set(next);
+  onlinePublic=next;drawn=false;selected=-1;selectedIndices=[];arrangedGroups=[];winningGroups=[];lastDrawnCardId=null;lastDrawSource=null;closeHostRestartPrompt();
+  applyOnlinePublic();
   const ownHandSnap=await roomRef.child("private/hands/"+roomPlayerId).get();
   const ownHand=ownHandSnap.val()||[];
   if(!players.length)players=[{id:roomPlayerId,name:(next.players.find(p=>p.id===roomPlayerId)||{}).name||"You",score:0,human:true,active:true,hand:ownHand}];
   else players[0]={...players[0],hand:ownHand};
   autoArrange(false);render();
- }catch(e){message("Could not restart the game: "+e.message);}
+  const resultsScreen=document.getElementById("roundResults");
+  if(resultsScreen){resultsScreen.classList.add("hidden");resultsScreen.classList.remove("game-complete-screen");}
+  message("New game started. Everyone's scores are reset!");
+ }catch(e){
+  console.error("Could not restart the game:",e);
+  const detail=String(e?.code||e?.message||e||"Unknown error");
+  setStatus("Restart failed: "+detail);
+  if(button){button.disabled=false;button.textContent="↻ RETRY RESTART";}
+  message("Could not restart the game: "+detail);
+ }
 }
 </script>
 
@@ -5505,7 +5527,7 @@ function openOnlineGameComplete(champion){
  const footer=screen.querySelector(".results-footer");
  if(footer){
   const canRestart=!!(onlineMode&&isRoomHost&&roomRef);
-  footer.innerHTML=(canRestart?'<button class="rematch-btn" onclick="restartCurrentGame()">↻ RESTART NEW GAME</button>':'')+
+  footer.innerHTML=(canRestart?'<button class="rematch-btn" onclick="requestRestartCurrentGame()">↻ RESTART NEW GAME</button>':'')+
    '<p class="rematch-status">'+(canRestart?'Host can start a fresh game for everyone using the button above.':'Waiting for the host to start a new game.')+'</p>';
  }
  screen.classList.remove("hidden");
