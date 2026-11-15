@@ -3532,6 +3532,92 @@ body:has(#game:not(.hidden)) main{
   z-index:6!important;
 }
 
+
+/* Final mobile Game Table layout: four readable face-up discards, with the
+   original top game brand (game code, Copy, SAI logo and Leave table) untouched. */
+#modduTablePanel .piles{
+  display:grid!important;
+  grid-template-columns:84px minmax(0,1fr)!important;
+  align-items:center!important;
+  gap:8px!important;
+  width:100%!important;
+  margin:10px auto 7px!important;
+}
+#modduTablePanel .piles>div:first-child{min-width:0!important}
+#modduTablePanel #drawPile{
+  width:84px!important;height:112px!important;
+  min-width:84px!important;border-radius:13px!important;
+  justify-content:center!important;gap:6px!important;
+}
+#modduTablePanel #drawPile .card-stack{
+  width:55px!important;height:67px!important;
+  flex:0 0 67px!important;margin:2px auto 0!important;
+}
+#modduTablePanel .discard-pile-with-timer{
+  display:flex!important;align-items:center!important;
+  justify-content:flex-end!important;gap:7px!important;
+  min-width:0!important;width:100%!important;
+}
+#modduTablePanel #discardPile{
+  width:auto!important;min-width:0!important;max-width:none!important;
+  height:112px!important;flex:1 1 auto!important;
+  border-radius:13px!important;padding:5px 4px 20px!important;
+  display:flex!important;flex-direction:column!important;
+  align-items:center!important;justify-content:flex-start!important;
+  gap:0!important;overflow:hidden!important;
+}
+#modduTablePanel #discardPile .discard-stack{
+  position:relative!important;display:block!important;
+  width:168px!important;max-width:100%!important;
+  height:72px!important;flex:0 0 72px!important;
+  margin:0 auto!important;transform:none!important;
+  overflow:visible!important;
+}
+#modduTablePanel #discardPile .discard-history-card{
+  position:absolute!important;
+  top:3px!important;
+  left:calc((3 - var(--stack-index))*40px)!important;
+  width:48px!important;height:66px!important;
+  box-sizing:border-box!important;
+  padding:4px!important;border:2px solid #e8d9b9!important;
+  border-radius:8px!important;
+  background:linear-gradient(145deg,#fffdf5,#eee8d9)!important;
+  color:#17231d!important;
+  display:flex!important;flex-direction:column!important;
+  justify-content:space-between!important;
+  font:700 13px Georgia,serif!important;
+  box-shadow:0 4px 9px #0008, inset 0 1px 0 #fff!important;
+  z-index:calc(var(--stack-index) + 2)!important;
+}
+#modduTablePanel #discardPile .discard-history-card.red{color:#c52d38!important}
+#modduTablePanel #discardPile .discard-history-suit{
+  text-align:center!important;font-size:17px!important;line-height:1!important;
+}
+#modduTablePanel #discardPile .discard-history-corner{
+  text-align:right!important;font-size:9px!important;line-height:1!important;
+}
+#modduTablePanel #discardPile>small{
+  position:absolute!important;left:2px!important;right:2px!important;
+  bottom:5px!important;margin:0!important;text-align:center!important;
+  font-size:9px!important;line-height:11px!important;
+  letter-spacing:.55px!important;white-space:nowrap!important;z-index:6!important;
+}
+#modduTablePanel #discardTimer{
+  width:52px!important;height:64px!important;flex:0 0 52px!important;
+  border-radius:13px!important;font-size:20px!important;
+}
+#modduTablePanel #discardTimer .timer-icon{font-size:18px!important}
+@media(max-width:380px){
+  #modduTablePanel .piles{grid-template-columns:76px minmax(0,1fr)!important;gap:6px!important}
+  #modduTablePanel #drawPile{width:76px!important;min-width:76px!important}
+  #modduTablePanel #discardPile .discard-stack{width:150px!important}
+  #modduTablePanel #discardPile .discard-history-card{
+    left:calc((3 - var(--stack-index))*35px)!important;
+    width:45px!important;height:62px!important;
+  }
+  #modduTablePanel #discardTimer{width:46px!important;flex-basis:46px!important}
+}
+
 </style></head>
 
 <body class="app-locked">
@@ -4474,7 +4560,7 @@ playersEl.innerHTML=players.map((p,i)=>{const eliminated=p.active===false||p.sta
 function renderDiscardHistory(){
  const stack=document.getElementById("discardStack");
  if(!stack)return;
- const recent=discard.slice(-3).reverse();
+ const recent=discard.slice(-4).reverse();
  stack.innerHTML=recent.map((card,index)=>{
   const red=card&&["♥","♦"].includes(card.suit);
   const label=cardText(card);
