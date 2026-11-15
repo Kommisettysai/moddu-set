@@ -5897,14 +5897,18 @@ function openOnlineRoundResults(result){
   const celebrationKey=String(result.completedAt||"")+":"+String(result.winnerUid);
   if(screen.dataset.showCelebrationKey!==celebrationKey){
    screen.dataset.showCelebrationKey=celebrationKey;
+   screen.dataset.showCelebrationDone="";
    screen.classList.add("hidden");
    runShowCelebration(()=>{
+    screen.dataset.showCelebrationDone=celebrationKey;
     screen.classList.remove("hidden");
     playShowResultsReveal(screen);
    },null,false);
-  }else{
+  }else if(screen.dataset.showCelebrationDone===celebrationKey){
    screen.classList.remove("hidden");
-   playShowResultsReveal(screen);
+  }else{
+   /* Realtime updates may repeat while the celebration is playing. Keep results hidden until it finishes. */
+   screen.classList.add("hidden");
   }
  }else{
   screen.classList.remove("hidden");
