@@ -3123,47 +3123,45 @@ body:has(#game:not(.hidden)) main{
 .show-celebration-overlay.active .show-celebration-cards span:nth-child(5){animation-delay:.28s}
 .show-celebration-title{position:relative;color:#ffe39a;font:900 clamp(25px,7vw,36px) Georgia,serif;letter-spacing:1.2px;text-align:center;text-shadow:0 0 14px #ffda70,0 3px 8px #000}
 .show-celebration-subtitle{position:relative;color:#e2e9d9;font:600 12px Georgia,serif;letter-spacing:1.6px;text-transform:uppercase}
-/* Actual SHOW cards are dealt onto the reveal stage one set at a time, left to right. */
+/* Cards leave the hand one by one and settle along a gentle reverse-U curve. */
 .show-celebration-overlay.show-card-reveal{
- gap:9px!important;padding:clamp(12px,3vh,28px) 12px!important;
- background:radial-gradient(ellipse at 50% 35%,#174b3bdc 0%,#092820f5 62%,#041711fa 100%)!important;
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ padding:12px 5px!important;gap:0!important;overflow:hidden!important;
+ background:radial-gradient(ellipse at 50% 48%,#15513fdc 0%,#08291ff2 68%,#031710fa 100%)!important;
 }
-.show-card-reveal .show-celebration-orbit{width:min(94vw,520px)!important;opacity:.55}
-.show-reveal-heading{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;color:#ffe8a2}
-.show-reveal-crown{font-size:27px;line-height:1;color:#ffdc70;text-shadow:0 0 16px #ffcf4e}
-.show-reveal-heading strong{font:700 clamp(17px,4.8vw,23px) Georgia,serif;text-shadow:0 2px 8px #000,0 0 12px #f5d16a77}
-.show-reveal-stage{position:relative;z-index:2;width:min(96vw,560px);max-height:56vh;overflow-y:auto;display:flex;flex-direction:column;gap:9px;padding:4px 2px 8px;scrollbar-width:none}
-.show-reveal-stage::-webkit-scrollbar{display:none}
-.show-reveal-set{position:relative;display:flex;flex-direction:column;gap:4px;padding:7px 8px 8px;border:1px solid #d9bd6b99;border-radius:12px;background:linear-gradient(110deg,#0d3429eF,#123e30eF);box-shadow:inset 0 1px #fff2,0 5px 15px #0005;opacity:0;transform:translateX(-42px) scale(.97)}
-.show-card-reveal.active .show-reveal-set{animation:showSetArrive .48s cubic-bezier(.18,.8,.22,1) forwards;animation-delay:calc(var(--set-index)*.95s)}
-.show-reveal-set-label{font:700 9px Georgia,serif;letter-spacing:1.5px;color:#ffe49a}
-.show-reveal-set-cards{display:flex;align-items:center;justify-content:flex-start;gap:clamp(4px,1.8vw,9px);min-height:clamp(54px,15vw,72px)}
-.show-reveal-card{display:block;flex:0 0 auto;opacity:0;transform:translateX(-34px) translateY(12px) rotate(-9deg) scale(.82);filter:drop-shadow(0 4px 5px #0007)}
-.show-card-reveal.active .show-reveal-card{animation:showCardDeal .42s cubic-bezier(.16,.85,.25,1) forwards;animation-delay:calc(var(--set-index)*.95s + var(--card-index)*.075s + .12s)}
-.show-reveal-card .results-card{width:clamp(37px,10vw,53px)!important;height:clamp(55px,15vw,78px)!important;flex:0 0 auto!important;border-radius:7px!important;font-size:clamp(12px,3.5vw,17px)!important;box-shadow:0 3px 9px #0005!important}
-.show-reveal-card .results-card small{font-size:7px!important}
-.show-reveal-unmatched{padding:7px 8px;border:1px solid #ff9b72aa;border-radius:10px;background:#48251f;color:#ffd0b7;font:700 9px Georgia,serif;letter-spacing:1px;opacity:0;transform:translateX(-28px)}
-.show-card-reveal.active .show-reveal-unmatched{animation:showSetArrive .48s cubic-bezier(.18,.8,.22,1) var(--show-success-delay,3.6s) forwards}
-.show-reveal-unmatched-cards{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
-.show-reveal-unmatched .show-reveal-card{opacity:1;transform:none}
-.show-reveal-unmatched .results-card{width:clamp(31px,8vw,43px)!important;height:clamp(46px,12vw,64px)!important}
-.show-reveal-empty{padding:20px;color:#ffe49a;text-align:center}
-.show-card-reveal .show-celebration-title{opacity:0;transform:translateY(12px) scale(.92);font-size:clamp(27px,7vw,38px)!important}
-.show-card-reveal.active .show-celebration-title{animation:showSuccessArrive .65s calc(var(--show-success-delay,3.6s) + .55s) cubic-bezier(.16,.85,.25,1) forwards}
-.show-card-reveal .show-celebration-subtitle{opacity:0;font-size:clamp(13px,3.7vw,17px)!important;letter-spacing:1.4px!important}
-.show-card-reveal.active .show-celebration-subtitle{animation:showSuccessName .5s calc(var(--show-success-delay,3.6s) + .75s) ease-out forwards}
-@keyframes showSetArrive{0%{opacity:0;transform:translateX(-42px) scale(.97);box-shadow:0 0 0 #ffd95a00}70%{opacity:1;transform:translateX(5px) scale(1.01);box-shadow:0 0 22px #ffd95a88}100%{opacity:1;transform:translateX(0) scale(1);box-shadow:inset 0 1px #fff2,0 5px 15px #0005}}
-@keyframes showCardDeal{0%{opacity:0;transform:translateX(-34px) translateY(12px) rotate(-9deg) scale(.82)}75%{opacity:1;transform:translateX(4px) translateY(-3px) rotate(2deg) scale(1.04)}100%{opacity:1;transform:translateX(0) translateY(0) rotate(0) scale(1)}}
-@keyframes showSuccessArrive{0%{opacity:0;transform:translateY(12px) scale(.92);text-shadow:0 0 0 #ffdb65}70%{opacity:1;transform:translateY(-3px) scale(1.04);text-shadow:0 0 24px #ffdc65}100%{opacity:1;transform:translateY(0) scale(1);text-shadow:0 0 14px #ffda70,0 3px 8px #000}}
-@keyframes showSuccessName{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-@media(max-width:390px){
- .show-reveal-stage{max-height:53vh;gap:7px}
- .show-reveal-set{padding:5px 6px}
- .show-reveal-set-cards{gap:4px;min-height:52px}
- .show-reveal-card .results-card{width:clamp(32px,9.2vw,40px)!important;height:clamp(48px,13.8vw,60px)!important}
+.show-card-reveal .show-celebration-orbit,.show-card-reveal .show-celebration-cards,
+.show-card-reveal .show-reveal-heading,.show-card-reveal .show-celebration-title,
+.show-card-reveal .show-celebration-subtitle{display:none!important}
+.show-reveal-curve-glow{
+ position:absolute;width:96vw;height:170px;left:2vw;top:50%;transform:translateY(-50%);
+ border-bottom:2px solid #f9d86e;border-radius:0 0 50% 50%;
+ filter:drop-shadow(0 0 8px #ffcf4f) drop-shadow(0 0 18px #e9ad36);
+ opacity:.5;pointer-events:none;
 }
+.show-reveal-stage{position:relative;z-index:2;width:98vw;height:190px;max-height:38vh;overflow:visible!important;display:block!important;padding:0!important;margin:0 auto!important}
+.show-reveal-card{
+ position:absolute;left:50%;top:50%;display:block;width:clamp(21px,6.1vw,29px);height:clamp(32px,8.9vw,43px);
+ opacity:0;transform:translate(-50%,calc(80vh)) rotate(0deg) scale(.72);transform-origin:center center;
+ filter:drop-shadow(0 4px 5px #0008);
+}
+.show-card-reveal.active .show-reveal-card{animation:showSnakeCardFlight .82s cubic-bezier(.18,.78,.2,1) forwards;animation-delay:var(--card-delay,0s)}
+.show-reveal-card .results-card{
+ width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;flex:0 0 auto!important;
+ border-radius:5px!important;font-size:clamp(8px,2.6vw,12px)!important;box-shadow:0 3px 8px #0008,0 0 7px #ffe29a66!important;
+}
+.show-reveal-card .results-card span{font-size:inherit!important}
+.show-reveal-card .results-card .bottom{font-size:7px!important}
+.show-reveal-empty{display:none!important}
+@keyframes showSnakeCardFlight{
+ 0%{opacity:0;transform:translate(-50%,calc(80vh)) rotate(0deg) scale(.72);filter:brightness(1.5) drop-shadow(0 0 12px #ffe18a)}
+ 22%{opacity:1}
+ 58%{opacity:1;transform:translate(calc(-50% + var(--card-x)),calc(var(--card-y) - 18px)) rotate(calc(var(--card-rot)*1.25)) scale(1.08)}
+ 78%{transform:translate(calc(-50% + var(--card-x)),calc(var(--card-y) + 3px)) rotate(calc(var(--card-rot)*.92)) scale(.97)}
+ 100%{opacity:1;transform:translate(calc(-50% + var(--card-x)),var(--card-y)) rotate(var(--card-rot)) scale(1);filter:brightness(1.08) drop-shadow(0 0 8px #ffd65c99)}
+}
+@media(max-width:390px){.show-reveal-stage{height:170px;width:99vw}.show-reveal-card{width:clamp(19px,5.8vw,24px);height:clamp(29px,8.4vw,36px)}}
 @media(prefers-reduced-motion:reduce){
- .show-card-reveal .show-reveal-set,.show-card-reveal .show-reveal-card,.show-card-reveal .show-celebration-title,.show-card-reveal .show-celebration-subtitle{animation:none!important;opacity:1!important;transform:none!important}
+ .show-card-reveal .show-reveal-card{animation:none!important;opacity:1!important;transform:translate(calc(-50% + var(--card-x)),var(--card-y)) rotate(var(--card-rot))!important}
 }
 @keyframes showButtonIdle{0%,100%{filter:brightness(1);box-shadow:0 4px 0 #8c6126,0 7px 17px #0006,0 0 12px #f6d16a44}50%{filter:brightness(1.08);box-shadow:0 4px 0 #8c6126,0 7px 20px #0006,0 0 23px #f6d16aaa}}
 @keyframes showButtonHalo{0%,100%{opacity:0;transform:scale(.98)}50%{opacity:.9;transform:scale(1.025)}}
@@ -4606,28 +4604,31 @@ function runShowCelebration(onComplete,showData={}){
  showCelebrationRunning=true;
  const overlay=document.createElement("div");
  overlay.className="show-celebration-overlay show-card-reveal";
- const playerName=escapeLobbyText(showData.playerName||"Player");
  const groups=Array.isArray(showData.groups)?showData.groups:[];
  const unmatched=Array.isArray(showData.unmatched)?showData.unmatched:[];
- const lastGroup=groups[groups.length-1]||[];
- const successDelay=Math.max(1500,(Math.max(0,groups.length-1)*950)+Math.max(0,lastGroup.length-1)*75+600);
- let cardIndex=0;
- const groupsHtml=groups.map((group,i)=>{
-  const cards=(group||[]).map((card,cardInSet)=>'<span class="show-reveal-card" style="--card-index:'+cardInSet+'">'+renderResultCard(card)+'</span>').join("");
-  return '<section class="show-reveal-set" style="--set-index:'+i+'"><div class="show-reveal-set-label">SET '+(i+1)+'</div><div class="show-reveal-set-cards">'+cards+'</div></section>';
- }).join("");
- const unmatchedHtml=unmatched.length?'<section class="show-reveal-unmatched"><div>UNMATCHED CARDS</div><div class="show-reveal-unmatched-cards">'+unmatched.map(card=>'<span class="show-reveal-card">'+renderResultCard(card,"unmatched")+'</span>').join("")+'</div></section>':'';
- overlay.innerHTML='<div class="show-celebration-orbit"></div><div class="show-reveal-heading"><span class="show-reveal-crown">♛</span><strong>'+playerName+' is showing...</strong></div><div class="show-reveal-stage">'+(groupsHtml||'<div class="show-reveal-empty">Revealing cards...</div>')+unmatchedHtml+'</div><div class="show-celebration-title">SHOW SUCCESSFUL!</div><div class="show-celebration-subtitle">'+playerName+'</div>';
+ const lanes=groups.filter(group=>Array.isArray(group)&&group.length).concat(unmatched.length?[unmatched]:[]);
+ const allCards=lanes.flat();
+ const weightedCount=allCards.length+Math.max(0,lanes.length-1)*.55;
+ let position=0;
+ const cardsHtml=lanes.map((lane,laneIndex)=>lane.map(card=>{
+  const current=position++;
+  const x=weightedCount<=1?0:(current/(weightedCount-1)-.5)*100;
+  const normalized=x/50;
+  const y=-25+(normalized*normalized*48);
+  const rotation=normalized*12;
+  const delay=current*.13;
+  return '<span class="show-reveal-card" style="--card-x:'+x.toFixed(2)+'%;--card-y:'+y.toFixed(1)+'px;--card-rot:'+rotation.toFixed(1)+'deg;--card-delay:'+delay.toFixed(2)+'s">'+renderResultCard(card)+'</span>';
+ }).join("")).join("");
+ overlay.innerHTML='<div class="show-reveal-curve-glow"></div><div class="show-reveal-stage">'+(cardsHtml||'<div class="show-reveal-empty"></div>')+'</div>';
  document.body.appendChild(overlay);
  requestAnimationFrame(()=>overlay.classList.add("active"));
- overlay.style.setProperty("--show-success-delay",successDelay+"ms");
- const revealDuration=successDelay+550+650+850;
+ const revealDuration=Math.max(2700,allCards.length*130+1250);
  window.setTimeout(()=>{
   overlay.classList.add("fade-out");
   window.setTimeout(()=>{
    overlay.remove();showCelebrationRunning=false;
    if(typeof onComplete==="function")onComplete();
-  },300);
+  },360);
  },revealDuration);
 }
 function animateShowCardAction(discardedCard=null){
