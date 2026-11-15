@@ -4633,9 +4633,11 @@ function composeModduResultsHeader(screen){
  if(!screen||!screen.classList.contains("moddu-results-screen"))return;
  const header=screen.querySelector(".results-header");
  const joker=screen.querySelector("#resultsHands .round-joker-reveal");
- if(header&&joker){
+ if(header){
   header.classList.add("moddu-compact-results-header");
-  header.appendChild(joker);
+  const previous=header.querySelector(".round-joker-reveal");
+  if(previous&&previous!==joker)previous.remove();
+  if(joker)header.appendChild(joker);
  }
 }
 function prepareRoundResultsOverlay(screen){
