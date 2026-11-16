@@ -1186,7 +1186,16 @@ body:has(#roundResults:not(.hidden))>header,
  overflow:hidden;
  padding:8px 3px 14px;
 }
-#roundResults.game-complete-screen .champion-celebration{
+#roundResults.game-complete-screen .table-moments{margin:12px 0 16px;padding:13px;border:1px solid #d8bd7977;border-radius:16px;background:linear-gradient(145deg,#174b39,#0a3025);box-shadow:0 6px 18px #0003}
+.table-moments-title{display:flex;align-items:center;gap:7px;margin:0 0 10px;color:#ffe4a0;font:900 11px Georgia,serif;letter-spacing:1.4px}
+.table-moments-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.table-moment{min-width:0;padding:9px;border-radius:11px;background:#ffffff0b;border:1px solid #e6d39a30}
+.table-moment span{display:block;color:#d9c99d;font-size:9px;font-weight:900;letter-spacing:.7px;text-transform:uppercase}
+.table-moment strong{display:block;margin-top:4px;color:#fff0c5;font-size:13px;overflow-wrap:anywhere}
+.table-moment small{display:block;margin-top:2px;color:#b7cdbd;font-size:10px}
+.results-share-button{width:100%;margin:8px 0 2px!important;border:1px solid #e6c66f!important;background:linear-gradient(135deg,#72551f,#b78b37)!important;color:#fff4cf!important}
+@media(max-width:360px){.table-moments-grid{grid-template-columns:1fr}}
+.champion-celebration{
  grid-column:1/-1;
  position:relative;
  z-index:2;
@@ -7014,17 +7023,37 @@ function openOnlineGameComplete(champion){
  const sorted=[...(onlinePublic.players||[])].sort((a,b)=>Number(a.id===onlinePublic.championUid)-Number(b.id===onlinePublic.championUid)).reverse();
  if(!sorted.length)sorted.push({id:onlinePublic.championUid||"champion",name:champion,score:0});
  const winner=sorted.find(p=>p.id===onlinePublic.championUid)||sorted.find(p=>p.name===champion)||sorted[0];
- const winnerMarkup=winner?'<div class="champion-celebration"><span class="champion-crown">👑</span><span class="champion-eyebrow">MODDU SET CHAMPION</span><strong>'+escapeLobbyText(winner.name)+'</strong><span class="champion-score">🏆 FINAL SCORE: '+(Number(winner.score)||0)+'</span><span class="champion-message">🎉 Congratulations! 🎊</span></div>':'';
- profiles.innerHTML=confettiMarkup+winnerMarkup+sorted.map((p,i)=>{const isWinner=p.id===onlinePublic.championUid||(!onlinePublic.championUid&&p.name===champion);return '<div class="results-profile '+(isWinner?'show-winner champion-profile':'final-player-profile')+'">'+playerIdentityMarkup(p,i,"results")+'<span class="finish-rank">'+(isWinner?'🏆 CHAMPION':'FINAL PLAYER')+'</span><span class="result-points">Total: '+(Number(p.score)||0)+'</span>'+(isWinner?'<span class="winner-tag">🎊 WINNER 🎊</span>':'')+'</div>';}).join('');
+ const runnerUps=sorted.filter(p=>p.id!==winner?.id).sort((a,b)=>(Number(a.score)||0)-(Number(b.score)||0));
+ const closest=runnerUps[0]||null;
+ const highest=[...sorted].sort((a,b)=>(Number(b.score)||0)-(Number(a.score)||0))[0]||null;
+ const momentsMarkup='<section class="table-moments"><div class="table-moments-title">✨ TABLE MOMENTS</div><div class="table-moments-grid">'+
+  '<div class="table-moment"><span>👑 THE CHAMPION</span><strong>'+escapeLobbyText(winner?.name||champion)+'</strong><small>Top of this table</small></div>'+
+  (closest?'<div class="table-moment"><span>⚔️ CLOSEST CHALLENGER</span><strong>'+escapeLobbyText(closest.name)+'</strong><small>Final score: '+(Number(closest.score)||0)+'</small></div>':'')+
+  (highest&&highest.id!==winner?.id?'<div class="table-moment"><span>💥 BIGGEST SCORE</span><strong>'+escapeLobbyText(highest.name)+'</strong><small>Final score: '+(Number(highest.score)||0)+'</small></div>':'')+
+  '<div class="table-moment"><span>🃏 THE WHOLE CREW</span><strong>'+sorted.length+' players</strong><small>One table, one champion</small></div></div></section>';
+ profiles.innerHTML=confettiMarkup+winnerMarkup+momentsMarkup+sorted.map((p,i)=>{const isWinner=p.id===onlinePublic.championUid||(!onlinePublic.championUid&&p.name===champion);return '<div class="results-profile '+(isWinner?'show-winner champion-profile':'final-player-profile')+'">'+playerIdentityMarkup(p,i,"results")+'<span class="finish-rank">'+(isWinner?'🏆 CHAMPION':'FINAL PLAYER')+'</span><span class="result-points">Total: '+(Number(p.score)||0)+'</span>'+(isWinner?'<span class="winner-tag">🎊 WINNER 🎊</span>':'')+'</div>';}).join('');
  handsEl.innerHTML="";
  const footer=screen.querySelector(".results-footer");
  if(footer){
   const canRestart=!!(onlineMode&&isRoomHost&&roomRef);
-  footer.innerHTML=(canRestart?'<button class="rematch-btn" onclick="requestRestartCurrentGame()">↻ START NEW GAME</button>':'')+
+  footer.innerHTML='<button type="button" class="results-share-button" onclick="shareModduMatchMoments()">↗ SHARE MATCH MOMENTS</button>'+
+   (canRestart?'<button class="rematch-btn" onclick="requestRestartCurrentGame()">↻ START NEW GAME</button>':'')+
    '<p class="rematch-status">'+(canRestart?'Start a fresh game for everyone. All scores will reset to zero.':'Waiting for the host to start a new game.')+'</p>';
  }
  screen.classList.remove("hidden");
  screen.scrollTop=0;
+}
+async function shareModduMatchMoments(){
+ const state=onlinePublic||{},list=Array.isArray(state.players)?state.players:[];
+ const champion=list.find(p=>p.id===state.championUid)||list.find(p=>p.name===state.champion)||list[0];
+ const ordered=[...list].sort((a,b)=>(Number(a.score)||0)-(Number(b.score)||0));
+ const lines=["🃏 MODDU SET · GAME NIGHT","🏆 Champion: "+(champion?.name||state.champion||"Unknown"),"",...ordered.map((p,i)=>(i+1)+". "+p.name+" · "+(Number(p.score)||0)+" points"),"","Your friends. Your table. Your stories."];
+ const text=lines.join("\n");
+ try{
+  if(navigator.share){await navigator.share({title:"Moddu Set · Match Moments",text});}
+  else if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(text);infoToast("Match moments copied. Share them with your friends!");}
+  else{infoToast("Sharing is not available on this device.");}
+ }catch(error){if(error?.name!=="AbortError"){console.warn("Match sharing failed:",error);infoToast("Could not share match moments.");}}
 }
 let onlineRematchStarting=false,onlineRematchVotesListener=null;
 async function voteOnlineRematch(){
