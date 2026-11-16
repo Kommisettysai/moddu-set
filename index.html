@@ -6075,8 +6075,8 @@ function ensureCardWatchReopenButton(){
   button=document.createElement("button");button.id="cardWatchReopen";button.className="card-watch-reopen";
   button.type="button";button.setAttribute("aria-label","Reopen approved card viewer");button.addEventListener("click",event=>{event.preventDefault();event.stopPropagation();reopenCardWatchViewer();});document.body.appendChild(button);
  }
- button.disabled=!watchedHandCache.length;
- button.textContent=watchedHandCache.length?"👁 VIEW "+String(watchedHandTargetName||"PLAYER").toUpperCase()+"’S CARDS":"CARDS LOADING…";
+ button.disabled=false;
+ button.textContent=watchedHandCache.length?"👁 VIEW "+String(watchedHandTargetName||"PLAYER").toUpperCase()+"’S CARDS":"👁 CARDS LOADING · TAP TO RETRY";
 }
 function renderCardWatchGroups(targetName,hand){
  const target=currentOnlinePlayer(cardWatchState?.targetUid)||{};
