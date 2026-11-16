@@ -6353,76 +6353,39 @@ async function writeGameChat(type,text){
    Firebase carries signaling only; audio travels peer-to-peer. */
 let voiceJoined=false,voiceMuted=true,voiceStream=null,voiceParticipantsRef=null,voiceSignalsRef=null;
 let voiceParticipantsListener=null,voicePeerConnections=new Map(),voiceSignalListeners=new Map(),voicePendingCandidates=new Map();
-let voiceSessionId=null,voiceParticipantKey=null,voicePeerSessions=new Map(),voiceRecoveryInProgress=false,voiceOfferStarting=new Set();
-const VOICE_ICE_SERVERS=[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"},{urls:"stun:stun.cloudflare.com:3478"},{urls:"stun:global.stun.twilio.com:3478"},...(Array.isArray(window.MODDU_TURN_SERVERS)?window.MODDU_TURN_SERVERS:[])];
-function voiceAttachLocalTracks(pc){if(!pc||!voiceStream)return;const existing=new Set(pc.getSenders().map(sender=>sender.track&&sender.track.id).filter(Boolean));voiceStream.getAudioTracks().forEach(track=>{if(!existing.has(track.id))pc.addTrack(track,voiceStream);});}
+const VOICE_ICE_SERVERS=[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}];
 function voiceSetStatus(text){const el=document.getElementById("voiceStatus");if(el)el.textContent=text;const top=document.getElementById("topVoiceStatus");if(top)top.textContent=text;}
-function voiceUpdateConnectionStatus(){
- const total=voicePeerConnections.size,connected=[...voicePeerConnections.values()].filter(pc=>pc.connectionState==="connected").length;
- if(!voiceJoined||!total)return;
- if(connected===total)voiceSetStatus("Voice connected to all "+total+" other player"+(total===1?"":"s")+".");
- else voiceSetStatus("Voice links: "+connected+" of "+total+" connected. Keep this screen open while connections finish.");
-}
-async function voiceMicrophoneErrorMessage(error){
- const name=error&&error.name||"";
- if(!window.isSecureContext)return "Microphone access needs a secure HTTPS page. Open the game using its https:// address, then try again.";
- if(name==="NotAllowedError"||name==="PermissionDeniedError"){
-  let permission="blocked or denied";
-  try{const result=await navigator.permissions?.query({name:"microphone"});if(result?.state)permission=result.state;}catch(e){}
-  return "Microphone permission is "+permission+". In Chrome on Android, tap the site icon beside the address bar → Permissions → Microphone → Allow. If it is blocked in Android Settings, allow Chrome to use the microphone too. Reload this page and tap Try Again.";
- }
- if(name==="NotFoundError"||name==="DevicesNotFoundError")return "No microphone was found. Connect or enable a microphone, then tap Try Again.";
- if(name==="NotReadableError"||name==="TrackStartError")return "The microphone is busy or Android could not open it. End any phone/WhatsApp call, close other apps using the mic, then tap Try Again.";
- if(name==="OverconstrainedError")return "The microphone does not support the requested audio settings. Try again after updating your browser.";
- if(name==="SecurityError")return "The browser blocked microphone access. Open this game in Chrome over HTTPS and allow microphone permission.";
- return "Could not access the microphone ("+(name||"unknown error")+"). Check Chrome and Android microphone permissions, close other apps using the mic, then tap Try Again.";
-}
 function voiceRoomMember(uid){return !!uid&&!!roomRef&&!!roomPlayerId;}
-function voiceSignalPath(from,to,sessionId){return roomRef.child("voice/signals/"+from+"/"+to);}
+function voiceSignalPath(from,to){return roomRef.child("voice/signals/"+from+"/"+to);}
 function voiceRenderPeople(list){
  const box=document.getElementById("voicePeople"),count=document.getElementById("voiceCount");
  if(!box)return;
- const latest=new Map();
- for(const p of list||[]){if(!p||!p.joined||!p.id)continue;const old=latest.get(p.id);if(!old||Number(p.joinedAt||0)>=Number(old.joinedAt||0))latest.set(p.id,p);}
- const connected=Array.from(latest.values());
+ const connected=(list||[]).filter(p=>p&&p.joined);
  if(count)count.textContent=connected.length+" in voice";
  box.innerHTML=connected.map(p=>'<span class="voice-person '+(p.muted?'muted':'')+'">'+(p.muted?'🔇 ':'🎙️ ')+escapeLobbyText(p.name||"Player")+(p.id===roomPlayerId?' (you)':'')+'</span>').join("");
 }
-function voiceResetPeer(uid){
- const old=voicePeerConnections.get(uid);
- if(old){try{old.onicecandidate=old.ontrack=old.onconnectionstatechange=old.oniceconnectionstatechange=null;old.close();}catch(e){}}
- voicePeerConnections.delete(uid);voicePendingCandidates.delete(uid);
- const oldAudio=document.getElementById("voiceAudio_"+uid);
- if(oldAudio){oldAudio.pause();oldAudio.srcObject=null;oldAudio.remove();}
- const oldListener=voiceSignalListeners.get(uid);
- if(oldListener){oldListener.ref.off("child_added",oldListener.listener);voiceSignalListeners.delete(uid);}
-}
 function voiceGetPeer(uid){
- if(voicePeerConnections.has(uid)){const existing=voicePeerConnections.get(uid);voiceAttachLocalTracks(existing);return existing;}
- const pc=new RTCPeerConnection({iceServers:VOICE_ICE_SERVERS,iceCandidatePoolSize:10,bundlePolicy:"max-bundle"});
- voicePeerConnections.set(uid,pc);voiceAttachLocalTracks(pc);
- pc.onicecandidate=e=>{if(e.candidate)voiceSendSignal(uid,{type:"ice",candidate:e.candidate.toJSON()}).catch(err=>voiceSetStatus("Could not send connection data: "+err.message));};
+ if(voicePeerConnections.has(uid))return voicePeerConnections.get(uid);
+ const pc=new RTCPeerConnection({iceServers:VOICE_ICE_SERVERS});
+ voicePeerConnections.set(uid,pc);
+ if(voiceStream)voiceStream.getTracks().forEach(track=>pc.addTrack(track,voiceStream));
+ pc.onicecandidate=e=>{if(e.candidate)voiceSignalPath(roomPlayerId,uid).push({type:"ice",candidate:e.candidate.toJSON(),at:Date.now()}).catch(err=>voiceSetStatus("Could not send connection data: "+err.message));};
  pc.ontrack=e=>{
   let audio=document.getElementById("voiceAudio_"+uid);
-  if(!audio){audio=document.createElement("audio");audio.id="voiceAudio_"+uid;audio.autoplay=true;audio.playsInline=true;audio.controls=false;audio.preload="auto";audio.style.display="none";document.body.appendChild(audio);}
-  audio.srcObject=e.streams&&e.streams[0]?e.streams[0]:new MediaStream([e.track]);audio.muted=false;audio.volume=1;
-  const playRemote=()=>audio.play().catch(()=>voiceSetStatus("Audio arrived, but this browser blocked playback. Tap anywhere in the game once to enable sound."));
-  e.track.onunmute=playRemote;e.track.onended=()=>voiceUpdateConnectionStatus();playRemote();
-  voiceUpdateConnectionStatus();
+  if(!audio){audio=document.createElement("audio");audio.id="voiceAudio_"+uid;audio.autoplay=true;audio.playsInline=true;audio.style.display="none";document.body.appendChild(audio);}
+  audio.srcObject=e.streams[0];
+  audio.play().catch(()=>voiceSetStatus("Tap the page once to allow incoming audio."));
  };
- pc.oniceconnectionstatechange=()=>{
-  if(pc.iceConnectionState==="failed")voiceSetStatus("A voice network link failed. A TURN relay may be needed for this player's network.");
-  else if(pc.iceConnectionState==="disconnected")voiceSetStatus("A voice link was interrupted. Waiting for network recovery…");
-  voiceUpdateTopControls();
+ pc.onconnectionstatechange=()=>{
+  if(pc.connectionState==="failed"||pc.connectionState==="closed"||pc.connectionState==="disconnected"){
+   if(pc.connectionState==="failed")voiceSetStatus("A voice connection failed. Try leaving and joining voice again.");
+  }
  };
- pc.onconnectionstatechange=()=>{voiceUpdateTopControls();voiceUpdateConnectionStatus();};
- pc.onicecandidateerror=e=>voiceSetStatus("Voice network candidate error ("+(e.errorCode||"unknown")+"). A TURN relay may be required.");
- pc.onicegatheringstatechange=()=>{if(pc.iceGatheringState==="complete")voiceUpdateConnectionStatus();};
  return pc;
 }
 async function voiceSendSignal(to,payload){
- if(!voiceJoined||!roomRef||!voiceSessionId)return;
- await voiceSignalPath(roomPlayerId,to,voiceSessionId).push({...payload,from:roomPlayerId,fromSession:voiceSessionId,toSession:voicePeerSessions.get(to)||null,at:Date.now()});
+ if(!voiceJoined||!roomRef)return;
+ await voiceSignalPath(roomPlayerId,to).push({...payload,from:roomPlayerId,at:Date.now()});
 }
 async function voiceDrainCandidates(uid){
  const pc=voicePeerConnections.get(uid),pending=voicePendingCandidates.get(uid)||[];
@@ -6432,8 +6395,6 @@ async function voiceDrainCandidates(uid){
 }
 async function voiceHandleSignal(uid,snap){
  const data=snap.val();if(!data||!voiceJoined)return;
- // Ignore signaling messages from an earlier browser/microphone session.
- if(!data.fromSession||data.fromSession!==voicePeerSessions.get(uid)||data.toSession!==voiceSessionId)return;
  try{
   const pc=voiceGetPeer(uid);
   if(data.type==="offer"){
@@ -6455,40 +6416,30 @@ async function voiceHandleSignal(uid,snap){
 }
 function voiceWatchPeer(uid){
  if(voiceSignalListeners.has(uid))return;
- const ref=voiceSignalPath(uid,roomPlayerId,voicePeerSessions.get(uid));
+ const ref=voiceSignalPath(uid,roomPlayerId);
  const listener=snap=>voiceHandleSignal(uid,snap);
  voiceSignalListeners.set(uid,{ref,listener});
  ref.on("child_added",listener);
 }
 async function voiceEnsurePeers(participants){
- // A refreshed player can briefly have an old and a new presence record.
- // Use only the newest session for each player.
- const latestByUid=new Map();
- for(const p of participants||[]){
-  if(!p||!p.id||!p.joined)continue;
-  const previous=latestByUid.get(p.id);
-  if(!previous||Number(p.joinedAt||0)>=Number(previous.joinedAt||0))latestByUid.set(p.id,p);
- }
- const activeParticipants=Array.from(latestByUid.values());
- for(const p of activeParticipants){
+ for(const p of participants){
   if(!p||p.id===roomPlayerId||!p.joined)continue;
-  const uid=p.id,remoteSession=p.sessionId||"legacy";
-  if(voicePeerSessions.has(uid)&&voicePeerSessions.get(uid)!==remoteSession)voiceResetPeer(uid);
-  voicePeerSessions.set(uid,remoteSession);
+  const uid=p.id;
   voiceWatchPeer(uid);
   const pc=voiceGetPeer(uid);
-  if(String(roomPlayerId)<String(uid)&&pc.signalingState==="stable"&&!pc.localDescription&&!voiceOfferStarting.has(uid)){
-   voiceOfferStarting.add(uid);
+  if(String(roomPlayerId)<String(uid)&&pc.signalingState==="stable"&&!pc.localDescription){
    try{const offer=await pc.createOffer();await pc.setLocalDescription(offer);await voiceSendSignal(uid,{type:"offer",description:pc.localDescription.toJSON()});}
    catch(e){voiceSetStatus("Could not start voice connection: "+e.message);}
-   finally{voiceOfferStarting.delete(uid);}
   }
  }
  for(const [uid,pc] of voicePeerConnections){
-  if(!activeParticipants.some(p=>p&&p.id===uid&&p.joined)){
+  if(!participants.some(p=>p&&p.id===uid&&p.joined)){
    try{pc.close();}catch(e){}
-   voiceResetPeer(uid);voicePeerSessions.delete(uid);
-  } }
+   voicePeerConnections.delete(uid);voicePendingCandidates.delete(uid);
+   const audio=document.getElementById("voiceAudio_"+uid);if(audio){audio.pause();audio.srcObject=null;audio.remove();}
+   const listener=voiceSignalListeners.get(uid);if(listener){listener.ref.off("child_added",listener.listener);voiceSignalListeners.delete(uid);}
+  }
+ }
 }
 async function joinVoiceChat(){
  if(!onlineMode||!roomRef||!roomPlayerId){voiceSetStatus("Voice chat is available only in an online game.");return;}
@@ -6496,68 +6447,17 @@ async function joinVoiceChat(){
  if(voiceJoined)return;
  if(!navigator.mediaDevices?.getUserMedia||!window.RTCPeerConnection){voiceSetStatus("This browser does not support voice chat. Try an updated browser over HTTPS.");return;}
  const joinBtn=document.getElementById("voiceJoinBtn");if(joinBtn){joinBtn.disabled=true;joinBtn.textContent="Connecting…";}
-
- // Stage 1: request the physical microphone. Keep this separate from Firebase
- // so a database permission error is never incorrectly reported as a mic error.
  try{
-  try{
-   voiceStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
-  }catch(primaryError){
-   // Some Android devices reject one or more advanced constraints. Retry with
-   // the browser's default audio device settings before reporting failure.
-   try{voiceStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});}
-   catch(fallbackError){fallbackError.originalError=primaryError;throw fallbackError;}
-  }
-  const micTracks=voiceStream.getAudioTracks();
-  if(!micTracks.length)throw new Error("No audio track was returned by the microphone.");
-  micTracks.forEach(t=>{
-   t.enabled=false;
-   t.onended=()=>{
-    if(!voiceJoined)return;
-    voiceRecoveryInProgress=true;
-    leaveVoiceChat().finally(()=>{
-     voiceRecoveryInProgress=false;
-     voiceSetStatus("Your microphone was interrupted by a call or another app. Tap Try Again to reconnect voice.");
-     const btn=document.getElementById("voiceJoinBtn");if(btn){btn.classList.remove("hidden");btn.textContent="Try Again";btn.disabled=false;}
-    });
-   };
-   t.onmute=()=>{if(voiceJoined)voiceSetStatus("Microphone temporarily interrupted. Waiting for Android to release it…");};
-   t.onunmute=()=>{if(voiceJoined&&t.readyState==="live")voiceSetStatus(voiceMuted?"Microphone restored. You are still muted.":"Microphone restored. Speak to the table.");};
-  });
- }catch(e){
-  if(voiceStream){voiceStream.getTracks().forEach(t=>t.stop());voiceStream=null;}
-  voiceJoined=false;
-  voiceSetStatus(await voiceMicrophoneErrorMessage(e));
-  if(joinBtn){joinBtn.disabled=false;joinBtn.textContent="Try Again";}
-  return;
- }
-
- // Stage 2: register in Firebase and start WebRTC signalling.
- try{
+  voiceStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+  voiceStream.getAudioTracks().forEach(t=>t.enabled=false);
   voiceMuted=true;voiceJoined=true;
-  voiceSessionId=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():"voice-"+Date.now()+"-"+Math.random().toString(36).slice(2);
-  voicePeerSessions.clear();
-  voiceParticipantKey=roomPlayerId+"_"+voiceSessionId;
   voiceParticipantsRef=roomRef.child("voice/participants");
   voiceSignalsRef=roomRef.child("voice/signals");
-  // Store each browser/microphone session beneath the authenticated player UID.
-  // The UID-level Firebase rule remains valid, while onDisconnect can only remove
-  // this session and can never erase a newer session created after a refresh.
-  const myPresenceRef=voiceParticipantsRef.child(roomPlayerId).child(voiceSessionId);
-  await myPresenceRef.onDisconnect().remove();
-  await myPresenceRef.set({id:roomPlayerId,name:players[0]?.name||playerProfile?.displayName||"Player",joined:true,muted:true,sessionId:voiceSessionId,joinedAt:firebase.database.ServerValue.TIMESTAMP});
+  await voiceParticipantsRef.child(roomPlayerId).set({id:roomPlayerId,name:players[0]?.name||playerProfile?.displayName||"Player",joined:true,muted:true,joinedAt:firebase.database.ServerValue.TIMESTAMP});
   voiceParticipantsListener=snap=>{
-   const data=snap.val()||{},list=[];
-   for(const [uid,value] of Object.entries(data)){
-    // Accept both the old flat record and new per-session records. During
-    // rollout, an old flat record and new session children can coexist.
-    const sessions=Object.values(value||{}).filter(item=>item&&typeof item==="object"&&item.id);
-    if(sessions.length)list.push(...sessions);
-    else if(value&&value.id)list.push(value);
-   }
+   const data=snap.val()||{},list=Object.values(data);
    voiceRenderPeople(list);
    if(voiceJoined)voiceEnsurePeers(list);
-   voiceUpdateTopControls();
   };
   voiceParticipantsRef.on("value",voiceParticipantsListener);
   const panel=document.getElementById("voicePanel");if(panel)panel.classList.remove("hidden");
@@ -6565,100 +6465,64 @@ async function joinVoiceChat(){
   document.getElementById("voiceMuteBtn")?.classList.remove("hidden");
   document.getElementById("voiceMuteBtn").disabled=false;
   document.getElementById("voiceLeaveBtn")?.classList.remove("hidden");
-  document.getElementById("topVoiceControls")?.classList.remove("hidden");
-  voiceSetStatus("Microphone ready. Connecting to other players…");
+  voiceSetStatus("Connected to voice. Your microphone is muted.");
  }catch(e){
-  console.error("Firebase voice setup failed:",e);
   voiceJoined=false;
-  if(voiceParticipantsRef&&voiceParticipantsListener)voiceParticipantsRef.off("value",voiceParticipantsListener);
-  voiceParticipantsListener=null;
   if(voiceStream){voiceStream.getTracks().forEach(t=>t.stop());voiceStream=null;}
-  const code=e&&e.code?String(e.code):"";
-  const detail=code==="PERMISSION_DENIED"||code==="PERMISSION_DENIED: Client doesn't have permission to access the desired data."
-   ?"Firebase denied access to the voice data. Realtime Database rules must allow signed-in room members to read/write their own voice participant and signalling records."
-   :"Microphone works, but Firebase voice setup failed ("+(code||e.name||"error")+"): "+(e.message||"Check Realtime Database access and network.");
-  voiceSetStatus(detail);
- }finally{
-  if(joinBtn){joinBtn.disabled=false;joinBtn.textContent=voiceJoined?"Join voice":"Try Again";}
-  voiceUpdateTopControls();
- }
+  voiceSetStatus(e.name==="NotAllowedError"?"Microphone permission was denied. Allow it in browser settings and try again.":"Could not join voice: "+(e.message||e.name));
+ }finally{if(joinBtn){joinBtn.disabled=false;joinBtn.textContent="Join Voice";}}
+}
+async function toggleVoiceMute(){
+ if(!voiceJoined||!voiceStream)return;
+ voiceMuted=!voiceMuted;
+ voiceStream.getAudioTracks().forEach(t=>t.enabled=!voiceMuted);
+ const btn=document.getElementById("voiceMuteBtn");if(btn)btn.textContent=voiceMuted?"Unmute mic":"Mute mic";
+ try{await voiceParticipantsRef.child(roomPlayerId).update({muted:voiceMuted});}
+ catch(e){voiceSetStatus("Microphone state could not sync: "+e.message);}
+ voiceSetStatus(voiceMuted?"You are listening. Your microphone is muted.":"Your microphone is on. Speak to the table.");
+}
+async function leaveVoiceChat(){
+ const wasJoined=voiceJoined;voiceJoined=false;
+ if(voiceParticipantsRef&&voiceParticipantsListener)voiceParticipantsRef.off("value",voiceParticipantsListener);
+ voiceParticipantsListener=null;
+ for(const [uid,pc] of voicePeerConnections){try{pc.close();}catch(e){}const audio=document.getElementById("voiceAudio_"+uid);if(audio){audio.pause();audio.srcObject=null;audio.remove();}}
+ voicePeerConnections.clear();voicePendingCandidates.clear();
+ for(const {ref,listener} of voiceSignalListeners.values())ref.off("child_added",listener);
+ voiceSignalListeners.clear();
+ if(voiceStream){voiceStream.getTracks().forEach(t=>t.stop());voiceStream=null;}
+ if(wasJoined&&voiceParticipantsRef&&roomPlayerId)try{await voiceParticipantsRef.child(roomPlayerId).remove();}catch(e){}
+ if(voiceSignalsRef&&roomPlayerId)try{await voiceSignalsRef.child(roomPlayerId).remove();}catch(e){}
+ voiceMuted=true;voiceParticipantsRef=null;voiceSignalsRef=null;
+ const panel=document.getElementById("voicePanel");if(panel)panel.classList.add("hidden");
+ document.getElementById("voiceJoinBtn")?.classList.remove("hidden");
+ document.getElementById("voiceMuteBtn")?.classList.add("hidden");
+ document.getElementById("voiceLeaveBtn")?.classList.add("hidden");
+ voiceRenderPeople([]);
+ voiceSetStatus("Voice is off. Join when you want to talk.");
+}
+
+
+// Keep the current compact toolbar, while restoring the earlier voice connection flow.
+function voiceUpdateTopControls(){
+ const btn=document.getElementById("voiceMuteBtn"),count=document.getElementById("topVoiceCount");
+ if(btn){btn.disabled=false;btn.textContent=!voiceJoined?"Join voice":(voiceMuted?"Unmute mic":"Mute mic");}
+ if(count)count.textContent=String(voiceJoined?voicePeerConnections.size+1:0);
 }
 async function toggleVoiceControl(){
  if(!voiceJoined){
   await joinVoiceChat();
   if(voiceJoined){
    voiceMuted=false;
-   voiceStream?.getAudioTracks().forEach(t=>t.enabled=true);
-   for(const pc of voicePeerConnections.values())voiceAttachLocalTracks(pc);
-   try{await voiceParticipantsRef.child(roomPlayerId).child(voiceSessionId).update({muted:false});}catch(e){}
+   voiceStream?.getAudioTracks().forEach(track=>track.enabled=true);
+   try{await voiceParticipantsRef.child(roomPlayerId).update({muted:false});}catch(e){}
    voiceSetStatus("Your microphone is on. Speak to the table.");
    voiceUpdateTopControls();
   }
   return;
  }
  await toggleVoiceMute();
-}
-function voiceUpdateTopControls(){
- const btn=document.getElementById("voiceMuteBtn"),count=document.getElementById("topVoiceCount");
- const connected=[...voicePeerConnections.values()].filter(pc=>pc.connectionState==="connected").length;
- if(btn){btn.disabled=false;btn.textContent=!voiceJoined?"Join voice":(voiceMuted?"Unmute mic":"Mute mic");}
- if(count)count.textContent=String(voiceJoined?connected+1:0);
-}
-async function toggleVoiceMute(){
- if(!voiceJoined||!voiceStream)return;
- voiceMuted=!voiceMuted;
- const tracks=voiceStream.getAudioTracks();tracks.forEach(t=>t.enabled=!voiceMuted);
- if(!voiceMuted&&!tracks.some(t=>t.readyState==="live")){voiceSetStatus("Microphone is not active. Leave voice and join again.");return;}
- for(const pc of voicePeerConnections.values())voiceAttachLocalTracks(pc);
  voiceUpdateTopControls();
- try{await voiceParticipantsRef.child(roomPlayerId).child(voiceSessionId).update({muted:voiceMuted});}
- catch(e){voiceSetStatus("Microphone state could not sync: "+e.message);}
- voiceSetStatus(voiceMuted?"You are listening. Your microphone is muted.":"Your microphone is on. Speak to the table.");
 }
-async function leaveVoiceChat(){
- const wasJoined=voiceJoined,leavingSessionId=voiceSessionId,leavingPeers=[...voicePeerSessions.keys()];voiceJoined=false;
- if(voiceParticipantsRef&&voiceParticipantsListener)voiceParticipantsRef.off("value",voiceParticipantsListener);
- voiceParticipantsListener=null;
- for(const [uid,pc] of voicePeerConnections){try{pc.close();}catch(e){}const audio=document.getElementById("voiceAudio_"+uid);if(audio){audio.pause();audio.srcObject=null;audio.remove();}}
- voicePeerConnections.clear();voicePendingCandidates.clear();voicePeerSessions.clear();voiceOfferStarting.clear();
- for(const {ref,listener} of voiceSignalListeners.values())ref.off("child_added",listener);
- voiceSignalListeners.clear();
- if(voiceStream){voiceStream.getTracks().forEach(t=>t.stop());voiceStream=null;}
- if(wasJoined&&voiceParticipantsRef&&roomPlayerId&&leavingSessionId)try{await voiceParticipantsRef.child(roomPlayerId).child(leavingSessionId).remove();}catch(e){}
- // Remove only this session's outbound signals. Never delete a newer session.
- if(voiceSignalsRef&&roomPlayerId&&leavingSessionId)await Promise.all(leavingPeers.map(uid=>voiceSignalPath(roomPlayerId,uid,leavingSessionId).remove().catch(()=>{})));
- voiceSessionId=null;voiceMuted=true;voiceParticipantsRef=null;voiceSignalsRef=null;voiceParticipantKey=null;
- const panel=document.getElementById("voicePanel");if(panel&&onlineMode)panel.classList.remove("hidden");
- voiceUpdateTopControls();
- const joinBtn=document.getElementById("voiceJoinBtn"),muteBtn=document.getElementById("voiceMuteBtn"),leaveBtn=document.getElementById("voiceLeaveBtn");
- if(joinBtn){joinBtn.classList.remove("hidden");joinBtn.disabled=false;joinBtn.textContent="Join voice";}
- if(muteBtn)muteBtn.classList.add("hidden");
- if(leaveBtn)leaveBtn.classList.add("hidden");
- voiceRenderPeople([]);
- voiceSetStatus("Voice is off. Join when you want to talk.");
-}
-
-// Android can suspend the microphone during a phone call. Recover cleanly on return.
-// Retry remote audio playback on the next user gesture if Android/Chrome blocked autoplay.
-document.addEventListener("pointerdown",()=>{
- document.querySelectorAll('audio[id^="voiceAudio_"]').forEach(audio=>{
-  if(audio.srcObject&&audio.paused)audio.play().catch(()=>{});
- });
-},{passive:true});
-
-document.addEventListener("visibilitychange",()=>{
- if(document.visibilityState!=="visible"||!voiceJoined||voiceRecoveryInProgress)return;
- const tracks=voiceStream?.getAudioTracks()||[];
- if(!tracks.length||tracks.some(t=>t.readyState!=="live"||t.muted)){
-  voiceRecoveryInProgress=true;
-  leaveVoiceChat().finally(()=>{
-   voiceRecoveryInProgress=false;
-   voiceSetStatus("Your microphone was interrupted while you were away. Tap Join voice to reconnect.");
-   const btn=document.getElementById("voiceJoinBtn");if(btn){btn.classList.remove("hidden");btn.disabled=false;btn.textContent="Join voice";}
-  });
- }
-});
-
 function applyOnlinePublic(){
  if(!onlineMode||!onlinePublic)return;onlineActionPending=false;const st=onlinePublic,prior=players[0]||{},m=st.players||[];specialRank=st.specialRank||null;showSharedAction(st.lastAction);
  if(st.status==="playing"||st.status==="restartRequested"){const resultScreen=document.getElementById("roundResults");if(resultScreen){resultScreen.classList.add("hidden");resultScreen.classList.remove("game-complete-screen");}}
