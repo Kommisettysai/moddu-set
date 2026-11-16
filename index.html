@@ -2832,6 +2832,83 @@ body:has(#game:not(.hidden)) main{
 .card-watch-decline{border:1px solid rgba(207,220,209,.5);background:rgba(255,255,255,.06);color:#e8e4d4}
 .card-watch-modal-foot{margin-top:16px;padding-top:13px;border-top:1px solid rgba(223,199,142,.2);font-size:11px;color:#b5cabc}
 @media(max-width:420px){.card-watch-modal{padding:22px 16px 17px;border-radius:20px}.card-watch-request-card{padding:11px}}
+
+/* Mobile-first final game results layout refinement */
+#roundResults.game-complete-screen #resultsProfiles{
+ display:grid!important;
+ grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ align-items:start!important;
+ gap:9px!important;
+}
+#roundResults.game-complete-screen .champion-celebration,
+#roundResults.game-complete-screen .table-moments{
+ grid-column:1/-1!important;
+ width:100%!important;
+ min-width:0!important;
+}
+#roundResults.game-complete-screen .table-moments{
+ margin:0 0 2px!important;
+ padding:12px!important;
+}
+#roundResults.game-complete-screen .table-moments-grid{
+ grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ gap:7px!important;
+}
+#roundResults.game-complete-screen .table-moment{
+ min-width:0!important;
+ overflow:hidden!important;
+ padding:9px!important;
+}
+#roundResults.game-complete-screen .table-moment strong{
+ overflow-wrap:normal!important;
+ word-break:normal!important;
+ display:-webkit-box!important;
+ -webkit-box-orient:vertical!important;
+ -webkit-line-clamp:2!important;
+ overflow:hidden!important;
+ line-height:1.25!important;
+}
+#roundResults.game-complete-screen .results-profile{
+ align-self:start!important;
+ min-width:0!important;
+ min-height:0!important;
+ height:auto!important;
+ padding:10px 7px!important;
+}
+#roundResults.game-complete-screen .results-profile .results-identity{
+ flex-direction:column!important;
+ justify-content:center!important;
+ gap:5px!important;
+ width:100%!important;
+}
+#roundResults.game-complete-screen .results-profile .results-name{
+ display:block!important;
+ width:100%!important;
+ min-width:0!important;
+ text-align:center!important;
+}
+#roundResults.game-complete-screen .results-profile .results-name strong{
+ display:block!important;
+ width:100%!important;
+ max-width:100%!important;
+ overflow:hidden!important;
+ text-overflow:ellipsis!important;
+ white-space:nowrap!important;
+ text-align:center!important;
+}
+#roundResults.game-complete-screen .results-profile .finish-rank,
+#roundResults.game-complete-screen .results-profile .result-points,
+#roundResults.game-complete-screen .results-profile .winner-tag{
+ max-width:100%!important;
+}
+@media(max-width:390px){
+ #roundResults.game-complete-screen #resultsProfiles{gap:7px!important}
+ #roundResults.game-complete-screen .table-moments{padding:10px!important}
+ #roundResults.game-complete-screen .table-moment{padding:8px!important}
+ #roundResults.game-complete-screen .table-moment strong{font-size:12px!important}
+ #roundResults.game-complete-screen .results-profile{padding:9px 5px!important}
+}
+
 </style>
 <style>
 .card-watch-see{margin:5px 0 2px;padding:6px 16px;border:1px solid #e7c46e;border-radius:18px;background:linear-gradient(135deg,#ffe5a0,#d9a94d);color:#183d31;font-weight:800;letter-spacing:1px}
