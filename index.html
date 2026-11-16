@@ -5777,7 +5777,7 @@ let lastTurnAlertKey=null;
 let onlineChatRef=null,onlineChatListener=null,chatIsOpen=false,chatHasOpened=false,chatUnreadCount=0,lastChatSentAt=0,mutedChatSenders=new Set();
 let locallyShownChatMessages=new Set();
 let cardWatchLockRef=null,cardWatchLockListener=null,cardWatchRequestRef=null,cardWatchRequestListener=null,cardWatchViewerDismissed=false;
-let incomingCardWatchRef=null,incomingCardWatchListener=null,watchedHandRef=null,watchedHandListener=null;
+let incomingCardWatchRef=null,incomingCardWatchListener=null,watchedHandRef=null,watchedHandListener=null,watchedHandPath="";
 let cardWatchState=null,incomingCardWatchRequests={},watchedHandCache=[],watchedHandTargetName="";
 let eliminatedSpectator=false;
 let discardClockInterval=null,hostDiscardTimeout=null,scheduledDiscardKey=null;
@@ -6085,7 +6085,7 @@ function closeCardWatchViewer(revokeAccess=false){
  document.getElementById("cardWatchViewer")?.remove();
  if(revokeAccess){
   if(watchedHandRef&&watchedHandListener)watchedHandRef.off("value",watchedHandListener);
-  watchedHandRef=null;watchedHandListener=null;watchedHandCache=[];watchedHandTargetName="";
+  watchedHandRef=null;watchedHandListener=null;watchedHandPath="";watchedHandCache=[];watchedHandTargetName="";
   document.getElementById("cardWatchReopen")?.remove();
  }else if(cardWatchState?.status==="accepted"){
   ensureCardWatchReopenButton();
@@ -6137,7 +6137,7 @@ async function reopenCardWatchViewer(){
   watchedHandTargetName=target.name||watchedHandTargetName||"Player";
   if(!Array.isArray(watchedHandCache)||!watchedHandCache.length){
    const handSnap=await roomRef.child("private/hands/"+targetUid).get(),value=handSnap.val();
-   watchedHandCache=Array.isArray(value)?value:(value&&typeof value==="object"?Object.values(value):[]);
+   watchedHandCache=normalizeWatchedHand(value);
   }
   if(!watchedHandCache.length){if(button){button.disabled=false;button.textContent="👁 VIEW "+watchedHandTargetName.toUpperCase()+"’S CARDS";}setLobbyNotice("Cards are still loading. Please tap again in a moment.");return;}
   cardWatchViewerDismissed=false;showCardWatchViewer(watchedHandTargetName,watchedHandCache);
@@ -6146,21 +6146,32 @@ async function reopenCardWatchViewer(){
   setLobbyNotice("Could not reopen the cards. Please try again.");console.error("Card watcher reopen failed:",error);
  }
 }
+function normalizeWatchedHand(value){
+ if(Array.isArray(value))return value.filter(Boolean);
+ if(value&&typeof value==="object")return Object.values(value).filter(Boolean);
+ return [];
+}
 function syncCardWatchViewer(){
- if(!cardWatchState||cardWatchState.status!=="accepted")return;
- const target=currentOnlinePlayer(cardWatchState.targetUid);
- if(!target||target.active===false||cardWatchState.round!==cardWatchRound()){closeCardWatchViewer(true);return;}
+ if(!cardWatchState||cardWatchState.status!=="accepted"||!roomRef||!roomPlayerId)return;
+ const targetUid=cardWatchState.targetUid,target=currentOnlinePlayer(targetUid);
+ if(!target||target.active===false||Number(cardWatchState.round)!==cardWatchRound()){closeCardWatchViewer(true);return;}
  watchedHandTargetName=target.name||"Player";
- if(!watchedHandRef){
-  watchedHandRef=roomRef.child("private/hands/"+cardWatchState.targetUid);
+ const path="private/hands/"+targetUid;
+ if(watchedHandPath!==path){
+  if(watchedHandRef&&watchedHandListener)watchedHandRef.off("value",watchedHandListener);
+  watchedHandRef=roomRef.child(path);watchedHandPath=path;watchedHandCache=[];
   watchedHandListener=snap=>{
-   if(!snap.exists()){watchedHandCache=[];return;}
-   watchedHandCache=snap.val()||[];
+   watchedHandCache=normalizeWatchedHand(snap.val());
    if(!cardWatchViewerDismissed)showCardWatchViewer(watchedHandTargetName,watchedHandCache);
    else ensureCardWatchReopenButton();
   };
-  watchedHandRef.on("value",watchedHandListener);
- }else if(!cardWatchViewerDismissed&&watchedHandCache.length){
+  watchedHandRef.on("value",watchedHandListener,error=>{
+   console.error("Approved card-view read failed:",error);
+   setLobbyNotice("Approval received, but the cards could not be loaded. Please close and reopen the card viewer.");
+   const button=document.getElementById("cardWatchReopen");
+   if(button){button.disabled=false;button.textContent="👁 RETRY "+watchedHandTargetName.toUpperCase()+"’S CARDS";}
+  });
+ }else if(!cardWatchViewerDismissed){
   showCardWatchViewer(watchedHandTargetName,watchedHandCache);
  }
 }
@@ -6199,8 +6210,11 @@ function listenToOwnCardWatchRequest(targetUid){
  cardWatchRequestRef=roomRef.child("cardWatchRequests/"+targetUid+"/"+roomPlayerId);
  cardWatchRequestListener=snap=>{
   cardWatchState=snap.val()||null;
-  if(cardWatchState?.status==="accepted"){setLobbyNotice("Request approved. You can view this player's cards.");syncCardWatchViewer();}
-  else if(cardWatchState?.status==="declined"){closeCardWatchViewer(true);setLobbyNotice("Your card-view request was declined.");}
+  if(cardWatchState?.status==="accepted"){
+   cardWatchViewerDismissed=false;
+   setLobbyNotice("Request approved. Opening this player's cards…");
+   syncCardWatchViewer();
+  }else if(cardWatchState?.status==="declined"){closeCardWatchViewer(true);setLobbyNotice("Your card-view request was declined.");}
   render();
  };
  cardWatchRequestRef.on("value",cardWatchRequestListener);
