@@ -2836,6 +2836,16 @@ body:has(#game:not(.hidden)) main{
 .card-watch-dialog p{color:#c4d4c9;font-size:13px}
 .card-watch-cards{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;padding:14px 0}
 .card-watch-cards .results-card{width:54px;height:78px;flex:0 0 54px}
+.card-watch-hand-layout{display:grid;gap:12px;padding:5px 0 2px}
+.card-watch-set{padding:10px;border:1px solid rgba(226,197,126,.3);border-radius:13px;background:rgba(255,255,255,.045);min-width:0}
+.card-watch-set-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px;color:#f3d88f;font-size:11px;font-weight:900;letter-spacing:1px}
+.card-watch-set-title small{color:#a9c5b5;font-size:9px;letter-spacing:.6px}
+.card-watch-set .card-watch-cards{justify-content:flex-start;padding:2px 0;gap:7px}
+.card-watch-loose{border-style:dashed;background:rgba(0,0,0,.12)}
+.card-watch-loose .card-watch-set-title{color:#d6d8c8}
+.card-watch-empty{padding:18px;text-align:center;color:#c4d4c9;border:1px dashed rgba(226,197,126,.35);border-radius:12px}
+.card-watch-reopen{position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:10049;border:1px solid #f2d58a;border-radius:22px;padding:12px 17px;background:linear-gradient(135deg,#ffe5a0,#d9a94d);color:#183d31;font-size:12px;font-weight:900;letter-spacing:.5px;box-shadow:0 8px 28px #0008;max-width:calc(100vw - 32px)}
+@media(max-width:420px){.card-watch-dialog{padding:13px}.card-watch-set{padding:8px}.card-watch-cards .results-card{width:47px;height:68px;flex-basis:47px}.card-watch-reopen{right:12px;bottom:calc(12px + env(safe-area-inset-bottom))}}
 .card-watch-requests{margin:10px 0;padding:12px;border:1px solid #d8bd75;border-radius:12px;background:#123d30;color:#f3e3b0}
 .card-watch-requests>strong{display:block;margin-bottom:8px}
 .card-watch-requests>div{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin-top:7px}
@@ -5746,7 +5756,7 @@ let onlineChatRef=null,onlineChatListener=null,chatIsOpen=false,chatHasOpened=fa
 let locallyShownChatMessages=new Set();
 let cardWatchLockRef=null,cardWatchLockListener=null,cardWatchRequestRef=null,cardWatchRequestListener=null,cardWatchViewerDismissed=false;
 let incomingCardWatchRef=null,incomingCardWatchListener=null,watchedHandRef=null,watchedHandListener=null;
-let cardWatchState=null,incomingCardWatchRequests={};
+let cardWatchState=null,incomingCardWatchRequests={},watchedHandCache=[],watchedHandTargetName="";
 let eliminatedSpectator=false;
 let discardClockInterval=null,hostDiscardTimeout=null,scheduledDiscardKey=null;
 let onlinePublicListener=null,onlineHandListener=null,onlineActionListener=null,onlineLobbyListener=null,rejoinPublicListener=null,onlineRejoinListener=null,onlineBusy={},onlineBotBusy=false;
@@ -6048,25 +6058,66 @@ function sendPlayerReactionFromPopup(value,type){const text=String(value||"").tr
 function cardWatchRound(){return Math.max(1,Number(onlinePublic?.round)||1);}
 function currentOnlinePlayer(uid){return (onlinePublic?.players||[]).find(p=>p.id===uid)||null;}
 function canWatchCardsThisRound(){const me=currentOnlinePlayer(roomPlayerId);return !!(onlineMode&&(eliminatedSpectator||me?.roundDropped));}
-function closeCardWatchViewer(){
+function closeCardWatchViewer(revokeAccess=false){
  cardWatchViewerDismissed=true;
- if(watchedHandRef&&watchedHandListener)watchedHandRef.off("value",watchedHandListener);
- watchedHandRef=null;watchedHandListener=null;
  document.getElementById("cardWatchViewer")?.remove();
+ if(revokeAccess){
+  if(watchedHandRef&&watchedHandListener)watchedHandRef.off("value",watchedHandListener);
+  watchedHandRef=null;watchedHandListener=null;watchedHandCache=[];watchedHandTargetName="";
+  document.getElementById("cardWatchReopen")?.remove();
+ }else if(cardWatchState?.status==="accepted"&&watchedHandCache.length){
+  let button=document.getElementById("cardWatchReopen");
+  if(!button){
+   button=document.createElement("button");button.id="cardWatchReopen";button.className="card-watch-reopen";
+   button.type="button";button.onclick=()=>reopenCardWatchViewer();document.body.appendChild(button);
+  }
+  button.textContent="👁 VIEW "+String(watchedHandTargetName||"PLAYER").toUpperCase()+"’S CARDS";
+ }
+}
+function renderCardWatchGroups(targetName,hand){
+ const target=currentOnlinePlayer(cardWatchState?.targetUid)||{};
+ const plan=findBestArrangement(hand||[],target),used=new Set();
+ const groups=(plan.groups||[]).slice().sort((a,b)=>Number(b.pure)-Number(a.pure)||a.wilds-b.wilds);
+ const sets=groups.map((group,index)=>{
+  group.cards.forEach(card=>used.add(card.id));
+  return '<section class="card-watch-set"><div class="card-watch-set-title"><span>SET '+(index+1)+'</span><small>'+group.cards.length+' CARDS · '+(group.pure?'PURE SET':'VALID SET')+'</small></div><div class="card-watch-cards">'+group.cards.map(card=>renderResultCard(card)).join("")+'</div></section>';
+ }).join("");
+ const loose=(hand||[]).filter(card=>!used.has(card.id));
+ const looseMarkup=loose.length?'<section class="card-watch-set card-watch-loose"><div class="card-watch-set-title"><span>UNMATCHED CARDS</span><small>'+loose.length+' CARDS</small></div><div class="card-watch-cards">'+sortCardsLowToHigh(loose).map(card=>renderResultCard(card)).join("")+'</div></section>':'';
+ return '<div class="card-watch-hand-layout">'+(sets||'<div class="card-watch-empty">No complete sets found in this hand.</div>')+looseMarkup+'</div>';
 }
 function showCardWatchViewer(targetName,hand){
+ watchedHandTargetName=targetName||watchedHandTargetName||"Player";
+ watchedHandCache=Array.isArray(hand)?hand.slice():[];
+ document.getElementById("cardWatchReopen")?.remove();
  let overlay=document.getElementById("cardWatchViewer");
  if(!overlay){overlay=document.createElement("div");overlay.id="cardWatchViewer";overlay.className="card-watch-overlay";document.body.appendChild(overlay);}
- overlay.innerHTML='<div class="card-watch-dialog" role="dialog" aria-modal="true"><div class="card-watch-head"><div><small>READ-ONLY VIEW</small><h3>'+escapeLobbyText(targetName)+'’s cards</h3></div><button type="button" onclick="closeCardWatchViewer()" aria-label="Close">×</button></div><p>You can view these cards only. Game actions are disabled.</p><div class="card-watch-cards">'+(hand||[]).map(c=>renderResultCard(c)).join("")+'</div></div>';
+ overlay.innerHTML='<div class="card-watch-dialog" role="dialog" aria-modal="true"><div class="card-watch-head"><div><small>READ-ONLY VIEW · LIVE CARDS</small><h3>'+escapeLobbyText(watchedHandTargetName)+'’s cards</h3></div><button type="button" onclick="closeCardWatchViewer()" aria-label="Close">×</button></div><p>Cards are grouped into valid sets. Unmatched cards are shown separately. This is a read-only view.</p>'+renderCardWatchGroups(watchedHandTargetName,watchedHandCache)+'</div>';
+}
+function reopenCardWatchViewer(){
+ if(!cardWatchState||cardWatchState.status!=="accepted"||!watchedHandCache.length)return;
+ cardWatchViewerDismissed=false;
+ showCardWatchViewer(watchedHandTargetName,watchedHandCache);
 }
 function syncCardWatchViewer(){
- if(cardWatchViewerDismissed||!cardWatchState||cardWatchState.status!=="accepted")return;
+ if(!cardWatchState||cardWatchState.status!=="accepted")return;
  const target=currentOnlinePlayer(cardWatchState.targetUid);
- if(!target||target.active===false||cardWatchState.round!==cardWatchRound()){closeCardWatchViewer();return;}
+ if(!target||target.active===false||cardWatchState.round!==cardWatchRound()){closeCardWatchViewer(true);return;}
+ watchedHandTargetName=target.name||"Player";
  if(!watchedHandRef){
   watchedHandRef=roomRef.child("private/hands/"+cardWatchState.targetUid);
-  watchedHandListener=snap=>{if(!snap.exists()||cardWatchViewerDismissed)return;showCardWatchViewer(target.name,snap.val()||[]);};
+  watchedHandListener=snap=>{
+   if(!snap.exists()){watchedHandCache=[];return;}
+   watchedHandCache=snap.val()||[];
+   if(!cardWatchViewerDismissed)showCardWatchViewer(watchedHandTargetName,watchedHandCache);
+   else{
+    const button=document.getElementById("cardWatchReopen");
+    if(button)button.textContent="👁 VIEW "+String(watchedHandTargetName).toUpperCase()+"’S CARDS";
+   }
+  };
   watchedHandRef.on("value",watchedHandListener);
+ }else if(!cardWatchViewerDismissed&&watchedHandCache.length){
+  showCardWatchViewer(watchedHandTargetName,watchedHandCache);
  }
 }
 async function requestCardWatch(targetUid){
@@ -6105,7 +6156,7 @@ function listenToOwnCardWatchRequest(targetUid){
  cardWatchRequestListener=snap=>{
   cardWatchState=snap.val()||null;
   if(cardWatchState?.status==="accepted"){setLobbyNotice("Request approved. You can view this player's cards.");syncCardWatchViewer();}
-  else if(cardWatchState?.status==="declined"){closeCardWatchViewer();setLobbyNotice("Your card-view request was declined.");}
+  else if(cardWatchState?.status==="declined"){closeCardWatchViewer(true);setLobbyNotice("Your card-view request was declined.");}
   render();
  };
  cardWatchRequestRef.on("value",cardWatchRequestListener);
@@ -6556,7 +6607,7 @@ function applyOnlinePublic(){
  if(canWatchCardsThisRound()){
   if(cardWatchLockRef&&cardWatchLockListener)cardWatchLockRef.off("value",cardWatchLockListener);
   cardWatchLockRef=roomRef.child("private/cardWatchLocks/"+roomPlayerId);
-  cardWatchLockListener=snap=>{const lock=snap.val();if(lock&&Number(lock.round)===cardWatchRound()){cardWatchState={...(cardWatchState||{}),...lock,status:cardWatchState?.status||"pending"};listenToOwnCardWatchRequest(lock.targetUid);}else{cardWatchState=null;closeCardWatchViewer();}render();};
+  cardWatchLockListener=snap=>{const lock=snap.val();if(lock&&Number(lock.round)===cardWatchRound()){cardWatchState={...(cardWatchState||{}),...lock,status:cardWatchState?.status||"pending"};listenToOwnCardWatchRequest(lock.targetUid);}else{cardWatchState=null;closeCardWatchViewer(true);}render();};
   cardWatchLockRef.off("value");cardWatchLockRef.on("value",cardWatchLockListener);
  }else{if(cardWatchLockRef&&cardWatchLockListener)cardWatchLockRef.off("value",cardWatchLockListener);cardWatchLockRef=cardWatchLockListener=null;cardWatchState=null;closeCardWatchViewer();}
  syncIncomingCardWatchRequests();
