@@ -5776,7 +5776,7 @@ let onlineMode=false,onlinePublic=null,onlinePublicRef=null,onlineHandRef=null,o
 let lastTurnAlertKey=null;
 let onlineChatRef=null,onlineChatListener=null,chatIsOpen=false,chatHasOpened=false,chatUnreadCount=0,lastChatSentAt=0,mutedChatSenders=new Set();
 let locallyShownChatMessages=new Set();
-let cardWatchLockRef=null,cardWatchLockListener=null,cardWatchRequestRef=null,cardWatchRequestListener=null,cardWatchViewerDismissed=false;
+let cardWatchLockRef=null,cardWatchLockListener=null,cardWatchRequestRef=null,cardWatchRequestListener=null,cardWatchRequestPath="",cardWatchViewerDismissed=false;
 let incomingCardWatchRef=null,incomingCardWatchListener=null,watchedHandRef=null,watchedHandListener=null,watchedHandPath="";
 let cardWatchState=null,incomingCardWatchRequests={},watchedHandCache=[],watchedHandTargetName="";
 let eliminatedSpectator=false;
@@ -6206,15 +6206,24 @@ async function requestCardWatch(targetUid){
  }catch(e){setLobbyNotice("Could not send card-view request: "+e.message);}
 }
 function listenToOwnCardWatchRequest(targetUid){
+ const path="cardWatchRequests/"+targetUid+"/"+roomPlayerId;
+ if(cardWatchRequestRef&&cardWatchRequestListener&&cardWatchRequestPath===path)return;
  if(cardWatchRequestRef&&cardWatchRequestListener)cardWatchRequestRef.off("value",cardWatchRequestListener);
- cardWatchRequestRef=roomRef.child("cardWatchRequests/"+targetUid+"/"+roomPlayerId);
+ cardWatchRequestPath=path;
+ cardWatchRequestRef=roomRef.child(path);
  cardWatchRequestListener=snap=>{
+  const previousStatus=cardWatchState?.status;
   cardWatchState=snap.val()||null;
   if(cardWatchState?.status==="accepted"){
-   cardWatchViewerDismissed=false;
-   setLobbyNotice("Request approved. Opening this player's cards…");
-   syncCardWatchViewer();
-  }else if(cardWatchState?.status==="declined"){closeCardWatchViewer(true);setLobbyNotice("Your card-view request was declined.");}
+   if(previousStatus!=="accepted"){
+    cardWatchViewerDismissed=false;
+    setLobbyNotice("Request approved. Opening this player's cards…");
+    syncCardWatchViewer();
+   }
+  }else if(cardWatchState?.status==="declined"){
+   closeCardWatchViewer(true);
+   setLobbyNotice("Your card-view request was declined.");
+  }
   render();
  };
  cardWatchRequestRef.on("value",cardWatchRequestListener);
@@ -6686,7 +6695,7 @@ function applyOnlinePublic(){
 function returnToLobbyForRecovery(){
  const code=roomCode;
  leaveVoiceChat();
- if(onlineChatRef&&onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);if(cardWatchLockRef&&cardWatchLockListener)cardWatchLockRef.off("value",cardWatchLockListener);if(cardWatchRequestRef&&cardWatchRequestListener)cardWatchRequestRef.off("value",cardWatchRequestListener);if(incomingCardWatchRef&&incomingCardWatchListener)incomingCardWatchRef.off("value",incomingCardWatchListener);closeCardWatchViewer();cardWatchLockRef=cardWatchRequestRef=incomingCardWatchRef=null;cardWatchLockListener=cardWatchRequestListener=incomingCardWatchListener=null;cardWatchState=null;incomingCardWatchRequests={};document.getElementById("cardWatchRequestsNotice")?.remove();
+ if(onlineChatRef&&onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);if(cardWatchLockRef&&cardWatchLockListener)cardWatchLockRef.off("value",cardWatchLockListener);if(cardWatchRequestRef&&cardWatchRequestListener)cardWatchRequestRef.off("value",cardWatchRequestListener);if(incomingCardWatchRef&&incomingCardWatchListener)incomingCardWatchRef.off("value",incomingCardWatchListener);closeCardWatchViewer();cardWatchLockRef=cardWatchRequestRef=incomingCardWatchRef=null;cardWatchLockListener=cardWatchRequestListener=incomingCardWatchListener=null;cardWatchRequestPath="";cardWatchState=null;incomingCardWatchRequests={};document.getElementById("cardWatchRequestsNotice")?.remove();
  if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);
  if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);
  if(onlineSpecialRef)onlineSpecialRef.off("value");
