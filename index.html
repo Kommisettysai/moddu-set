@@ -6263,9 +6263,17 @@ function renderCardWatchGroups(targetName,hand){
 }
 function showCardWatchViewer(targetName,hand){
  watchedHandTargetName=targetName||watchedHandTargetName||"Player";
- watchedHandCache=Array.isArray(hand)?hand.slice():[];
- document.getElementById("cardWatchReopen")?.remove();
+ watchedHandCache=Array.isArray(hand)?hand.filter(Boolean):[];
  let overlay=document.getElementById("cardWatchViewer");
+ if(!watchedHandCache.length){
+  if(overlay)overlay.remove();
+  ensureCardWatchReopenButton();
+  const button=document.getElementById("cardWatchReopen");
+  if(button){button.disabled=false;button.textContent="👁 RETRY "+String(watchedHandTargetName||"PLAYER").toUpperCase()+"’S CARDS";}
+  setLobbyNotice("The player's cards are still loading. Tap the retry button in a moment.");
+  return;
+ }
+ document.getElementById("cardWatchReopen")?.remove();
  if(!overlay){overlay=document.createElement("div");overlay.id="cardWatchViewer";overlay.className="card-watch-overlay";document.body.appendChild(overlay);}
  overlay.innerHTML='<div class="card-watch-dialog" role="dialog" aria-modal="true"><div class="card-watch-head"><div><small>READ-ONLY VIEW · LIVE CARDS</small><h3>'+escapeLobbyText(watchedHandTargetName)+'’s cards</h3></div><button type="button" onclick="closeCardWatchViewer()" aria-label="Close">×</button></div><p>Cards are grouped into valid sets. Unmatched cards are shown separately. This is a read-only view.</p>'+renderCardWatchGroups(watchedHandTargetName,watchedHandCache)+'</div>';
 }
@@ -6288,7 +6296,7 @@ async function reopenCardWatchViewer(){
    const handSnap=await roomRef.child("private/hands/"+targetUid).get(),value=handSnap.val();
    watchedHandCache=normalizeWatchedHand(value);
   }
-  if(!watchedHandCache.length){if(button){button.disabled=false;button.textContent="👁 VIEW "+watchedHandTargetName.toUpperCase()+"’S CARDS";}setLobbyNotice("Cards are still loading. Please tap again in a moment.");return;}
+  if(!watchedHandCache.length){ensureCardWatchReopenButton();const retry=document.getElementById("cardWatchReopen");if(retry){retry.disabled=false;retry.textContent="👁 RETRY "+watchedHandTargetName.toUpperCase()+"’S CARDS";}setLobbyNotice("Cards are still loading. Please tap again in a moment.");return;}
   cardWatchViewerDismissed=false;showCardWatchViewer(watchedHandTargetName,watchedHandCache);
  }catch(error){
   if(button){button.disabled=false;button.textContent="👁 VIEW "+String(watchedHandTargetName||"PLAYER").toUpperCase()+"’S CARDS";}
@@ -6311,6 +6319,11 @@ function syncCardWatchViewer(){
   watchedHandRef=roomRef.child(path);watchedHandPath=path;watchedHandCache=[];
   watchedHandListener=snap=>{
    watchedHandCache=normalizeWatchedHand(snap.val());
+   if(!watchedHandCache.length){
+    if(cardWatchViewerDismissed)ensureCardWatchReopenButton();
+    else showCardWatchViewer(watchedHandTargetName,watchedHandCache);
+    return;
+   }
    if(!cardWatchViewerDismissed)showCardWatchViewer(watchedHandTargetName,watchedHandCache);
    else ensureCardWatchReopenButton();
   };
