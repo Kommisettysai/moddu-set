@@ -6065,14 +6065,18 @@ function closeCardWatchViewer(revokeAccess=false){
   if(watchedHandRef&&watchedHandListener)watchedHandRef.off("value",watchedHandListener);
   watchedHandRef=null;watchedHandListener=null;watchedHandCache=[];watchedHandTargetName="";
   document.getElementById("cardWatchReopen")?.remove();
- }else if(cardWatchState?.status==="accepted"&&watchedHandCache.length){
-  let button=document.getElementById("cardWatchReopen");
-  if(!button){
-   button=document.createElement("button");button.id="cardWatchReopen";button.className="card-watch-reopen";
-   button.type="button";button.onclick=()=>reopenCardWatchViewer();document.body.appendChild(button);
-  }
-  button.textContent="👁 VIEW "+String(watchedHandTargetName||"PLAYER").toUpperCase()+"’S CARDS";
+ }else if(cardWatchState?.status==="accepted"){
+  ensureCardWatchReopenButton();
  }
+}
+function ensureCardWatchReopenButton(){
+ let button=document.getElementById("cardWatchReopen");
+ if(!button){
+  button=document.createElement("button");button.id="cardWatchReopen";button.className="card-watch-reopen";
+  button.type="button";button.onclick=()=>reopenCardWatchViewer();document.body.appendChild(button);
+ }
+ button.disabled=!watchedHandCache.length;
+ button.textContent=watchedHandCache.length?"👁 VIEW "+String(watchedHandTargetName||"PLAYER").toUpperCase()+"’S CARDS":"CARDS LOADING…";
 }
 function renderCardWatchGroups(targetName,hand){
  const target=currentOnlinePlayer(cardWatchState?.targetUid)||{};
@@ -6110,10 +6114,7 @@ function syncCardWatchViewer(){
    if(!snap.exists()){watchedHandCache=[];return;}
    watchedHandCache=snap.val()||[];
    if(!cardWatchViewerDismissed)showCardWatchViewer(watchedHandTargetName,watchedHandCache);
-   else{
-    const button=document.getElementById("cardWatchReopen");
-    if(button)button.textContent="👁 VIEW "+String(watchedHandTargetName).toUpperCase()+"’S CARDS";
-   }
+   else ensureCardWatchReopenButton();
   };
   watchedHandRef.on("value",watchedHandListener);
  }else if(!cardWatchViewerDismissed&&watchedHandCache.length){
