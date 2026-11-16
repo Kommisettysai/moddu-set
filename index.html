@@ -1195,6 +1195,73 @@ body:has(#roundResults:not(.hidden))>header,
 .table-moment small{display:block;margin-top:2px;color:#b7cdbd;font-size:10px}
 .results-share-button{width:100%;margin:8px 0 2px!important;border:1px solid #e6c66f!important;background:linear-gradient(135deg,#72551f,#b78b37)!important;color:#fff4cf!important}
 @media(max-width:360px){.table-moments-grid{grid-template-columns:1fr}}
+/* Refined Table Moments: distinct achievements, clearer names and score hierarchy. */
+#roundResults.game-complete-screen .table-moments{
+ margin:12px 0 16px;padding:14px;
+ border:1px solid #d8bd7977;border-radius:17px;
+ background:linear-gradient(145deg,#174b39f5,#0a3025f5);
+ box-shadow:0 7px 20px #0003,inset 0 1px #fff1;
+}
+#roundResults.game-complete-screen .table-moments-title{
+ display:flex;align-items:center;gap:8px;margin:0 0 12px;
+ color:#ffe4a0;font:900 12px Georgia,serif;letter-spacing:1.5px;
+}
+#roundResults.game-complete-screen .table-moments-title:after{
+ content:"";height:1px;flex:1;margin-left:5px;
+ background:linear-gradient(90deg,#d9b66b66,transparent);
+}
+#roundResults.game-complete-screen .table-moments-grid{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;
+}
+#roundResults.game-complete-screen .table-moment{
+ position:relative;isolation:isolate;display:flex;flex-direction:column;
+ justify-content:center;min-width:0;min-height:112px;overflow:hidden;
+ padding:11px 10px 10px;border-radius:13px;
+ background:linear-gradient(145deg,#ffffff0d,#ffffff05);
+ border:1px solid #e6d39a38;
+ box-shadow:inset 0 1px #ffffff0a;
+}
+#roundResults.game-complete-screen .table-moment:before{
+ content:"";position:absolute;z-index:-1;inset:0 auto 0 0;width:3px;
+ background:#b9cdbb55;
+}
+#roundResults.game-complete-screen .table-moment:after{
+ content:"";position:absolute;z-index:-1;width:90px;height:90px;right:-42px;top:-45px;
+ border-radius:50%;background:#ffffff08;
+}
+#roundResults.game-complete-screen .table-moment span{
+ display:block;color:#d9c99d;font-size:9px;font-weight:900;
+ letter-spacing:.75px;line-height:1.35;text-transform:uppercase;
+}
+#roundResults.game-complete-screen .table-moment strong{
+ display:block;margin-top:7px;color:#fff3d0;font-family:Georgia,serif;
+ font-size:clamp(14px,3.8vw,17px);line-height:1.2;overflow-wrap:anywhere;
+}
+#roundResults.game-complete-screen .table-moment small{
+ display:block;margin-top:6px;color:#bfd2c5;font-size:10px;line-height:1.35;
+}
+#roundResults.game-complete-screen .table-moment small b{
+ color:#ffe4a0;font-size:13px;font-weight:900;letter-spacing:.2px;
+}
+#roundResults.game-complete-screen .table-moment.moment-champion{
+ background:linear-gradient(145deg,#665126aa,#ffffff08 78%);
+ border-color:#f4d28a88;
+}
+#roundResults.game-complete-screen .table-moment.moment-champion:before{background:linear-gradient(#ffe7a0,#c99435)}
+#roundResults.game-complete-screen .table-moment.moment-challenger:before{background:#9bb9d2}
+#roundResults.game-complete-screen .table-moment.moment-high-score:before{background:#e39a68}
+#roundResults.game-complete-screen .table-moment.moment-crew:before{background:#83c6a2}
+@media(max-width:360px){
+ #roundResults.game-complete-screen .table-moments{padding:11px}
+ #roundResults.game-complete-screen .table-moments-grid{gap:7px}
+ #roundResults.game-complete-screen .table-moment{min-height:105px;padding:9px 8px}
+ #roundResults.game-complete-screen .table-moment span{font-size:8px}
+ #roundResults.game-complete-screen .table-moment strong{font-size:13px}
+}
+@media(prefers-reduced-motion:reduce){
+ #roundResults.game-complete-screen .table-moment{transition:none}
+}
+
 .champion-celebration{
  grid-column:1/-1;
  position:relative;
@@ -7102,10 +7169,10 @@ function openOnlineGameComplete(champion){
  const closest=runnerUps[0]||null;
  const highest=[...sorted].sort((a,b)=>(Number(b.score)||0)-(Number(a.score)||0))[0]||null;
  const momentsMarkup='<section class="table-moments"><div class="table-moments-title">✨ TABLE MOMENTS</div><div class="table-moments-grid">'+
-  '<div class="table-moment"><span>👑 THE CHAMPION</span><strong>'+escapeLobbyText(winner?.name||champion)+'</strong><small>Top of this table</small></div>'+
-  (closest?'<div class="table-moment"><span>⚔️ CLOSEST CHALLENGER</span><strong>'+escapeLobbyText(closest.name)+'</strong><small>Final score: '+(Number(closest.score)||0)+'</small></div>':'')+
-  (highest&&highest.id!==winner?.id?'<div class="table-moment"><span>💥 BIGGEST SCORE</span><strong>'+escapeLobbyText(highest.name)+'</strong><small>Final score: '+(Number(highest.score)||0)+'</small></div>':'')+
-  '<div class="table-moment"><span>🃏 THE WHOLE CREW</span><strong>'+sorted.length+' players</strong><small>One table, one champion</small></div></div></section>';
+  '<div class="table-moment moment-champion"><span>👑 THE CHAMPION</span><strong>'+escapeLobbyText(winner?.name||champion)+'</strong><small>Winning total · <b>'+(Number(winner?.score)||0)+'</b></small></div>'+
+  (closest?'<div class="table-moment moment-challenger"><span>⚔️ CLOSEST CHALLENGER</span><strong>'+escapeLobbyText(closest.name)+'</strong><small>Next lowest total · <b>'+(Number(closest.score)||0)+'</b></small></div>':'')+
+  (highest&&highest.id!==winner?.id?'<div class="table-moment moment-high-score"><span>💥 HIGHEST SCORE</span><strong>'+escapeLobbyText(highest.name)+'</strong><small>Highest total · <b>'+(Number(highest.score)||0)+'</b></small></div>':'')+
+  '<div class="table-moment moment-crew"><span>🃏 THE WHOLE CREW</span><strong>'+sorted.length+' players</strong><small>One table, one champion</small></div></div></section>';
  profiles.innerHTML=confettiMarkup+winnerMarkup+momentsMarkup+sorted.map((p,i)=>{const isWinner=p.id===onlinePublic.championUid||(!onlinePublic.championUid&&p.name===champion);return '<div class="results-profile '+(isWinner?'show-winner champion-profile':'final-player-profile')+'">'+playerIdentityMarkup(p,i,"results")+'<span class="finish-rank">'+(isWinner?'🏆 CHAMPION':'FINAL PLAYER')+'</span><span class="result-points">Total: '+(Number(p.score)||0)+'</span>'+(isWinner?'<span class="winner-tag">🎊 WINNER 🎊</span>':'')+'</div>';}).join('');
  handsEl.innerHTML="";
  const footer=screen.querySelector(".results-footer");
