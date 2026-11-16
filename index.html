@@ -2844,7 +2844,7 @@ body:has(#game:not(.hidden)) main{
 .card-watch-loose{border-style:dashed;background:rgba(0,0,0,.12)}
 .card-watch-loose .card-watch-set-title{color:#d6d8c8}
 .card-watch-empty{padding:18px;text-align:center;color:#c4d4c9;border:1px dashed rgba(226,197,126,.35);border-radius:12px}
-.card-watch-reopen{position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:10049;border:1px solid #f2d58a;border-radius:22px;padding:12px 17px;background:linear-gradient(135deg,#ffe5a0,#d9a94d);color:#183d31;font-size:12px;font-weight:900;letter-spacing:.5px;box-shadow:0 8px 28px #0008;max-width:calc(100vw - 32px)}
+.card-watch-reopen{position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:100001;pointer-events:auto;touch-action:manipulation;border:1px solid #f2d58a;border-radius:22px;padding:12px 17px;background:linear-gradient(135deg,#ffe5a0,#d9a94d);color:#183d31;font-size:12px;font-weight:900;letter-spacing:.5px;box-shadow:0 8px 28px #0008;max-width:calc(100vw - 32px)}
 @media(max-width:420px){.card-watch-dialog{padding:13px}.card-watch-set{padding:8px}.card-watch-cards .results-card{width:47px;height:68px;flex-basis:47px}.card-watch-reopen{right:12px;bottom:calc(12px + env(safe-area-inset-bottom))}}
 .card-watch-requests{margin:10px 0;padding:12px;border:1px solid #d8bd75;border-radius:12px;background:#123d30;color:#f3e3b0}
 .card-watch-requests>strong{display:block;margin-bottom:8px}
@@ -6073,7 +6073,7 @@ function ensureCardWatchReopenButton(){
  let button=document.getElementById("cardWatchReopen");
  if(!button){
   button=document.createElement("button");button.id="cardWatchReopen";button.className="card-watch-reopen";
-  button.type="button";button.onclick=()=>reopenCardWatchViewer();document.body.appendChild(button);
+  button.type="button";button.setAttribute("aria-label","Reopen approved card viewer");button.addEventListener("click",event=>{event.preventDefault();event.stopPropagation();reopenCardWatchViewer();});document.body.appendChild(button);
  }
  button.disabled=!watchedHandCache.length;
  button.textContent=watchedHandCache.length?"👁 VIEW "+String(watchedHandTargetName||"PLAYER").toUpperCase()+"’S CARDS":"CARDS LOADING…";
@@ -6098,10 +6098,31 @@ function showCardWatchViewer(targetName,hand){
  if(!overlay){overlay=document.createElement("div");overlay.id="cardWatchViewer";overlay.className="card-watch-overlay";document.body.appendChild(overlay);}
  overlay.innerHTML='<div class="card-watch-dialog" role="dialog" aria-modal="true"><div class="card-watch-head"><div><small>READ-ONLY VIEW · LIVE CARDS</small><h3>'+escapeLobbyText(watchedHandTargetName)+'’s cards</h3></div><button type="button" onclick="closeCardWatchViewer()" aria-label="Close">×</button></div><p>Cards are grouped into valid sets. Unmatched cards are shown separately. This is a read-only view.</p>'+renderCardWatchGroups(watchedHandTargetName,watchedHandCache)+'</div>';
 }
-function reopenCardWatchViewer(){
- if(!cardWatchState||cardWatchState.status!=="accepted"||!watchedHandCache.length)return;
- cardWatchViewerDismissed=false;
- showCardWatchViewer(watchedHandTargetName,watchedHandCache);
+async function reopenCardWatchViewer(){
+ const targetUid=cardWatchState?.targetUid;
+ if(!onlineMode||!roomRef||!roomPlayerId||!targetUid){setLobbyNotice("The card-view approval is no longer available.");return;}
+ const button=document.getElementById("cardWatchReopen");
+ if(button){button.disabled=true;button.textContent="OPENING CARDS…";}
+ try{
+  const requestSnap=await roomRef.child("cardWatchRequests/"+targetUid+"/"+roomPlayerId).get();
+  const approval=requestSnap.val();
+  if(!approval||approval.status!=="accepted"||approval.viewerUid!==roomPlayerId||Number(approval.round)!==cardWatchRound()){
+   cardWatchState=approval||null;closeCardWatchViewer(true);setLobbyNotice("Your card-view approval is no longer active.");return;
+  }
+  cardWatchState=approval;
+  const target=currentOnlinePlayer(targetUid);
+  if(!target||target.active===false){closeCardWatchViewer(true);setLobbyNotice("That player's cards are no longer available.");return;}
+  watchedHandTargetName=target.name||watchedHandTargetName||"Player";
+  if(!Array.isArray(watchedHandCache)||!watchedHandCache.length){
+   const handSnap=await roomRef.child("private/hands/"+targetUid).get(),value=handSnap.val();
+   watchedHandCache=Array.isArray(value)?value:(value&&typeof value==="object"?Object.values(value):[]);
+  }
+  if(!watchedHandCache.length){if(button){button.disabled=false;button.textContent="👁 VIEW "+watchedHandTargetName.toUpperCase()+"’S CARDS";}setLobbyNotice("Cards are still loading. Please tap again in a moment.");return;}
+  cardWatchViewerDismissed=false;showCardWatchViewer(watchedHandTargetName,watchedHandCache);
+ }catch(error){
+  if(button){button.disabled=false;button.textContent="👁 VIEW "+String(watchedHandTargetName||"PLAYER").toUpperCase()+"’S CARDS";}
+  setLobbyNotice("Could not reopen the cards. Please try again.");console.error("Card watcher reopen failed:",error);
+ }
 }
 function syncCardWatchViewer(){
  if(!cardWatchState||cardWatchState.status!=="accepted")return;
