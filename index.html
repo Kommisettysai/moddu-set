@@ -4368,12 +4368,25 @@ async function loadGameHistory(){
   }catch(e){const recent=document.getElementById(recentId);if(recent)recent.textContent="Could not load history.";}
  }
 }
-async function saveCompletedGame(mode,gameId,won,opponents){
+async function saveCompletedGame(mode,gameId,won,opponents,matchDetails={}){
  if(!authUser||!profileReady||!firebaseReady||!gameId)return;
  const safeId=String(gameId).replace(/[^a-zA-Z0-9_-]/g,"_");
  const ref=gameHistoryRef(mode).child(safeId);
  try{
-  const record={mode,won:!!won,opponents:(opponents||[]).filter(Boolean).join(", ").slice(0,180),completedAt:firebase.database.ServerValue.TIMESTAMP};
+  const opponentList=(opponents||[]).filter(Boolean);
+  const record={
+   mode,won:!!won,
+   opponents:opponentList.map(p=>typeof p==="string"?p:(p.name||"Player")).join(", ").slice(0,180),
+   completedAt:firebase.database.ServerValue.TIMESTAMP
+  };
+  if(mode==="multiplayer"&&matchDetails&&typeof matchDetails==="object"){
+   record.roomCode=String(matchDetails.roomCode||"").slice(0,12);
+   record.gameNumber=Math.max(1,Number(matchDetails.gameNumber)||1);
+   record.winnerUid=String(matchDetails.winnerUid||"").slice(0,128);
+   record.opponentIds=opponentList.map(p=>typeof p==="object"?String(p.id||""):"").filter(Boolean).slice(0,8);
+   record.opponentNames=opponentList.map(p=>typeof p==="object"?String(p.name||"Player"):String(p)).slice(0,8);
+   record.finalScores=matchDetails.finalScores&&typeof matchDetails.finalScores==="object"?matchDetails.finalScores:{};
+  }
   await ref.transaction(current=>current===null?record:undefined);
  }catch(e){console.warn("Could not save game history:",e);}
 }
@@ -6633,7 +6646,19 @@ function applyOnlinePublic(){
  if(myPublicPlayer&&myPublicPlayer.active===false&&myPublicPlayer.status==="Removed by host"){returnToLobbyForRecovery();return;}eliminatedSpectator=!!(myPublicPlayer&&myPublicPlayer.active===false&&myPublicPlayer.status==="Eliminated");const gameRoot=document.getElementById("game");if(gameRoot){gameRoot.classList.toggle("spectator-mode",eliminatedSpectator);const notice=document.getElementById("spectatorNotice");if(notice)notice.textContent=eliminatedSpectator?"👀 You reached the score limit. You can request read-only access to one active player’s cards.":(myPublicPlayer?.roundDropped?"👀 You dropped this round. You can request read-only access to one active player’s cards.":"");const handPanel=document.getElementById("hand")?.closest(".panel");if(handPanel)handPanel.classList.toggle("spectator-hand-panel",eliminatedSpectator);}if(eliminatedSpectator){players[0].hand=[];drawn=false;selected=-1;selectedIndices=[];arrangedGroups=[];}turn=Math.max(0,players.findIndex(p=>p.id===st.turnUid));discard=st.discard||[];deck=Array(st.deckCount||0).fill(null);round=st.round||1;drawn=st.drawnByUid===roomPlayerId;gameOver=st.status==="roundComplete"||st.status==="gameComplete";
  const el=document.getElementById("message");if(el)el.textContent=st.message||"Online game";if(st.message&&st.message!==lastInfoToastMessage&&/SHOW|invalid|must have|needs 13|select one|every card/i.test(st.message)){lastInfoToastMessage=st.message;infoToast(st.message);}render();
  if(st.status==="roundComplete"&&st.roundResult)openOnlineRoundResults(st.roundResult);
- if(st.status==="gameComplete"){openOnlineGameComplete(st.champion||"A player");const me=(st.players||[]).find(p=>p.id===roomPlayerId);if(me)saveCompletedGame("multiplayer","room_"+(roomCode||"unknown"),st.championUid===roomPlayerId,(st.players||[]).filter(p=>p.id!==roomPlayerId).map(p=>p.name));}
+ if(st.status==="gameComplete"){
+  openOnlineGameComplete(st.champion||"A player");
+  const me=(st.players||[]).find(p=>p.id===roomPlayerId);
+  if(me){
+   const gameNumber=Math.max(1,Number(st.gameNumber)||1);
+   const matchId="room_"+(roomCode||"unknown")+"_game_"+gameNumber;
+   const opponents=(st.players||[]).filter(p=>p.id!==roomPlayerId).map(p=>({id:p.id,name:p.name}));
+   const finalScores={};(st.players||[]).forEach(p=>{finalScores[p.id]=Number(p.score)||0;});
+   saveCompletedGame("multiplayer",matchId,st.championUid===roomPlayerId,opponents,{
+    roomCode,gameNumber,winnerUid:st.championUid,finalScores
+   });
+  }
+ }
  if(st.specialRank)highlightSpecialJoker();
  if(canWatchCardsThisRound()){
   if(cardWatchLockRef&&cardWatchLockListener)cardWatchLockRef.off("value",cardWatchLockListener);
