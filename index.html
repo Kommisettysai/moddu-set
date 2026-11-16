@@ -6260,7 +6260,7 @@ async function voiceMicrophoneErrorMessage(error){
  return "Could not access the microphone ("+(name||"unknown error")+"). Check Chrome and Android microphone permissions, close other apps using the mic, then tap Try Again.";
 }
 function voiceRoomMember(uid){return !!uid&&!!roomRef&&!!roomPlayerId;}
-function voiceSignalPath(from,to,sessionId){return roomRef.child("voice/signals/"+from+"/"+to+"/"+sessionId);}
+function voiceSignalPath(from,to,sessionId){return roomRef.child("voice/signals/"+from+"/"+to);}
 function voiceRenderPeople(list){
  const box=document.getElementById("voicePeople"),count=document.getElementById("voiceCount");
  if(!box)return;
