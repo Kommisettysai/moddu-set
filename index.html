@@ -4092,6 +4092,78 @@ body.hide-player-scores #game .player-strip #players>.player .profile-score{
  #game .player-strip .players>.player .player-name-wrap b{font-size:7px!important}
 }
 
+
+/* Match Moments results layout: full-width sections, balanced player cards. */
+#roundResults.game-complete-screen #resultsProfiles{
+ display:grid!important;
+ grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ align-items:stretch!important;
+ gap:10px!important;
+}
+#roundResults.game-complete-screen .champion-celebration,
+#roundResults.game-complete-screen .table-moments{
+ grid-column:1/-1!important;
+ width:100%!important;
+ min-width:0!important;
+}
+#roundResults.game-complete-screen .champion-celebration{
+ min-height:0!important;
+ margin:2px 0 2px!important;
+ padding:20px 14px 18px!important;
+}
+#roundResults.game-complete-screen .table-moments{
+ margin:2px 0 4px!important;
+ padding:14px!important;
+}
+#roundResults.game-complete-screen .table-moments-grid{
+ grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ gap:9px!important;
+}
+#roundResults.game-complete-screen .table-moment{
+ min-width:0!important;
+ min-height:112px;
+ padding:11px!important;
+}
+#roundResults.game-complete-screen .table-moment strong{
+ overflow-wrap:break-word!important;
+ word-break:normal!important;
+ line-height:1.25!important;
+}
+#roundResults.game-complete-screen .results-profile{
+ display:flex!important;
+ flex-direction:column!important;
+ align-items:center!important;
+ justify-content:flex-start!important;
+ min-width:0!important;
+ min-height:132px!important;
+ padding:13px 9px!important;
+}
+#roundResults.game-complete-screen .results-profile .results-identity{
+ max-width:100%!important;
+}
+#roundResults.game-complete-screen .results-profile .results-name{
+ min-width:0!important;
+ max-width:100%!important;
+}
+#roundResults.game-complete-screen .results-profile .results-name strong{
+ max-width:100%!important;
+ overflow:hidden!important;
+ text-overflow:ellipsis!important;
+ white-space:nowrap!important;
+}
+#roundResults.game-complete-screen .results-profile .result-points{
+ margin-top:7px!important;
+}
+@media(max-width:360px){
+ #roundResults.game-complete-screen .table-moments-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ }
+ #roundResults.game-complete-screen .table-moment{
+  min-height:104px;
+  padding:9px!important;
+ }
+}
+
 </style></head>
 
 <body class="app-locked">
