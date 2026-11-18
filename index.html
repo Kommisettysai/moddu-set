@@ -6582,7 +6582,8 @@ async function writeGameChat(type,text){
    Firebase carries signaling only; audio travels peer-to-peer. */
 let voiceJoined=false,voiceMuted=true,voiceStream=null,voiceParticipantsRef=null,voiceSignalsRef=null,voiceJoinedAt=0;
 let voiceParticipantsListener=null,voicePeerConnections=new Map(),voiceSignalListeners=new Map(),voicePendingCandidates=new Map(),voiceSignalQueues=new Map();
-const voiceRestartingPeers=new Set();
+let voiceParticipantsRevision=0;
+const voiceRestartingPeers=new Set(),voiceNegotiatingPeers=new Set();
 const VOICE_ICE_SERVERS=[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}];
 function voiceSetStatus(text){const el=document.getElementById("voiceStatus");if(el)el.textContent=text;const top=document.getElementById("topVoiceStatus");if(top)top.textContent=text;}
 function voiceRoomMember(uid){return !!uid&&!!roomRef&&!!roomPlayerId;}
@@ -6675,21 +6676,25 @@ function voiceWatchPeer(uid){
  voiceSignalListeners.set(uid,{ref,listener});
  ref.on("child_added",listener);
 }
-async function voiceEnsurePeers(participants){
+async function voiceEnsurePeers(participants,revision=voiceParticipantsRevision){
  for(const p of participants){
   if(!p||p.id===roomPlayerId||!p.joined)continue;
   const uid=p.id;
   voiceWatchPeer(uid);
   const pc=voiceGetPeer(uid);
-  if(String(roomPlayerId)<String(uid)&&pc.signalingState==="stable"&&!pc.localDescription){
+  if(String(roomPlayerId)<String(uid)&&pc.signalingState==="stable"&&!pc.localDescription&&!voiceNegotiatingPeers.has(uid)){
+   voiceNegotiatingPeers.add(uid);
    try{const offer=await pc.createOffer();await pc.setLocalDescription(offer);await voiceSendSignal(uid,{type:"offer",description:pc.localDescription.toJSON()});}
    catch(e){voiceSetStatus("Could not start voice connection: "+e.message);}
+   finally{voiceNegotiatingPeers.delete(uid);}
   }
  }
+ // An older async participant snapshot must never close a peer created by a newer one.
+ if(revision!==voiceParticipantsRevision)return;
  for(const [uid,pc] of voicePeerConnections){
   if(!participants.some(p=>p&&p.id===uid&&p.joined)){
    try{pc.close();}catch(e){}
-   voicePeerConnections.delete(uid);voicePendingCandidates.delete(uid);voiceSignalQueues.delete(uid);voiceRestartingPeers.delete(uid);
+   voicePeerConnections.delete(uid);voicePendingCandidates.delete(uid);voiceSignalQueues.delete(uid);voiceRestartingPeers.delete(uid);voiceNegotiatingPeers.delete(uid);
    const audio=document.getElementById("voiceAudio_"+uid);if(audio){audio.pause();audio.srcObject=null;audio.remove();}
    const listener=voiceSignalListeners.get(uid);if(listener){listener.ref.off("child_added",listener.listener);voiceSignalListeners.delete(uid);}
   }
@@ -6715,7 +6720,7 @@ async function joinVoiceChat(){
   voiceParticipantsListener=snap=>{
    const data=snap.val()||{},list=Object.values(data);
    voiceRenderPeople(list);
-   if(voiceJoined)voiceEnsurePeers(list);
+   if(voiceJoined){const revision=++voiceParticipantsRevision;voiceEnsurePeers(list,revision);}
   };
   voiceParticipantsRef.on("value",voiceParticipantsListener);
   const panel=document.getElementById("voicePanel");if(panel)panel.classList.remove("hidden");
@@ -6746,7 +6751,7 @@ async function leaveVoiceChat(){
  if(voiceParticipantsRef&&voiceParticipantsListener)voiceParticipantsRef.off("value",voiceParticipantsListener);
  voiceParticipantsListener=null;
  for(const [uid,pc] of voicePeerConnections){try{pc.close();}catch(e){}const audio=document.getElementById("voiceAudio_"+uid);if(audio){audio.pause();audio.srcObject=null;audio.remove();}}
- voicePeerConnections.clear();voicePendingCandidates.clear();voiceSignalQueues.clear();voiceRestartingPeers.clear();
+ voicePeerConnections.clear();voicePendingCandidates.clear();voiceSignalQueues.clear();voiceRestartingPeers.clear();voiceNegotiatingPeers.clear();voiceParticipantsRevision++;
  for(const {ref,listener} of voiceSignalListeners.values())ref.off("child_added",listener);
  voiceSignalListeners.clear();
  if(voiceStream){voiceStream.getTracks().forEach(t=>t.stop());voiceStream=null;}
