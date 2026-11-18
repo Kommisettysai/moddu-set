@@ -6627,13 +6627,13 @@ async function voiceRestartPeer(uid,pc){
  if(String(roomPlayerId)>=String(uid))return;
  voiceRestartingPeers.add(uid);
  try{
-  if(pc.signalingState!=="stable")return;
+  if(pc.signalingState!=="stable"){voiceRestartingPeers.delete(uid);return;}
   pc.restartIce();
   const offer=await pc.createOffer({iceRestart:true});
   await pc.setLocalDescription(offer);
   await voiceSendSignal(uid,{type:"offer",description:pc.localDescription.toJSON(),restart:true});
  }catch(e){voiceSetStatus("Could not reconnect voice: "+(e.message||"Please rejoin voice."));}
- finally{if(pc.connectionState==="connected"||pc.connectionState==="closed")voiceRestartingPeers.delete(uid);}
+ finally{voiceRestartingPeers.delete(uid);}
 }
 async function voiceDrainCandidates(uid){
  const pc=voicePeerConnections.get(uid),pending=voicePendingCandidates.get(uid)||[];
