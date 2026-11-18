@@ -6223,10 +6223,10 @@ function enterOnlineGame(state){
  onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);chatHasOpened=false;chatUnreadCount=0;chatIsOpen=false;document.getElementById("gameChat")?.classList.remove("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");document.getElementById("chatToggle")?.setAttribute("aria-expanded","false");updateChatUnread();onlineChatRef=roomRef.child("chat");if(onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);const chatRefForLoad=onlineChatRef;chatRefForLoad.limitToLast(60).once("value").then(initial=>{if(!onlineMode||onlineChatRef!==chatRefForLoad)return;const oldKeys=new Set(Object.keys(initial.val()||{}));onlineChatListener=snap=>{const isOld=oldKeys.has(snap.key);oldKeys.delete(snap.key);const shownLocally=locallyShownChatMessages.has(snap.key);locallyShownChatMessages.delete(snap.key);receiveGameChat(snap,!isOld&&!shownLocally);};chatRefForLoad.limitToLast(60).on("child_added",onlineChatListener);}).catch(()=>{});
  if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();scheduleHostDiscardTimeout(onlinePublic);if(isRoomHost){if(onlinePublic.status==="restartRequested")openHostRestartPrompt();if(onlinePublic.status==="roundComplete")finalizeOnlineGameIfNeeded().catch(e=>console.error("Game completion check failed:",e));if(onlinePublic.status==="playing"){reconcileDroppedRoundCompletion().catch(e=>console.error("Drop completion recovery failed:",e));runOnlineBotTurn();}}}};onlinePublicRef.on("value",onlinePublicListener);
   // Watch the vote node directly as well as the full public state. This makes the host react immediately when the second player votes.
-  const rematchVotesRef=roomRef.child("public/rematchVotes");
-  if(onlineRematchVotesListener)rematchVotesRef.off("value",onlineRematchVotesListener);
+  onlineRematchVotesRef=roomRef.child("public/rematchVotes");
+  if(onlineRematchVotesListener)onlineRematchVotesRef.off("value",onlineRematchVotesListener);
   onlineRematchVotesListener=snap=>{const votes=snap.val()||{};if(Object.values(votes).filter(Boolean).length>=2)hostPrepareRestartAfterVotes();};
-  rematchVotesRef.on("value",onlineRematchVotesListener);
+  onlineRematchVotesRef.on("value",onlineRematchVotesListener);
  if(onlineSpecialRef){onlineSpecialRef.off("value");onlineSpecialRef.on("value",snap=>{const privateRank=snap.val();if(privateRank)specialRank=privateRank;render();if(specialRank)highlightSpecialJoker();});}if(onlineHandListener)onlineHandRef.off("value",onlineHandListener);onlineHandListener=s=>{if(!s.exists())return;const h=s.val()||[];if(!players.length)players=[{id:roomPlayerId,name:"You",hand:h,score:0,human:true}];else players[0]={...players[0],hand:h};if(onlinePublic?.turnUid===roomPlayerId&&h.length===14)drawn=true;else if(h.length===13)drawn=false;selected=-1;selectedIndices=[];arrangedGroups=[];applyOnlinePublic();autoArrange(false);render();};onlineHandRef.on("value",onlineHandListener);
  if(isRoomHost){
   if(onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);
@@ -6580,8 +6580,10 @@ async function writeGameChat(type,text){
 
 /* WebRTC mesh voice chat for small (2-4 player) rooms.
    Firebase carries signaling only; audio travels peer-to-peer. */
-let voiceJoined=false,voiceMuted=true,voiceStream=null,voiceParticipantsRef=null,voiceSignalsRef=null;
-let voiceParticipantsListener=null,voicePeerConnections=new Map(),voiceSignalListeners=new Map(),voicePendingCandidates=new Map();
+let voiceJoined=false,voiceMuted=true,voiceStream=null,voiceParticipantsRef=null,voiceSignalsRef=null,voiceJoinedAt=0;
+let voiceParticipantsListener=null,voicePeerConnections=new Map(),voiceSignalListeners=new Map(),voicePendingCandidates=new Map(),voiceSignalQueues=new Map();
+let voiceParticipantsRevision=0;
+const voiceRestartingPeers=new Set(),voiceNegotiatingPeers=new Set();
 const VOICE_ICE_SERVERS=[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}];
 function voiceSetStatus(text){const el=document.getElementById("voiceStatus");if(el)el.textContent=text;const top=document.getElementById("topVoiceStatus");if(top)top.textContent=text;}
 function voiceRoomMember(uid){return !!uid&&!!roomRef&&!!roomPlayerId;}
@@ -6606,15 +6608,33 @@ function voiceGetPeer(uid){
   audio.play().catch(()=>voiceSetStatus("Tap the page once to allow incoming audio."));
  };
  pc.onconnectionstatechange=()=>{
-  if(pc.connectionState==="failed"||pc.connectionState==="closed"||pc.connectionState==="disconnected"){
-   if(pc.connectionState==="failed")voiceSetStatus("A voice connection failed. Try leaving and joining voice again.");
+  if(pc.connectionState==="failed"){
+   voiceSetStatus("A voice connection needs to reconnect…");
+   voiceRestartPeer(uid,pc);
+  }else if(pc.connectionState==="connected"){
+   voiceRestartingPeers.delete(uid);
+   const peerName=(onlinePublic?.players||[]).find(p=>p.id===uid)?.name||"a player";
+   voiceSetStatus("Voice connected to "+peerName+".");
   }
  };
  return pc;
 }
 async function voiceSendSignal(to,payload){
- if(!voiceJoined||!roomRef)return;
+ if(!voiceJoined||!roomRef||!roomPlayerId)return;
  await voiceSignalPath(roomPlayerId,to).push({...payload,from:roomPlayerId,at:Date.now()});
+}
+async function voiceRestartPeer(uid,pc){
+ if(!voiceJoined||!roomPlayerId||!uid||!pc||voiceRestartingPeers.has(uid))return;
+ if(String(roomPlayerId)>=String(uid))return;
+ voiceRestartingPeers.add(uid);
+ try{
+  if(pc.signalingState!=="stable"){voiceRestartingPeers.delete(uid);return;}
+  pc.restartIce();
+  const offer=await pc.createOffer({iceRestart:true});
+  await pc.setLocalDescription(offer);
+  await voiceSendSignal(uid,{type:"offer",description:pc.localDescription.toJSON(),restart:true});
+ }catch(e){voiceSetStatus("Could not reconnect voice: "+(e.message||"Please rejoin voice."));}
+ finally{voiceRestartingPeers.delete(uid);}
 }
 async function voiceDrainCandidates(uid){
  const pc=voicePeerConnections.get(uid),pending=voicePendingCandidates.get(uid)||[];
@@ -6646,25 +6666,35 @@ async function voiceHandleSignal(uid,snap){
 function voiceWatchPeer(uid){
  if(voiceSignalListeners.has(uid))return;
  const ref=voiceSignalPath(uid,roomPlayerId);
- const listener=snap=>voiceHandleSignal(uid,snap);
+ const listener=snap=>{
+  const data=snap.val();
+  if(!data||Number(data.at||0)<voiceJoinedAt)return;
+  const previous=voiceSignalQueues.get(uid)||Promise.resolve();
+  const next=previous.catch(()=>{}).then(()=>voiceHandleSignal(uid,snap));
+  voiceSignalQueues.set(uid,next);
+ };
  voiceSignalListeners.set(uid,{ref,listener});
  ref.on("child_added",listener);
 }
-async function voiceEnsurePeers(participants){
+async function voiceEnsurePeers(participants,revision=voiceParticipantsRevision){
  for(const p of participants){
   if(!p||p.id===roomPlayerId||!p.joined)continue;
   const uid=p.id;
   voiceWatchPeer(uid);
   const pc=voiceGetPeer(uid);
-  if(String(roomPlayerId)<String(uid)&&pc.signalingState==="stable"&&!pc.localDescription){
+  if(String(roomPlayerId)<String(uid)&&pc.signalingState==="stable"&&!pc.localDescription&&!voiceNegotiatingPeers.has(uid)){
+   voiceNegotiatingPeers.add(uid);
    try{const offer=await pc.createOffer();await pc.setLocalDescription(offer);await voiceSendSignal(uid,{type:"offer",description:pc.localDescription.toJSON()});}
    catch(e){voiceSetStatus("Could not start voice connection: "+e.message);}
+   finally{voiceNegotiatingPeers.delete(uid);}
   }
  }
+ // An older async participant snapshot must never close a peer created by a newer one.
+ if(revision!==voiceParticipantsRevision)return;
  for(const [uid,pc] of voicePeerConnections){
   if(!participants.some(p=>p&&p.id===uid&&p.joined)){
    try{pc.close();}catch(e){}
-   voicePeerConnections.delete(uid);voicePendingCandidates.delete(uid);
+   voicePeerConnections.delete(uid);voicePendingCandidates.delete(uid);voiceSignalQueues.delete(uid);voiceRestartingPeers.delete(uid);voiceNegotiatingPeers.delete(uid);
    const audio=document.getElementById("voiceAudio_"+uid);if(audio){audio.pause();audio.srcObject=null;audio.remove();}
    const listener=voiceSignalListeners.get(uid);if(listener){listener.ref.off("child_added",listener.listener);voiceSignalListeners.delete(uid);}
   }
@@ -6679,14 +6709,18 @@ async function joinVoiceChat(){
  try{
   voiceStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
   voiceStream.getAudioTracks().forEach(t=>t.enabled=false);
-  voiceMuted=true;voiceJoined=true;
+  voiceMuted=true;voiceJoined=true;voiceJoinedAt=Date.now();
   voiceParticipantsRef=roomRef.child("voice/participants");
   voiceSignalsRef=roomRef.child("voice/signals");
-  await voiceParticipantsRef.child(roomPlayerId).set({id:roomPlayerId,name:players[0]?.name||playerProfile?.displayName||"Player",joined:true,muted:true,joinedAt:firebase.database.ServerValue.TIMESTAMP});
+  const ownParticipantRef=voiceParticipantsRef.child(roomPlayerId);
+  const ownSignalFolderRef=voiceSignalsRef.child(roomPlayerId);
+  await ownParticipantRef.onDisconnect().remove();
+  await ownSignalFolderRef.onDisconnect().remove();
+  await ownParticipantRef.set({id:roomPlayerId,name:players[0]?.name||playerProfile?.displayName||"Player",joined:true,muted:true,joinedAt:firebase.database.ServerValue.TIMESTAMP});
   voiceParticipantsListener=snap=>{
    const data=snap.val()||{},list=Object.values(data);
    voiceRenderPeople(list);
-   if(voiceJoined)voiceEnsurePeers(list);
+   if(voiceJoined){const revision=++voiceParticipantsRevision;voiceEnsurePeers(list,revision);}
   };
   voiceParticipantsRef.on("value",voiceParticipantsListener);
   const panel=document.getElementById("voicePanel");if(panel)panel.classList.remove("hidden");
@@ -6711,17 +6745,21 @@ async function toggleVoiceMute(){
  voiceSetStatus(voiceMuted?"You are listening. Your microphone is muted.":"Your microphone is on. Speak to the table.");
 }
 async function leaveVoiceChat(){
- const wasJoined=voiceJoined;voiceJoined=false;
+ const wasJoined=voiceJoined;
+ const leavingUid=roomPlayerId,participantsRef=voiceParticipantsRef,signalsRef=voiceSignalsRef;
+ voiceJoined=false;
  if(voiceParticipantsRef&&voiceParticipantsListener)voiceParticipantsRef.off("value",voiceParticipantsListener);
  voiceParticipantsListener=null;
  for(const [uid,pc] of voicePeerConnections){try{pc.close();}catch(e){}const audio=document.getElementById("voiceAudio_"+uid);if(audio){audio.pause();audio.srcObject=null;audio.remove();}}
- voicePeerConnections.clear();voicePendingCandidates.clear();
+ voicePeerConnections.clear();voicePendingCandidates.clear();voiceSignalQueues.clear();voiceRestartingPeers.clear();voiceNegotiatingPeers.clear();voiceParticipantsRevision++;
  for(const {ref,listener} of voiceSignalListeners.values())ref.off("child_added",listener);
  voiceSignalListeners.clear();
  if(voiceStream){voiceStream.getTracks().forEach(t=>t.stop());voiceStream=null;}
- if(wasJoined&&voiceParticipantsRef&&roomPlayerId)try{await voiceParticipantsRef.child(roomPlayerId).remove();}catch(e){}
- if(voiceSignalsRef&&roomPlayerId)try{await voiceSignalsRef.child(roomPlayerId).remove();}catch(e){}
- voiceMuted=true;voiceParticipantsRef=null;voiceSignalsRef=null;
+ if(leavingUid&&participantsRef)try{await participantsRef.child(leavingUid).onDisconnect().cancel();}catch(e){}
+ if(leavingUid&&signalsRef)try{await signalsRef.child(leavingUid).onDisconnect().cancel();}catch(e){}
+ if(wasJoined&&participantsRef&&leavingUid)try{await participantsRef.child(leavingUid).remove();}catch(e){}
+ if(signalsRef&&leavingUid)try{await signalsRef.child(leavingUid).remove();}catch(e){}
+ voiceJoinedAt=0;voiceMuted=true;voiceParticipantsRef=null;voiceSignalsRef=null;
  const panel=document.getElementById("voicePanel");if(panel)panel.classList.add("hidden");
  document.getElementById("voiceJoinBtn")?.classList.remove("hidden");
  document.getElementById("voiceMuteBtn")?.classList.add("hidden");
@@ -6785,9 +6823,9 @@ function applyOnlinePublic(){
  syncIncomingCardWatchRequests();
  updateDiscardCountdown();
 }
-function returnToLobbyForRecovery(){
+async function returnToLobbyForRecovery(){
  const code=roomCode;
- leaveVoiceChat();
+ await leaveVoiceChat();
  if(onlineChatRef&&onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);if(cardWatchLockRef&&cardWatchLockListener)cardWatchLockRef.off("value",cardWatchLockListener);if(cardWatchRequestRef&&cardWatchRequestListener)cardWatchRequestRef.off("value",cardWatchRequestListener);if(incomingCardWatchRef&&incomingCardWatchListener)incomingCardWatchRef.off("value",incomingCardWatchListener);closeCardWatchViewer();cardWatchLockRef=cardWatchRequestRef=incomingCardWatchRef=null;cardWatchLockListener=cardWatchRequestListener=incomingCardWatchListener=null;cardWatchRequestPath="";cardWatchState=null;incomingCardWatchRequests={};document.getElementById("cardWatchRequestsNotice")?.remove();
  if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);
  if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);
@@ -6796,6 +6834,10 @@ function returnToLobbyForRecovery(){
  if(roomRef&&onlineRejoinListener)roomRef.child("rejoinRequests").off("child_added",onlineRejoinListener);
  if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);
  if(roomRef&&rejoinPublicListener)roomRef.child("public").off("value",rejoinPublicListener);
+ if(onlineRematchVotesRef&&onlineRematchVotesListener)onlineRematchVotesRef.off("value",onlineRematchVotesListener);
+ if(watchedHandRef&&watchedHandListener)watchedHandRef.off("value",watchedHandListener);
+ onlineRematchVotesRef=null;onlineRematchVotesListener=null;watchedHandRef=watchedHandListener=null;watchedHandPath="";
+ if(hostDiscardTimeout)clearTimeout(hostDiscardTimeout);hostDiscardTimeout=null;scheduledDiscardKey=null;
  onlineMode=false;onlinePublic=null;onlinePublicRef=onlineHandRef=onlineActionRef=onlineSpecialRef=null;
  onlinePublicListener=onlineHandListener=onlineActionListener=onlineLobbyListener=rejoinPublicListener=onlineRejoinListener=null;
  document.getElementById("game")?.classList.add("hidden");
@@ -7197,7 +7239,7 @@ async function shareModduMatchMoments(){
   else{infoToast("Sharing is not available on this device.");}
  }catch(error){if(error?.name!=="AbortError"){console.warn("Match sharing failed:",error);infoToast("Could not share match moments.");}}
 }
-let onlineRematchStarting=false,onlineRematchVotesListener=null;
+let onlineRematchStarting=false,onlineRematchVotesListener=null,onlineRematchVotesRef=null;
 async function voteOnlineRematch(){
  if(!onlineMode||!roomRef||!roomPlayerId||!onlinePublic||onlinePublic.status!=="gameComplete")return;
  const isPlayer=(onlinePublic.players||[]).some(p=>p.id===roomPlayerId);
@@ -7425,11 +7467,21 @@ function showHand(){
  sendOnlineAction({type:"show",discardCardId,groups});
 }
 function startGame(){if(!onlineMode)return _soloStartGame();message("Leave the online table before starting a solo game.");}
-function leaveRoom(showLobby=true){
- leaveVoiceChat();
+async function leaveRoom(showLobby=true){
+ await leaveVoiceChat();
  if(typeof cleanupLeastCountGame==="function")cleanupLeastCountGame();
  activeGameType="modduSet";
  if(onlineChatRef&&onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);onlineChatRef=null;onlineChatListener=null;chatIsOpen=false;chatHasOpened=false;chatUnreadCount=0;document.getElementById("gameChat")?.classList.add("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");mutedChatSenders.clear();eliminatedSpectator=false;document.getElementById("game")?.classList.remove("spectator-mode");if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);if(onlineSpecialRef)onlineSpecialRef.off("value");if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);if(roomRef&&onlineRejoinListener)roomRef.child("rejoinRequests").off("child_added",onlineRejoinListener);
+ if(onlineRematchVotesRef&&onlineRematchVotesListener)onlineRematchVotesRef.off("value",onlineRematchVotesListener);
+ if(cardWatchLockRef&&cardWatchLockListener)cardWatchLockRef.off("value",cardWatchLockListener);
+ if(cardWatchRequestRef&&cardWatchRequestListener)cardWatchRequestRef.off("value",cardWatchRequestListener);
+ if(incomingCardWatchRef&&incomingCardWatchListener)incomingCardWatchRef.off("value",incomingCardWatchListener);
+ if(watchedHandRef&&watchedHandListener)watchedHandRef.off("value",watchedHandListener);
+ cardWatchLockRef=cardWatchRequestRef=incomingCardWatchRef=watchedHandRef=null;
+ cardWatchLockListener=cardWatchRequestListener=incomingCardWatchListener=watchedHandListener=null;cardWatchRequestPath=watchedHandPath="";
+ closeCardWatchViewer(true);cardWatchState=null;incomingCardWatchRequests={};document.getElementById("cardWatchRequestsNotice")?.remove();
+ if(hostDiscardTimeout)clearTimeout(hostDiscardTimeout);hostDiscardTimeout=null;scheduledDiscardKey=null;
+ onlineRematchVotesRef=null;onlineRematchVotesListener=null;
  if(roomRef&&roomPlayerId)roomRef.child("lobby/players/"+roomPlayerId).remove().catch(()=>{});onlineMode=false;onlinePublic=null;clearActiveRoom();onlinePublicRef=onlineHandRef=onlineActionRef=onlineSpecialRef=null;onlineRejoinListener=null;roomRef=null;roomCode=null;roomPlayerId=null;isRoomHost=false;onlineLobbyListener=null;
  document.getElementById("game").classList.add("hidden");document.getElementById("waitingRoom")?.classList.add("hidden");const createBtn=document.getElementById("createTableBtn"),joinControls=document.getElementById("roomJoinControls"),gameSelect=document.getElementById("gameTypeSelect");if(createBtn){createBtn.disabled=false;createBtn.textContent="＋ Create a private table";}if(gameSelect)gameSelect.disabled=false;if(joinControls)joinControls.classList.remove("hidden");if(showLobby)document.getElementById("setup").classList.remove("hidden");
 }
