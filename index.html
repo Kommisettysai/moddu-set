@@ -6470,7 +6470,9 @@ async function respondToCardWatch(viewerUid,accept){
 }
 function syncIncomingCardWatchRequests(){
  if(!roomRef||!roomPlayerId)return;
- if(incomingCardWatchRef&&incomingCardWatchListener)incomingCardWatchRef.off("value",incomingCardWatchListener);
+ // applyOnlinePublic() runs for every public game update. Keep one listener
+ // attached instead of detaching and recreating it on every turn update.
+ if(incomingCardWatchRef&&incomingCardWatchListener)return;
  incomingCardWatchRef=roomRef.child("cardWatchRequests/"+roomPlayerId);
  incomingCardWatchListener=snap=>{
   incomingCardWatchRequests={};
@@ -6815,10 +6817,13 @@ function applyOnlinePublic(){
  }
  if(st.specialRank)highlightSpecialJoker();
  if(canWatchCardsThisRound()){
-  if(cardWatchLockRef&&cardWatchLockListener)cardWatchLockRef.off("value",cardWatchLockListener);
-  cardWatchLockRef=roomRef.child("private/cardWatchLocks/"+roomPlayerId);
-  cardWatchLockListener=snap=>{const lock=snap.val();if(lock&&Number(lock.round)===cardWatchRound()){cardWatchState={...(cardWatchState||{}),...lock,status:cardWatchState?.status||"pending"};listenToOwnCardWatchRequest(lock.targetUid);}else{cardWatchState=null;closeCardWatchViewer(true);}render();};
-  cardWatchLockRef.off("value");cardWatchLockRef.on("value",cardWatchLockListener);
+  // This path is stable for the current player and room. Reuse its listener
+  // across public-state updates rather than repeatedly rebinding it.
+  if(!cardWatchLockRef||!cardWatchLockListener){
+   cardWatchLockRef=roomRef.child("private/cardWatchLocks/"+roomPlayerId);
+   cardWatchLockListener=snap=>{const lock=snap.val();if(lock&&Number(lock.round)===cardWatchRound()){cardWatchState={...(cardWatchState||{}),...lock,status:cardWatchState?.status||"pending"};listenToOwnCardWatchRequest(lock.targetUid);}else{cardWatchState=null;closeCardWatchViewer(true);}render();};
+   cardWatchLockRef.on("value",cardWatchLockListener);
+  }
  }else{if(cardWatchLockRef&&cardWatchLockListener)cardWatchLockRef.off("value",cardWatchLockListener);cardWatchLockRef=cardWatchLockListener=null;cardWatchState=null;closeCardWatchViewer();}
  syncIncomingCardWatchRequests();
  updateDiscardCountdown();
@@ -6943,7 +6948,7 @@ function scheduleHostDiscardTimeout(state){
   }catch(e){setLobbyNotice("Automatic pickup and discard failed: "+e.message);}
  },Math.max(0,deadline-Date.now()));
 }
-if(!discardClockInterval)discardClockInterval=setInterval(updateDiscardCountdown,250);
+if(!discardClockInterval)discardClockInterval=setInterval(updateDiscardCountdown,1000);
 function validateOnlineShow(hand,groupIds,player){
  if(!Array.isArray(groupIds)||groupIds.length!==4)return "Arrange one pure four-set and three three-card sets first.";
  const groups=groupIds.map(ids=>Array.isArray(ids)?ids.map(id=>hand.find(c=>c.id===id)).filter(Boolean):[]);
