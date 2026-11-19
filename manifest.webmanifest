@@ -1,0 +1,20 @@
+{
+  "id": "./",
+  "name": "Moddu Set",
+  "short_name": "Moddu Set",
+  "description": "Private Telugu card games with friends",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#071d18",
+  "theme_color": "#102f26",
+  "icons": [
+    {
+      "src": "./moddu-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
