@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Moddu Set - Telugu Card Game</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#102f26">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Moddu Set">
+<link rel="icon" href="./moddu-icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./moddu-icon.svg">
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#102b24;color:white;font-family:Arial,sans-serif}
@@ -7488,6 +7496,39 @@ async function leaveRoom(showLobby=true){
 </script>
 <script src="./least-count.js"></script>
 <script>initFirebase();</script>
+<script>
+(() => {
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./service-worker.js", { scope: "./" })
+        .catch(error => console.warn("Moddu Set offline setup unavailable:", error));
+    });
+  }
+  let installPrompt = null;
+  window.addEventListener("beforeinstallprompt", event => {
+    event.preventDefault();
+    installPrompt = event;
+    if (document.getElementById("installModduApp")) return;
+    const button = document.createElement("button");
+    button.id = "installModduApp";
+    button.type = "button";
+    button.textContent = "＋ Install App";
+    button.style.cssText = "position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:1200;border:1px solid #ffe4a4;border-radius:999px;padding:12px 17px;background:linear-gradient(180deg,#ffe5a8,#d9ad5d);color:#34230c;font-weight:800;box-shadow:0 5px 18px #0008";
+    button.addEventListener("click", async () => {
+      if (!installPrompt) return;
+      installPrompt.prompt();
+      await installPrompt.userChoice;
+      installPrompt = null;
+      button.remove();
+    });
+    document.body.appendChild(button);
+  });
+  window.addEventListener("appinstalled", () => {
+    document.getElementById("installModduApp")?.remove();
+    installPrompt = null;
+  });
+})();
+</script>
 
 </body>
   </html>
