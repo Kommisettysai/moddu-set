@@ -6422,13 +6422,18 @@ async function requestCardWatch(targetUid){
   if(lock&&Number(lock.round)===roundNo){
    const previousRequestRef=roomRef.child("cardWatchRequests/"+lock.targetUid+"/"+roomPlayerId);
    const previousRequest=await previousRequestRef.get();
-   const previousStatus=previousRequest.val()?.status;
-   if(previousStatus!=="declined"){
-    if(lock.targetUid===targetUid&&previousStatus==="accepted"){cardWatchState=previousRequest.val();syncCardWatchViewer();return;}
-    if(lock.targetUid===targetUid){setLobbyNotice("Your request is already pending.");return;}
-    setLobbyNotice("You can request another player's cards after the current request is declined.");
+   const previous=previousRequest.val(),previousStatus=previous?.status;
+   if(previousStatus==="accepted"){
+    if(lock.targetUid===targetUid){cardWatchState=previous;syncCardWatchViewer();return;}
+    setLobbyNotice("You have already been approved to view one player's cards this round.");
     return;
    }
+   if(previousStatus==="pending"){
+    if(lock.targetUid===targetUid){setLobbyNotice("Your request is already pending.");return;}
+    setLobbyNotice("Wait for your current card-view request to be answered.");
+    return;
+   }
+   // A declined, missing, or stale request must never block another target.
    await lockRef.remove();
    cardWatchState=null;
   }
@@ -6483,6 +6488,10 @@ async function respondToCardWatch(viewerUid,accept){
  if(!req||req.status!=="pending"||req.round!==cardWatchRound())return;
  try{
   await roomRef.child("cardWatchRequests/"+roomPlayerId+"/"+viewerUid).update({status:accept?"accepted":"declined",respondedAt:firebase.database.ServerValue.TIMESTAMP});
+  if(!accept){
+   // Release the requester's per-round lock immediately after a decline.
+   await roomRef.child("private/cardWatchLocks/"+viewerUid).remove();
+  }
   setLobbyNotice(accept?"You approved the card-view request.":"You declined the card-view request.");
  }catch(e){setLobbyNotice("Could not update request: "+e.message);}
 }
@@ -6510,7 +6519,7 @@ function renderCardWatchRequestNotice(){
 }
 function cardWatchButtonMarkup(player){
  if(!onlineMode||!canWatchCardsThisRound()||player.id===roomPlayerId||player.active===false||player.roundDropped)return "";
- const lock=cardWatchState&&Number(cardWatchState.round)===cardWatchRound()?cardWatchState:null;
+ const lock=cardWatchState&&Number(cardWatchState.round)===cardWatchRound()&&["pending","accepted"].includes(cardWatchState.status)?cardWatchState:null;
  if(lock&&lock.targetUid!==player.id)return '<span class="card-watch-locked">ONE PLAYER PER ROUND</span>';
  if(lock&&lock.targetUid===player.id)return '<span class="card-watch-locked">'+(lock.status==="accepted"?"APPROVED":lock.status==="declined"?"DECLINED":"REQUEST SENT")+'</span>';
  return '<button type="button" class="card-watch-see" onclick="requestCardWatch(\''+escapeLobbyText(player.id)+'\')">SEE</button>';
