@@ -6420,11 +6420,17 @@ async function requestCardWatch(targetUid){
  try{
   const existing=await lockRef.get(),lock=existing.val();
   if(lock&&Number(lock.round)===roundNo){
-   if(lock.targetUid!==targetUid){setLobbyNotice("You already chose one player for this round. You cannot switch players.");return;}
-   const oldRequest=await requestRef.get();
-   if(oldRequest.exists()&&oldRequest.val().status==="accepted"){cardWatchState=oldRequest.val();syncCardWatchViewer();return;}
-   setLobbyNotice(oldRequest.val()?.status==="declined"?"Your request was declined. You cannot request another player this round.":"Your request is already pending.");
-   return;
+   const previousRequestRef=roomRef.child("cardWatchRequests/"+lock.targetUid+"/"+roomPlayerId);
+   const previousRequest=await previousRequestRef.get();
+   const previousStatus=previousRequest.val()?.status;
+   if(previousStatus!=="declined"){
+    if(lock.targetUid===targetUid&&previousStatus==="accepted"){cardWatchState=previousRequest.val();syncCardWatchViewer();return;}
+    if(lock.targetUid===targetUid){setLobbyNotice("Your request is already pending.");return;}
+    setLobbyNotice("You can request another player's cards after the current request is declined.");
+    return;
+   }
+   await lockRef.remove();
+   cardWatchState=null;
   }
   cardWatchViewerDismissed=false;
   await lockRef.set({targetUid,round:roundNo,viewerUid:roomPlayerId,createdAt:firebase.database.ServerValue.TIMESTAMP});
@@ -6459,7 +6465,9 @@ function listenToOwnCardWatchRequest(targetUid){
    }
   }else if(cardWatchState?.status==="declined"){
    closeCardWatchViewer(true);
-   setLobbyNotice("Your card-view request was declined.");
+   setLobbyNotice("Your card-view request was declined. You can request another player's cards now.");
+   roomRef.child("private/cardWatchLocks/"+roomPlayerId).remove().catch(error=>console.warn("Could not clear declined card-view lock:",error));
+   cardWatchState=null;
   }
   render();
  };
