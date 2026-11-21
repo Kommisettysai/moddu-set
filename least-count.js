@@ -902,11 +902,15 @@ async function runLeastCountBotTurn() {
     if (state.phase === "drop") {
       const handTotal = lcTotal(hand);
       const active = (state.players || []).filter(p => p.active !== false);
-      const totals = {};
-      for (const p of active) {
+      // Read opponents' hands in parallel. The bot's own hand is already
+      // loaded above, so do not fetch it a second time.
+      const handTotals = await Promise.all(active.map(async p => {
+        if (p.id === uid) return [p.id, hand];
         const snap = await roomRef.child("private/hands/" + p.id).get();
-        totals[p.id] = lcTotal(snap.val() || []);
-      }
+        return [p.id, snap.val() || []];
+      }));
+      const totals = {};
+      handTotals.forEach(([playerId, cards]) => { totals[playerId] = lcTotal(cards); });
       const others = active.filter(p => p.id !== uid);
       if (handTotal <= 8 && others.every(p => handTotal < totals[p.id])) {
         await lcResolveShow(uid, false, state);
