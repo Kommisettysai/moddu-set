@@ -7393,13 +7393,34 @@ async function startOnlineRematchIfReady(){
  }finally{onlineRematchStarting=false;}
 }
 function shuffleRoundSeating(playerList){
- const original=playerList||[],ordered=shuffle(original.slice());
- // Guarantee a visible seating change when at least two players are present.
- if(ordered.length>1&&ordered.every((p,i)=>p.id===original[i]?.id)){
-  const first=Math.floor(Math.random()*ordered.length),offset=1+Math.floor(Math.random()*(ordered.length-1)),second=(first+offset)%ordered.length;
-  [ordered[first],ordered[second]]=[ordered[second],ordered[first]];
+ const original=(playerList||[]).slice();
+ if(original.length<2)return original;
+ // Prefer a fully mixed seating: no player keeps the same seat and no
+ // previous left/right neighbour pair stays together when a better order exists.
+ const previousSeats=new Map(original.map((p,i)=>[p.id,i]));
+ const previousPairs=new Set();
+ for(let i=0;i<original.length-1;i++){
+  const a=String(original[i].id),b=String(original[i+1].id);
+  previousPairs.add(a<b?a+"|"+b:b+"|"+a);
  }
- return ordered;
+ let best=[],bestScore=Infinity;
+ // Sample many unbiased Fisher-Yates permutations, then randomly choose
+ // among the best-scoring arrangements. This avoids a predictable rotation.
+ for(let attempt=0;attempt<400;attempt++){
+  const candidate=shuffle(original.slice());
+  let sameSeats=0,keptPairs=0;
+  candidate.forEach((p,i)=>{if(previousSeats.get(p.id)===i)sameSeats++;});
+  for(let i=0;i<candidate.length-1;i++){
+   const a=String(candidate[i].id),b=String(candidate[i+1].id);
+   if(previousPairs.has(a<b?a+"|"+b:b+"|"+a))keptPairs++;
+  }
+  // A retained neighbour pair is more undesirable than a retained seat.
+  const score=keptPairs*100+sameSeats;
+  if(score<bestScore){bestScore=score;best=[candidate];}
+  else if(score===bestScore)best.push(candidate);
+  if(bestScore===0&&best.length>=12)break;
+ }
+ return best[Math.floor(Math.random()*best.length)]||shuffle(original.slice());
 }
 function chooseNextRoundStarter(allPlayers,activePlayers,previousStarterUid){
  const ordered=allPlayers||[],activeIds=new Set((activePlayers||[]).map(p=>p.id));
