@@ -6230,6 +6230,9 @@ function enterOnlineGame(state){
  const notice=document.createElement("div");notice.id="spectatorNotice";notice.className="spectator-notice";notice.textContent="👀 You are eliminated. You can watch the game and request read-only access to one active player’s cards.";document.getElementById("game").prepend(notice);
  onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);chatHasOpened=false;chatUnreadCount=0;chatIsOpen=false;document.getElementById("gameChat")?.classList.remove("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");document.getElementById("chatToggle")?.setAttribute("aria-expanded","false");updateChatUnread();onlineChatRef=roomRef.child("chat");if(onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);const chatRefForLoad=onlineChatRef;chatRefForLoad.limitToLast(60).once("value").then(initial=>{if(!onlineMode||onlineChatRef!==chatRefForLoad)return;const oldKeys=new Set(Object.keys(initial.val()||{}));onlineChatListener=snap=>{const isOld=oldKeys.has(snap.key);oldKeys.delete(snap.key);const shownLocally=locallyShownChatMessages.has(snap.key);locallyShownChatMessages.delete(snap.key);receiveGameChat(snap,!isOld&&!shownLocally);};chatRefForLoad.limitToLast(60).on("child_added",onlineChatListener);}).catch(()=>{});
  if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();scheduleHostDiscardTimeout(onlinePublic);if(isRoomHost){if(onlinePublic.status==="restartRequested")openHostRestartPrompt();if(onlinePublic.status==="roundComplete")finalizeOnlineGameIfNeeded().catch(e=>console.error("Game completion check failed:",e));if(onlinePublic.status==="playing"){reconcileDroppedRoundCompletion().catch(e=>console.error("Drop completion recovery failed:",e));runOnlineBotTurn();}}}};onlinePublicRef.on("value",onlinePublicListener);
+  const hostRoleRef=roomRef.child("lobby/hostId");
+  hostRoleRef.off("value");
+  hostRoleRef.on("value",snap=>{isRoomHost=!!authUser&&snap.val()===authUser.uid;if(onlinePublic?.status==="roundComplete"&&onlinePublic.roundResult)openOnlineRoundResults(onlinePublic.roundResult);if(isRoomHost&&onlinePublic?.status==="playing"){reconcileDroppedRoundCompletion().catch(e=>console.error("Drop completion recovery failed:",e));runOnlineBotTurn();}});
   // Watch the vote node directly as well as the full public state. This makes the host react immediately when the second player votes.
   onlineRematchVotesRef=roomRef.child("public/rematchVotes");
   if(onlineRematchVotesListener)onlineRematchVotesRef.off("value",onlineRematchVotesListener);
@@ -7184,7 +7187,7 @@ function openOnlineRoundResults(result){
  composeModduResultsHeader(screen);
  document.getElementById("resultsSummary").textContent=result.winnerUid?(result.groups&&result.groups.length?result.winnerName+" showed successfully. All hands are revealed and scores are updated.":result.winnerName+" wins this round because the other player(s) dropped. Drop penalties have been added; eligible players return next round."):"All players dropped this round. Drop penalties have been added to their scores.";
  const footer=screen.querySelector(".results-footer");
- if(footer)footer.innerHTML=isRoomHost?'<button onclick="startOnlineNextRound()">Start next round →</button>':'<p>Waiting for the host to start the next round…</p><button onclick="closeResults()">Back to table</button>';
+ if(footer)footer.innerHTML=isRoomHost?'<button onclick="startOnlineNextRound()">Start next round →</button>':'<p>Waiting for the current table coordinator to start the next round…</p><button onclick="closeResults()">Back to table</button>';
  const isRealShow=!!(result.winnerUid&&result.groups&&result.groups.length);
  if(isRealShow){
   const celebrationKey=String(result.completedAt||"")+":"+String(result.winnerUid);
@@ -7394,8 +7397,11 @@ async function finalizeOnlineGameIfNeeded(){
  await roomRef.child('public').transaction(current=>{if(!current||current.status!=='roundComplete')return;return {...current,...finished};});
 }
 async function startOnlineNextRound(){
- if(!onlineMode||!isRoomHost||!roomRef||!onlinePublic)return;
+ if(!onlineMode||!roomRef||!onlinePublic)return;
  try{
+  const hostSnap=await roomRef.child("lobby/hostId").get();
+  if(!authUser||hostSnap.val()!==authUser.uid){isRoomHost=false;message("Only the current table coordinator can start the next round.");return;}
+  isRoomHost=true;
   const ps=await roomRef.child("public").get(),p=ps.val();
   if(!p||p.status!=="roundComplete")return;
   const limit=Math.max(1,Number(p.scoreLimit)||200);const active=(p.players||[]).filter(x=>(x.active!==false||x.rejoinNextRound)&&(Number(p.roundResult.totals[x.id]||x.score)||0)+(x.rejoinNextRound?(Number(x.rejoinPenalty)||20):0)<limit);
@@ -7521,6 +7527,17 @@ async function leaveRoom(showLobby=true){
  closeCardWatchViewer(true);cardWatchState=null;incomingCardWatchRequests={};document.getElementById("cardWatchRequestsNotice")?.remove();
  if(hostDiscardTimeout)clearTimeout(hostDiscardTimeout);hostDiscardTimeout=null;scheduledDiscardKey=null;
  onlineRematchVotesRef=null;onlineRematchVotesListener=null;
+ if(roomRef&&roomPlayerId&&isRoomHost&&authUser){
+  try{
+   const [lobbyHostSnap,publicSnap]=await Promise.all([roomRef.child("lobby/hostId").get(),roomRef.child("public").get()]);
+   if(lobbyHostSnap.val()===authUser.uid){
+    const state=publicSnap.val()||{},candidates=(state.players||[]).filter(p=>p.id!==roomPlayerId&&p.isBot!==true&&p.active!==false);
+    const nextHost=candidates[0];
+    if(nextHost)await roomRef.child("lobby/hostId").set(nextHost.id);
+   }
+  }catch(e){console.warn("Could not transfer table coordinator before leaving:",e);}
+ }
+ if(roomRef)roomRef.child("lobby/hostId").off("value");
  if(roomRef&&roomPlayerId)roomRef.child("lobby/players/"+roomPlayerId).remove().catch(()=>{});onlineMode=false;onlinePublic=null;clearActiveRoom();onlinePublicRef=onlineHandRef=onlineActionRef=onlineSpecialRef=null;onlineRejoinListener=null;roomRef=null;roomCode=null;roomPlayerId=null;isRoomHost=false;onlineLobbyListener=null;
  document.getElementById("game").classList.add("hidden");document.getElementById("waitingRoom")?.classList.add("hidden");const createBtn=document.getElementById("createTableBtn"),joinControls=document.getElementById("roomJoinControls"),gameSelect=document.getElementById("gameTypeSelect");if(createBtn){createBtn.disabled=false;createBtn.textContent="＋ Create a private table";}if(gameSelect)gameSelect.disabled=false;if(joinControls)joinControls.classList.remove("hidden");if(showLobby)document.getElementById("setup").classList.remove("hidden");
 }
