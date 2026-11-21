@@ -6232,7 +6232,7 @@ function enterOnlineGame(state){
  if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();scheduleHostDiscardTimeout(onlinePublic);if(isRoomHost){if(onlinePublic.status==="restartRequested")openHostRestartPrompt();if(onlinePublic.status==="roundComplete")finalizeOnlineGameIfNeeded().catch(e=>console.error("Game completion check failed:",e));if(onlinePublic.status==="playing"){reconcileDroppedRoundCompletion().catch(e=>console.error("Drop completion recovery failed:",e));runOnlineBotTurn();}}}};onlinePublicRef.on("value",onlinePublicListener);
   const hostRoleRef=roomRef.child("lobby/hostId");
   hostRoleRef.off("value");
-  hostRoleRef.on("value",snap=>{isRoomHost=!!authUser&&snap.val()===authUser.uid;if(onlinePublic?.status==="roundComplete"&&onlinePublic.roundResult)openOnlineRoundResults(onlinePublic.roundResult);if(isRoomHost&&onlinePublic?.status==="playing"){reconcileDroppedRoundCompletion().catch(e=>console.error("Drop completion recovery failed:",e));runOnlineBotTurn();}});
+  hostRoleRef.on("value",snap=>{isRoomHost=!!authUser&&snap.val()===authUser.uid;if(isRoomHost&&onlinePublic?.status==="roundComplete"){finalizeOnlineGameIfNeeded().catch(e=>console.error("Game completion check failed:",e));if(onlinePublic.roundResult)openOnlineRoundResults(onlinePublic.roundResult);}if(isRoomHost&&onlinePublic?.status==="playing"){reconcileDroppedRoundCompletion().catch(e=>console.error("Drop completion recovery failed:",e));runOnlineBotTurn();}});
   // Watch the vote node directly as well as the full public state. This makes the host react immediately when the second player votes.
   onlineRematchVotesRef=roomRef.child("public/rematchVotes");
   if(onlineRematchVotesListener)onlineRematchVotesRef.off("value",onlineRematchVotesListener);
@@ -7285,7 +7285,7 @@ async function voteOnlineRematch(){
 async function hostPrepareRestartAfterVotes(){
  if(!onlineMode||!roomRef||!authUser)return;
  try{
-  const [hostSnap,stateSnap]=await Promise.all([roomRef.child("hostId").get(),roomRef.child("public").get()]);
+  const [hostSnap,stateSnap]=await Promise.all([roomRef.child("lobby/hostId").get(),roomRef.child("public").get()]);
   if(hostSnap.val()!==authUser.uid)return;
   const state=stateSnap.val();if(!state||state.status!=="gameComplete")return;
   const count=Object.values(state.rematchVotes||{}).filter(Boolean).length;if(count<2)return;
@@ -7300,7 +7300,7 @@ function closeHostRestartPrompt(){document.getElementById("hostRestartPrompt")?.
 async function startOnlineRematchIfReady(){
  if(!roomRef||!authUser||onlineRematchStarting)return;
  // Do not trust a possibly stale local host flag. Confirm the current host directly from the room before processing votes.
- try{const hostSnap=await roomRef.child("hostId").get();isRoomHost=hostSnap.val()===authUser.uid;}catch(e){console.error("Could not verify rematch host:",e);return;}
+ try{const hostSnap=await roomRef.child("lobby/hostId").get();isRoomHost=hostSnap.val()===authUser.uid;}catch(e){console.error("Could not verify rematch host:",e);return;}
  if(!isRoomHost)return;
  onlineRematchStarting=true;
  try{
