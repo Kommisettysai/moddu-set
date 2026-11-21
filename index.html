@@ -7418,7 +7418,6 @@ function shuffleRoundSeating(playerList){
   const score=keptPairs*100+sameSeats;
   if(score<bestScore){bestScore=score;best=[candidate];}
   else if(score===bestScore)best.push(candidate);
-  if(bestScore===0&&best.length>=12)break;
  }
  return best[Math.floor(Math.random()*best.length)]||shuffle(original.slice());
 }
