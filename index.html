@@ -5960,10 +5960,10 @@ async function restartCurrentGame(confirmed=false){
    throw new Error("This game cannot be restarted from its current state. Refresh and try again.");
   const participants=p.players.filter(x=>x&&x.id);
   if(participants.length<2)throw new Error("At least two players are required.");
-  const d=shuffle(makeDeck(participants.length)),hands={};
-  participants.forEach(x=>hands[x.id]=d.splice(0,13));
-  const first=d.pop(),starter=participants[Math.floor(Math.random()*participants.length)];
-  const freshPlayers=participants.map(x=>({...x,score:0,active:true,status:"Ready",cardCount:13,roundDrawCount:0,roundDropped:false,dropPenalty:0,unlocked:false,eligible:false,rejoinNextRound:false,rejoinPenalty:0,specialRank:null}));
+  const freshPlayers=shuffleRoundSeating(participants.map(x=>({...x,score:0,active:true,status:"Ready",cardCount:13,roundDrawCount:0,roundDropped:false,dropPenalty:0,unlocked:false,eligible:false,rejoinNextRound:false,rejoinPenalty:0,specialRank:null})));
+  const d=shuffle(makeDeck(freshPlayers.length)),hands={};
+  freshPlayers.forEach(x=>hands[x.id]=d.splice(0,13));
+  const first=d.pop(),starter=freshPlayers[Math.floor(Math.random()*freshPlayers.length)];
   const next={status:"playing",gameNumber:(Number(p.gameNumber)||1)+1,round:1,scoreLimit:Math.max(1,Number(p.scoreLimit)||200),turnUid:starter.id,roundStarterUid:starter.id,deckCount:d.length,discard:[first],drawnByUid:null,drawnCardId:null,pickDeadline:starter.isBot?null:Date.now()+60000,discardDeadline:null,specialRank:null,rematchVotes:{},players:freshPlayers,message:"The host restarted the game. Everyone's scores are reset. "+starter.name+"'s turn."};
   await roomRef.child("private").set({deck:d,hands,specialRank:null,specialRanks:{}});
   // Avoid deleting each action here: rules only let a player remove their own
@@ -7331,14 +7331,15 @@ async function startOnlineRematchIfReady(){
    await roomRef.child("public/status").set("gameComplete");
    return;
   }
-  const activeIds=new Set(accepted.map(p=>p.id)),nextPlayers=players.map(p=>({
+  const activeIds=new Set(accepted.map(p=>p.id)),nextPlayers=shuffleRoundSeating(players.map(p=>({
    ...p,score:0,active:activeIds.has(p.id),status:activeIds.has(p.id)?"Ready":"Eliminated",
    cardCount:activeIds.has(p.id)?13:0,roundDrawCount:0,roundDropped:false,dropPenalty:0,
    unlocked:false,eligible:false,rejoinNextRound:false,rejoinPenalty:0,specialRank:null
-  }));
-  const deck=shuffle(makeDeck(accepted.length)),hands={};
-  accepted.forEach(p=>{hands[p.id]=deck.splice(0,13);});
-  const first=deck.pop(),starter=accepted[Math.floor(Math.random()*accepted.length)];
+  })));
+  const acceptedInSeatOrder=nextPlayers.filter(p=>activeIds.has(p.id));
+  const deck=shuffle(makeDeck(acceptedInSeatOrder.length)),hands={};
+  acceptedInSeatOrder.forEach(p=>{hands[p.id]=deck.splice(0,13);});
+  const first=deck.pop(),starter=acceptedInSeatOrder[Math.floor(Math.random()*acceptedInSeatOrder.length)];
   const target=Math.max(1,Number(previous.scoreLimit)||200);
   const next={status:"playing",gameNumber:(Number(previous.gameNumber)||1)+1,round:1,scoreLimit:target,
    turnUid:starter.id,roundStarterUid:starter.id,deckCount:deck.length,discard:[first],drawnByUid:null,drawnCardId:null,
@@ -7359,6 +7360,15 @@ async function startOnlineRematchIfReady(){
   const status=document.querySelector("#roundResults .rematch-status");if(status)status.textContent="Rematch setup failed: "+detail+". Please refresh and request again.";
   const retryButton=document.querySelector("#roundResults .rematch-btn");if(retryButton){retryButton.disabled=false;retryButton.textContent="↻ RETRY REMATCH";}
  }finally{onlineRematchStarting=false;}
+}
+function shuffleRoundSeating(playerList){
+ const original=playerList||[],ordered=shuffle(original.slice());
+ // Guarantee a visible seating change when at least two players are present.
+ if(ordered.length>1&&ordered.every((p,i)=>p.id===original[i]?.id)){
+  const first=Math.floor(Math.random()*ordered.length),offset=1+Math.floor(Math.random()*(ordered.length-1)),second=(first+offset)%ordered.length;
+  [ordered[first],ordered[second]]=[ordered[second],ordered[first]];
+ }
+ return ordered;
 }
 function chooseNextRoundStarter(allPlayers,activePlayers,previousStarterUid){
  const ordered=allPlayers||[],activeIds=new Set((activePlayers||[]).map(p=>p.id));
@@ -7397,11 +7407,12 @@ async function startOnlineNextRound(){
    return;
   }
   const roundPlayers=(p.players||[]).map(x=>{const returning=!!x.rejoinNextRound,score=(p.roundResult.totals[x.id]||0)+(returning?(Number(x.rejoinPenalty)||20):0),isActive=active.some(a=>a.id===x.id);return {...x,score,active:isActive,status:isActive?(returning?"Rejoined with +20 penalty":"Ready"):"Eliminated",rejoinNextRound:false,rejoinPenalty:0,unlocked:false,eligible:false};});
-  const d=shuffle(makeDeck(active.length)),hands={};
-  active.forEach(x=>hands[x.id]=d.splice(0,13));
+  const seatedPlayers=shuffleRoundSeating(roundPlayers),activeInSeatOrder=seatedPlayers.filter(x=>active.some(a=>a.id===x.id));
+  const d=shuffle(makeDeck(activeInSeatOrder.length)),hands={};
+  activeInSeatOrder.forEach(x=>hands[x.id]=d.splice(0,13));
   const first=d.pop(),nextRound=(p.round||1)+1;
-  const starter=chooseNextRoundStarter(p.players||[],active,p.roundStarterUid||p.turnUid)||active[0];
-  const next={status:"playing",round:nextRound,scoreLimit:limit,turnUid:starter.id,roundStarterUid:starter.id,deckCount:d.length,discard:[first],drawnByUid:null,pickDeadline:starter.isBot?null:Date.now()+60000,specialRank:null,players:roundPlayers.map(x=>({...x,cardCount:(hands[x.id]||[]).length,roundDrawCount:0,roundDropped:false,dropPenalty:0})),message:"Round "+nextRound+". Elimination limit: "+limit+" points. "+starter.name+"'s turn. Draw a card."};
+  const starter=chooseNextRoundStarter(seatedPlayers,activeInSeatOrder,p.roundStarterUid||p.turnUid)||activeInSeatOrder[0];
+  const next={status:"playing",round:nextRound,scoreLimit:limit,turnUid:starter.id,roundStarterUid:starter.id,deckCount:d.length,discard:[first],drawnByUid:null,pickDeadline:starter.isBot?null:Date.now()+60000,specialRank:null,players:seatedPlayers.map(x=>({...x,cardCount:(hands[x.id]||[]).length,roundDrawCount:0,roundDropped:false,dropPenalty:0})),message:"Round "+nextRound+". New random seating. Elimination limit: "+limit+" points. "+starter.name+"'s turn. Draw a card."};
   await roomRef.child("private").set({deck:d,hands,specialRank:null,specialRanks:{}});
   await roomRef.child("public").set(next);
   const screen=document.getElementById("roundResults");if(screen)screen.classList.add("hidden");
@@ -7422,11 +7433,12 @@ async function performStartFreshRoundWithScores(){
   const active=p.players.filter(x=>x.active!==false&&(Number(x.score)||0)<limit);
   if(active.length<=1){message("There are not enough active players to start another round.");return;}
   const roundPlayers=p.players.map(x=>({...x,active:active.some(a=>a.id===x.id),status:active.some(a=>a.id===x.id)?"Ready":"Eliminated",roundDrawCount:0,roundDropped:false,dropPenalty:0,unlocked:false,eligible:false,specialRank:null}));
-  const d=shuffle(makeDeck(active.length)),hands={};
-  active.forEach(x=>hands[x.id]=d.splice(0,13));
+  const seatedPlayers=shuffleRoundSeating(roundPlayers),activeInSeatOrder=seatedPlayers.filter(x=>active.some(a=>a.id===x.id));
+  const d=shuffle(makeDeck(activeInSeatOrder.length)),hands={};
+  activeInSeatOrder.forEach(x=>hands[x.id]=d.splice(0,13));
   const first=d.pop(),nextRound=(Number(p.round)||1)+1;
-  const starter=chooseNextRoundStarter(p.players||[],active,p.roundStarterUid||p.turnUid)||active[0];
-  const next={status:"playing",round:nextRound,scoreLimit:limit,turnUid:starter.id,roundStarterUid:starter.id,deckCount:d.length,discard:[first],drawnByUid:null,drawnCardId:null,pickDeadline:starter.isBot?null:Date.now()+60000,discardDeadline:null,specialRank:null,players:roundPlayers.map(x=>({...x,cardCount:(hands[x.id]||[]).length})),message:"Round "+nextRound+" started by the host. Previous scores are preserved. "+starter.name+"'s turn."};
+  const starter=chooseNextRoundStarter(seatedPlayers,activeInSeatOrder,p.roundStarterUid||p.turnUid)||activeInSeatOrder[0];
+  const next={status:"playing",round:nextRound,scoreLimit:limit,turnUid:starter.id,roundStarterUid:starter.id,deckCount:d.length,discard:[first],drawnByUid:null,drawnCardId:null,pickDeadline:starter.isBot?null:Date.now()+60000,discardDeadline:null,specialRank:null,players:seatedPlayers.map(x=>({...x,cardCount:(hands[x.id]||[]).length})),message:"Round "+nextRound+" started by the host with new random seating. Previous scores are preserved. "+starter.name+"'s turn."};
   await roomRef.child("private").set({deck:d,hands,specialRank:null,specialRanks:{}});
   await roomRef.child("public").set(next);
   onlinePublic=next;drawn=false;selected=-1;applyOnlinePublic();
