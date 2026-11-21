@@ -6232,7 +6232,30 @@ function enterOnlineGame(state){
  if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();scheduleHostDiscardTimeout(onlinePublic);if(isRoomHost){if(onlinePublic.status==="restartRequested")openHostRestartPrompt();if(onlinePublic.status==="roundComplete")finalizeOnlineGameIfNeeded().catch(e=>console.error("Game completion check failed:",e));if(onlinePublic.status==="playing"){reconcileDroppedRoundCompletion().catch(e=>console.error("Drop completion recovery failed:",e));runOnlineBotTurn();}}}};onlinePublicRef.on("value",onlinePublicListener);
   const hostRoleRef=roomRef.child("lobby/hostId");
   hostRoleRef.off("value");
-  hostRoleRef.on("value",snap=>{isRoomHost=!!authUser&&snap.val()===authUser.uid;if(isRoomHost&&onlinePublic?.status==="roundComplete"){finalizeOnlineGameIfNeeded().catch(e=>console.error("Game completion check failed:",e));if(onlinePublic.roundResult)openOnlineRoundResults(onlinePublic.roundResult);}if(isRoomHost&&onlinePublic?.status==="playing"){reconcileDroppedRoundCompletion().catch(e=>console.error("Drop completion recovery failed:",e));runOnlineBotTurn();}});
+  hostRoleRef.on("value",snap=>{
+   isRoomHost=!!authUser&&snap.val()===authUser.uid;
+   if(isRoomHost&&onlineActionRef){
+    if(onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);
+    onlineActionListener=actionSnap=>{if(!actionSnap.exists())return;const uid=actionSnap.key;if(onlineBusy[uid])return;onlineBusy[uid]=true;processOnlineAction(uid,actionSnap.val()).catch(e=>setLobbyNotice("Game action failed: "+e.message)).finally(()=>{onlineActionRef.child(uid).remove().catch(()=>{});delete onlineBusy[uid];});};
+    onlineActionRef.on("child_added",onlineActionListener);
+    if(onlineRejoinListener)roomRef.child("rejoinRequests").off("child_added",onlineRejoinListener);
+    onlineRejoinListener=requestSnap=>{if(requestSnap.exists())processOnlineRejoinRequest(requestSnap.key);};
+    roomRef.child("rejoinRequests").on("child_added",onlineRejoinListener);
+   }else{
+    if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);
+    onlineActionListener=null;
+    if(roomRef&&onlineRejoinListener)roomRef.child("rejoinRequests").off("child_added",onlineRejoinListener);
+    onlineRejoinListener=null;
+   }
+   if(isRoomHost&&onlinePublic?.status==="roundComplete"){
+    finalizeOnlineGameIfNeeded().catch(e=>console.error("Game completion check failed:",e));
+    if(onlinePublic.roundResult)openOnlineRoundResults(onlinePublic.roundResult);
+   }
+   if(isRoomHost&&onlinePublic?.status==="playing"){
+    reconcileDroppedRoundCompletion().catch(e=>console.error("Drop completion recovery failed:",e));
+    runOnlineBotTurn();
+   }
+  });
   // Watch the vote node directly as well as the full public state. This makes the host react immediately when the second player votes.
   onlineRematchVotesRef=roomRef.child("public/rematchVotes");
   if(onlineRematchVotesListener)onlineRematchVotesRef.off("value",onlineRematchVotesListener);
@@ -7513,6 +7536,7 @@ function showHand(){
 }
 function startGame(){if(!onlineMode)return _soloStartGame();message("Leave the online table before starting a solo game.");}
 async function leaveRoom(showLobby=true){
+ const leavingGameType=activeGameType;
  await leaveVoiceChat();
  if(typeof cleanupLeastCountGame==="function")cleanupLeastCountGame();
  activeGameType="modduSet";
@@ -7527,7 +7551,7 @@ async function leaveRoom(showLobby=true){
  closeCardWatchViewer(true);cardWatchState=null;incomingCardWatchRequests={};document.getElementById("cardWatchRequestsNotice")?.remove();
  if(hostDiscardTimeout)clearTimeout(hostDiscardTimeout);hostDiscardTimeout=null;scheduledDiscardKey=null;
  onlineRematchVotesRef=null;onlineRematchVotesListener=null;
- if(roomRef&&roomPlayerId&&isRoomHost&&authUser){
+ if(leavingGameType==="modduSet"&&roomRef&&roomPlayerId&&isRoomHost&&authUser){
   try{
    const [lobbyHostSnap,publicSnap]=await Promise.all([roomRef.child("lobby/hostId").get(),roomRef.child("public").get()]);
    if(lobbyHostSnap.val()===authUser.uid){
