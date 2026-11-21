@@ -5165,7 +5165,7 @@ function render(){
   if(players[0]){
 document.getElementById("handCount").textContent=players[0].hand.length;const unmatchedEl=document.getElementById("handUnmatched");if(unmatchedEl)unmatchedEl.textContent="In hand: "+bestUnmatchedScore(players[0].hand||[],players[0])+" pts";
    if(playersEl){
-playersEl.innerHTML=players.map((p,i)=>{const eliminated=p.active===false||p.status==="Eliminated";return '<div class="player '+(i===turn&&!eliminated?'active turn-owner ':'')+(p.unlocked?'joker-seen ':'')+(p.roundDropped?'dropped-player ':'')+(eliminated?'eliminated-player':'')+'" data-player-id="'+escapeLobbyText(p.id)+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+(Number(p.score)||0)+'</span>'+(eliminated?'<span class="player-eliminated">ELIMINATED</span>':p.roundDropped?'<span class="player-dropped">DROPPED</span>':'')+cardWatchButtonMarkup(p)+'</div>';}).join('');
+const profilePlayers=onlineMode&&Array.isArray(onlinePublic?.players)?onlinePublic.players:players;playersEl.innerHTML=profilePlayers.map((p,i)=>{const eliminated=p.active===false||p.status==="Eliminated",isTurnOwner=onlineMode?p.id===onlinePublic?.turnUid:i===turn;return '<div class="player '+(isTurnOwner&&!eliminated?'active turn-owner ':'')+(p.unlocked?'joker-seen ':'')+(p.roundDropped?'dropped-player ':'')+(eliminated?'eliminated-player':'')+'" data-player-id="'+escapeLobbyText(p.id)+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+(Number(p.score)||0)+'</span>'+(eliminated?'<span class="player-eliminated">ELIMINATED</span>':p.roundDropped?'<span class="player-dropped">DROPPED</span>':'')+cardWatchButtonMarkup(p)+'</div>';}).join('');
    }
    if(handEl){
     try{handEl.innerHTML=renderHandLayout();}
@@ -5182,7 +5182,7 @@ playersEl.innerHTML=players.map((p,i)=>{const eliminated=p.active===false||p.sta
  }catch(error){
   console.error("Game render error:",error);
   if(playersEl&&players.length){
-   playersEl.innerHTML=players.map((p,i)=>{const eliminated=p.active===false||p.status==="Eliminated";return '<div class="player '+(i===turn&&!eliminated?'active turn-owner ':'')+(p.unlocked?'joker-seen ':'')+(eliminated?'eliminated-player':'')+'" data-player-id="'+escapeLobbyText(p.id)+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+(Number(p.score)||0)+'</span>'+(eliminated?'<span class="player-eliminated">ELIMINATED</span>':p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+cardWatchButtonMarkup(p)+'</div>';}).join('');
+   const profilePlayers=onlineMode&&Array.isArray(onlinePublic?.players)?onlinePublic.players:players;playersEl.innerHTML=profilePlayers.map((p,i)=>{const eliminated=p.active===false||p.status==="Eliminated",isTurnOwner=onlineMode?p.id===onlinePublic?.turnUid:i===turn;return '<div class="player '+(isTurnOwner&&!eliminated?'active turn-owner ':'')+(p.unlocked?'joker-seen ':'')+(eliminated?'eliminated-player':'')+'" data-player-id="'+escapeLobbyText(p.id)+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+(Number(p.score)||0)+'</span>'+(eliminated?'<span class="player-eliminated">ELIMINATED</span>':p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+cardWatchButtonMarkup(p)+'</div>';}).join('');
   }
   if(handEl&&players[0]){
    handEl.innerHTML=players[0].hand.map((c,i)=>cardMarkup(c,i)).join('');
