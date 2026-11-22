@@ -651,6 +651,9 @@ body.app-locked{overflow:hidden}
 .reaction-picker-overlay{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:18px;background:#000a;backdrop-filter:blur(4px)}
 .reaction-picker{width:min(100%,390px);padding:20px;border:1px solid #d7bd72;border-radius:22px;background:linear-gradient(160deg,#123f32,#08271f);color:#f8e8bd;box-shadow:0 18px 60px #0009}
 .reaction-picker-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;font-family:Georgia,serif;font-size:19px;letter-spacing:.3px}
+.reaction-picker-head-actions,.card-watch-head-actions{display:flex;align-items:center;gap:8px}
+.reaction-sound-toggle{border:1px solid #c6a75d88;border-radius:999px;background:#ffffff0d;color:#f8e8bd;padding:6px 9px;font-size:10px}
+.card-watch-react{border:1px solid #d7bd72;border-radius:999px;background:#173d32;color:#f8e8bd;padding:7px 11px;font-size:11px;font-weight:800}
 .reaction-picker-close{border:0;background:transparent;color:#f8e8bd;font-size:27px;line-height:1;padding:0 4px}
 .reaction-picker-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:18px}
 .reaction-emoji-button{min-height:58px;border:1px solid #c6a75d88;border-radius:13px;background:#ffffff0d;font-size:29px;box-shadow:inset 0 1px #ffffff12}
@@ -6312,26 +6315,69 @@ function showSharedAction(action){
  if(profile){profile.classList.remove("action-player");void profile.offsetWidth;profile.classList.add("action-player");}
 }
 
-const DEFAULT_PLAYER_REACTIONS=[{text:"😂",type:"emoji"},{text:"🤣",type:"emoji"},{text:"😏",type:"emoji"},{text:"🙄",type:"emoji"},{text:"🤭",type:"emoji"},{text:"😎",type:"emoji"},{text:"👏",type:"emoji"},{text:"❤️",type:"emoji"}];
+const DEFAULT_PLAYER_REACTIONS=[
+ {text:"😂",type:"emoji",label:"Laugh"},{text:"🤣",type:"emoji",label:"ROFL"},{text:"😭",type:"emoji",label:"Cry"},{text:"😮",type:"emoji",label:"Wow"},
+ {text:"😏",type:"emoji",label:"Smirk"},{text:"🙄",type:"emoji",label:"Really?"},{text:"🤭",type:"emoji",label:"Oops"},{text:"😎",type:"emoji",label:"Cool"},
+ {text:"👏",type:"emoji",label:"Clap"},{text:"❤️",type:"emoji",label:"Love"},{text:"🔥",type:"emoji",label:"Fire"},{text:"👍",type:"emoji",label:"Nice"}
+];
 let playerRecentReactions=[...DEFAULT_PLAYER_REACTIONS];
+let reactionSoundsEnabled=true;
+try{reactionSoundsEnabled=localStorage.getItem("modduSet.reactionSounds")!=="off";}catch(e){}
+let reactionAudioContext=null;
+function toggleReactionSounds(){
+ reactionSoundsEnabled=!reactionSoundsEnabled;
+ try{localStorage.setItem("modduSet.reactionSounds",reactionSoundsEnabled?"on":"off");}catch(e){}
+ const button=document.getElementById("reactionSoundToggle");if(button)button.textContent=reactionSoundsEnabled?"🔊 Sound on":"🔇 Sound off";
+}
+function playReactionSound(emoji){
+ if(!reactionSoundsEnabled)return;
+ try{
+  const AudioContextClass=window.AudioContext||window.webkitAudioContext;if(!AudioContextClass)return;
+  reactionAudioContext=reactionAudioContext||new AudioContextClass();
+  if(reactionAudioContext.state==="suspended")reactionAudioContext.resume().catch(()=>{});
+  const ctx=reactionAudioContext,now=ctx.currentTime;
+  const patterns={
+   "😂":[[740,0,.10],[980,.12,.12],[620,.28,.16]],
+   "🤣":[[880,0,.09],[1120,.10,.09],[760,.21,.10],[1040,.34,.16]],
+   "😭":[[660,0,.18],[520,.19,.2],[390,.42,.24]],
+   "😮":[[420,0,.08],[880,.12,.24]],
+   "👏":[[1050,0,.045],[720,.09,.05],[1050,.20,.045]],
+   "❤️":[[660,0,.13],[880,.16,.2]],
+   "🔥":[[520,0,.08],[780,.10,.08],[1040,.21,.14]],
+   "👍":[[660,0,.08],[880,.12,.14]],
+   "😏":[[520,0,.08],[660,.13,.13]],
+   "🙄":[[720,0,.10],[480,.16,.15]],
+   "🤭":[[800,0,.07],[620,.12,.07],[880,.23,.1]],
+   "😎":[[660,0,.08],[990,.14,.15]]
+  };
+  (patterns[emoji]||[[660,0,.12]]).forEach(([freq,delay,duration],i)=>{
+   const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type=emoji==="😭"?"triangle":"sine";osc.frequency.setValueAtTime(freq,now+delay);
+   gain.gain.setValueAtTime(.0001,now+delay);gain.gain.exponentialRampToValueAtTime(.055,now+delay+.012);gain.gain.exponentialRampToValueAtTime(.0001,now+delay+duration);
+   osc.connect(gain);gain.connect(ctx.destination);osc.start(now+delay);osc.stop(now+delay+duration+.02);
+  });
+ }catch(e){/* Audio is optional; reactions still work without it. */}
+}
 function recentReactionStorageKey(){return "modduSet.recentReactions."+String(authUser?.uid||"guest");}
 function normalizeRecentReactions(value){const list=Array.isArray(value)?value:[];const clean=list.filter(x=>x&&typeof x.text==="string"&&x.text.trim()).map(x=>({text:x.text.trim().slice(0,100),type:x.type==="emoji"?"emoji":"text"}));return clean.slice(0,8);}
 async function loadPlayerRecentReactions(){
- const key=recentReactionStorageKey();
- try{const local=JSON.parse(localStorage.getItem(key)||"null");if(Array.isArray(local))playerRecentReactions=normalizeRecentReactions(local);}catch(e){}
- if(!authUser||!firebaseReady)return;
- try{const snap=await firebase.database().ref("users/"+authUser.uid+"/recentReactions").get();if(snap.exists()){playerRecentReactions=normalizeRecentReactions(snap.val());try{localStorage.setItem(key,JSON.stringify(playerRecentReactions));}catch(e){};}}catch(e){console.warn("Could not load recent reactions:",e);}
+ const key=recentReactionStorageKey();let saved=[];
+ try{const local=JSON.parse(localStorage.getItem(key)||"null");if(Array.isArray(local))saved=normalizeRecentReactions(local);}catch(e){}
+ if(authUser&&firebaseReady){
+  try{const snap=await firebase.database().ref("users/"+authUser.uid+"/recentReactions").get();if(snap.exists()){saved=normalizeRecentReactions(snap.val());try{localStorage.setItem(key,JSON.stringify(saved));}catch(e){}}}catch(e){console.warn("Could not load recent reactions:",e);}
+ }
+ const combined=[...DEFAULT_PLAYER_REACTIONS,...saved];
+ playerRecentReactions=combined.filter((item,index)=>combined.findIndex(x=>x.text===item.text&&x.type===item.type)===index).slice(0,20);
 }
 function rememberPlayerReaction(text,type){
  const item={text:String(text||"").trim().slice(0,100),type:type==="emoji"?"emoji":"text"};if(!item.text)return;
- playerRecentReactions=[item,...playerRecentReactions.filter(x=>!(x.text===item.text&&x.type===item.type))].slice(0,8);
+ playerRecentReactions=[item,...playerRecentReactions.filter(x=>!(x.text===item.text&&x.type===item.type))].slice(0,20);
  const key=recentReactionStorageKey();try{localStorage.setItem(key,JSON.stringify(playerRecentReactions));}catch(e){}
  if(authUser&&firebaseReady)firebase.database().ref("users/"+authUser.uid+"/recentReactions").set(playerRecentReactions).catch(e=>console.warn("Could not save recent reactions:",e));
  renderPlayerRecentReactions();
 }
 function renderPlayerRecentReactions(){
  const grid=document.getElementById("reactionPickerGrid");if(!grid)return;
- grid.innerHTML=playerRecentReactions.map((item,i)=>'<button type="button" class="reaction-emoji-button '+(item.type==="text"?"reaction-text-button":"")+'" aria-label="Send '+escapeLobbyText(item.text)+'" data-reaction-index="'+i+'" title="'+escapeLobbyText(item.text)+'">'+escapeLobbyText(item.text)+'</button>').join("");
+ grid.innerHTML=playerRecentReactions.map((item,i)=>'<button type="button" class="reaction-emoji-button '+(item.type==="text"?"reaction-text-button":"")+'" aria-label="Send '+escapeLobbyText(item.label||item.text)+'" data-reaction-index="'+i+'" title="'+escapeLobbyText(item.label||item.text)+'">'+escapeLobbyText(item.text)+'</button>').join("");
  grid.querySelectorAll("[data-reaction-index]").forEach(button=>button.addEventListener("click",()=>{const item=playerRecentReactions[Number(button.getAttribute("data-reaction-index"))];if(item)sendPlayerReactionFromPopup(item.text,item.type);}));
 }
 function closePlayerReactionPopup(){const popup=document.getElementById("playerReactionPopup");if(popup)popup.remove();}
@@ -6415,7 +6461,7 @@ function showCardWatchViewer(targetName,hand){
  document.getElementById("cardWatchReopen")?.remove();
  if(!overlay){overlay=document.createElement("div");overlay.id="cardWatchViewer";overlay.className="card-watch-overlay";document.body.appendChild(overlay);}
  const watchedPlayer=currentOnlinePlayer(cardWatchState?.targetUid),jokerNotice=watchedPlayer?.unlocked&&specialRank?'<div class="card-watch-joker-notice">👁 This player has unlocked the special joker: <strong>'+escapeLobbyText(specialRank)+'★</strong></div>':"";
- overlay.innerHTML='<div class="card-watch-dialog" role="dialog" aria-modal="true"><div class="card-watch-head"><div><small>READ-ONLY VIEW · LIVE CARDS</small><h3>'+escapeLobbyText(watchedHandTargetName)+'’s cards</h3></div><button type="button" onclick="stopWatchingCards()" aria-label="Stop watching">×</button></div>'+jokerNotice+'<p>Cards are grouped into valid sets. Unmatched cards are shown separately. This is a read-only view.</p>'+renderCardWatchGroups(watchedHandTargetName,watchedHandCache)+'</div>';
+ overlay.innerHTML='<div class="card-watch-dialog" role="dialog" aria-modal="true"><div class="card-watch-head"><div><small>READ-ONLY VIEW · LIVE CARDS</small><h3>'+escapeLobbyText(watchedHandTargetName)+'’s cards</h3></div><div class="card-watch-head-actions"><button type="button" class="card-watch-react" onclick="openPlayerMessage(event)" aria-label="Send a reaction">😊 React</button><button type="button" onclick="stopWatchingCards()" aria-label="Stop watching">×</button></div></div>'+jokerNotice+'<p>Cards are grouped into valid sets. Unmatched cards are shown separately. This is a read-only view.</p>'+renderCardWatchGroups(watchedHandTargetName,watchedHandCache)+'</div>';
 }
 async function reopenCardWatchViewer(){
  const targetUid=cardWatchState?.targetUid;
@@ -6595,9 +6641,10 @@ function cardWatchButtonMarkup(player){
 function openPlayerMessage(event){
  if(event){event.preventDefault();event.stopPropagation();}
  if(!onlineMode||!roomRef||!roomPlayerId)return;
+ try{const AudioContextClass=window.AudioContext||window.webkitAudioContext;reactionAudioContext=reactionAudioContext||(AudioContextClass?new AudioContextClass():null);if(reactionAudioContext?.state==="suspended")reactionAudioContext.resume().catch(()=>{});}catch(e){}
  closePlayerReactionPopup();
  const overlay=document.createElement("div");overlay.id="playerReactionPopup";overlay.className="reaction-picker-overlay";
- overlay.innerHTML='<div class="reaction-picker" role="dialog" aria-modal="true" aria-labelledby="reactionPickerTitle"><div class="reaction-picker-head"><strong id="reactionPickerTitle">Recent reactions</strong><button type="button" class="reaction-picker-close" aria-label="Close" onclick="closePlayerReactionPopup()">×</button></div><div class="reaction-picker-grid" id="reactionPickerGrid"></div><label class="reaction-picker-label" for="reactionPickerText">Or write your own message</label><textarea id="reactionPickerText" maxlength="100" rows="2" placeholder="Type a message…"></textarea><div class="reaction-picker-actions"><button type="button" class="reaction-picker-cancel" onclick="closePlayerReactionPopup()">Cancel</button><button type="button" class="reaction-picker-send" onclick="sendPlayerReactionFromPopup(document.getElementById(\'reactionPickerText\').value,\'text\')">Send</button></div></div>';
+ overlay.innerHTML='<div class="reaction-picker" role="dialog" aria-modal="true" aria-labelledby="reactionPickerTitle"><div class="reaction-picker-head"><strong id="reactionPickerTitle">Quick reactions</strong><span class="reaction-picker-head-actions"><button type="button" id="reactionSoundToggle" class="reaction-sound-toggle" onclick="toggleReactionSounds()">'+(reactionSoundsEnabled?'🔊 Sound on':'🔇 Sound off')+'</button><button type="button" class="reaction-picker-close" aria-label="Close" onclick="closePlayerReactionPopup()">×</button></span></div><div class="reaction-picker-grid" id="reactionPickerGrid"></div><label class="reaction-picker-label" for="reactionPickerText">Or write your own message</label><textarea id="reactionPickerText" maxlength="100" rows="2" placeholder="Type a message…"></textarea><div class="reaction-picker-actions"><button type="button" class="reaction-picker-cancel" onclick="closePlayerReactionPopup()">Cancel</button><button type="button" class="reaction-picker-send" onclick="sendPlayerReactionFromPopup(document.getElementById(\'reactionPickerText\').value,\'text\')">Send</button></div></div>';
  overlay.addEventListener("click",e=>{if(e.target===overlay)closePlayerReactionPopup();});
  document.body.appendChild(overlay);renderPlayerRecentReactions();
  // Keep the popup keyboard-free initially. The keyboard opens only when the player taps the message box.
@@ -6623,6 +6670,7 @@ function showPlayerReaction(item){
  burst.style.setProperty("animation","none","important");
  burst.style.setProperty("opacity","1","important");
  burst.style.setProperty("transition","opacity .4s ease","important");
+ if(item.type==="emoji")playReactionSound(item.text);
  const content=document.createElement("span");content.className="reaction-content";content.textContent=item.text;
  const sender=document.createElement("span");sender.className="reaction-sender";sender.textContent=item.senderName;
  burst.append(content,sender);document.body.appendChild(burst);
