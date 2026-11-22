@@ -5140,6 +5140,7 @@ function startGame(){
  autoArrange(false);
  message("Your cards are arranged. Your turn: choose a pile.");
  render();
+ requestAnimationFrame(()=>animateRoundDeal(players,false));
 }
 
 function message(t){
@@ -5320,6 +5321,60 @@ function animatePick(action,sourcePlayer){
  const source=document.getElementById(action.type==="drawOpen"?"discardPile":"drawPile");
  animateCardFlight(source,target,action.type==="drawOpen"?(action.cardFace||null):null,action.type==="drawClosed","pick");
 }
+
+/* Round-start dealing: animate one card at a time from the deck to every active seat. */
+let cardDealAudioContext=null,cardDealNoiseBuffer=null,lastDealAnimationKey="";
+function playCardDealSound(){
+ try{
+  const AudioCtx=window.AudioContext||window.webkitAudioContext;if(!AudioCtx)return;
+  if(!cardDealAudioContext){cardDealAudioContext=new AudioCtx();const length=Math.floor(cardDealAudioContext.sampleRate*.11);cardDealNoiseBuffer=cardDealAudioContext.createBuffer(1,length,cardDealAudioContext.sampleRate);const data=cardDealNoiseBuffer.getChannelData(0);for(let i=0;i<length;i++)data[i]=(Math.random()*2-1)*(1-i/length);}
+  const ctx=cardDealAudioContext;if(ctx.state==="suspended")ctx.resume().catch(()=>{});
+  const source=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),gain=ctx.createGain();
+  source.buffer=cardDealNoiseBuffer;filter.type="bandpass";filter.frequency.value=1450;filter.Q.value=.65;
+  gain.gain.setValueAtTime(.0001,ctx.currentTime);gain.gain.linearRampToValueAtTime(.022,ctx.currentTime+.012);gain.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+.095);
+  source.connect(filter);filter.connect(gain);gain.connect(ctx.destination);source.start();source.stop(ctx.currentTime+.1);
+ }catch(e){}
+}
+function animateRoundDeal(playerList,online=false){
+ const seats=(playerList||[]).filter(p=>p&&p.active!==false&&p.status!=="Eliminated");
+ const deckEl=document.getElementById("drawPile");
+ if(!deckEl||!seats.length||window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+ const sourceRect=deckEl.getBoundingClientRect();if(!sourceRect.width||!sourceRect.height)return;
+ const handEl=document.getElementById("hand"),profiles=[...document.querySelectorAll("#players .player")];
+ const myId=online?roomPlayerId:null;
+ const cardW=Math.min(43,Math.max(34,sourceRect.width*.42)),cardH=cardW*1.5;
+ const total=seats.length*13;
+ seats.forEach((player,seatIndex)=>{
+  for(let cardIndex=0;cardIndex<13;cardIndex++){
+   const order=cardIndex*seats.length+seatIndex;
+   window.setTimeout(()=>{
+    let target=null;
+    if(online&&player.id===myId)target=handEl;
+    else if(online)target=profiles.find(el=>el.dataset.playerId===String(player.id));
+    else if(seatIndex===0)target=handEl;
+    else target=profiles[seatIndex];
+    if(!target||!document.body.contains(target))return;
+    const rect=target.getBoundingClientRect();if(!rect.width||!rect.height)return;
+    const ghost=buildFlightCard(null,true);ghost.classList.remove("pick-flight");ghost.classList.add("deal-flight");
+    ghost.style.left=(sourceRect.left+sourceRect.width/2-cardW/2)+"px";
+    ghost.style.top=(sourceRect.top+sourceRect.height/2-cardH/2)+"px";
+    ghost.style.width=cardW+"px";ghost.style.height=cardH+"px";
+    document.body.appendChild(ghost);
+    const dx=rect.left+rect.width/2-(sourceRect.left+sourceRect.width/2);
+    const dy=rect.top+rect.height/2-(sourceRect.top+sourceRect.height/2);
+    playCardDealSound();
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+     ghost.classList.add("is-moving");
+     ghost.style.transform="translate("+dx+"px,"+(dy-8)+"px) rotate("+((order%2?1:-1)*(5+(cardIndex%3)*2))+"deg) scale(.78)";
+     ghost.style.opacity=".98";
+    }));
+    window.setTimeout(()=>ghost.remove(),470);
+   },order*105);
+  }
+ });
+ return total*105;
+}
+
 function animateSoloPick(sourceId,cardData,faceDown=false){
  animateCardFlight(document.getElementById(sourceId),document.getElementById("hand"),cardData,faceDown,"pick");
 }
@@ -5936,6 +5991,7 @@ function startNextRound(){
  autoArrange(false);
  message("Round "+round+". Scores carried forward. Your turn: draw from either pile.");
  render();
+ requestAnimationFrame(()=>animateRoundDeal(players,false));
 }
 let pendingGameConfirmAction=null;
 function showGameConfirm(title,body,action,confirmLabel="Confirm"){
@@ -6995,6 +7051,7 @@ async function toggleVoiceControl(){
 function applyOnlinePublic(){
  if(!onlineMode||!onlinePublic)return;onlineActionPending=false;const st=onlinePublic,prior=players[0]||{},m=st.players||[];specialRank=st.specialRank||null;showSharedAction(st.lastAction);
  if(st.status==="playing"||st.status==="restartRequested"){const resultScreen=document.getElementById("roundResults");if(resultScreen){resultScreen.classList.add("hidden");resultScreen.classList.remove("game-complete-screen");}}
+ if(st.status==="playing"){const dealKey=String(roomCode||"room")+":"+String(st.gameNumber||1)+":"+String(st.round||1);if(dealKey!==lastDealAnimationKey){lastDealAnimationKey=dealKey;window.setTimeout(()=>animateRoundDeal(st.players||[],true),120);}}
  const ordered=[...m].sort((a,b)=>a.id===roomPlayerId?-1:b.id===roomPlayerId?1:0);
  players=ordered.map(p=>({id:p.id,name:p.name,score:p.score||0,roundDrawCount:p.roundDrawCount||0,roundDropped:!!p.roundDropped,dropPenalty:p.dropPenalty||0,unlocked:!!p.unlocked,active:p.active!==false,human:p.id===roomPlayerId,cardCount:p.cardCount||0,hand:p.id===roomPlayerId?(prior.id===roomPlayerId?prior.hand:[]):Array(p.cardCount||0).fill(null),status:p.status||"Ready"}));
  if(!players.length)return;
@@ -7845,6 +7902,13 @@ async function leaveRoom(showLobby=true){
     height:60px!important;
   }
 }
+</style>
+
+
+<style id="round-card-deal-animation">
+.deal-flight{position:fixed!important;z-index:100050!important;pointer-events:none!important;margin:0!important;box-sizing:border-box!important;display:flex!important;flex-direction:column!important;justify-content:center!important;align-items:center!important;border:2px solid #f3d18b!important;border-radius:7px!important;background:repeating-linear-gradient(45deg,#174a3c,#174a3c 5px,#28644d 5px,#28644d 10px)!important;color:#f8e4b8!important;box-shadow:0 7px 18px #0008!important;opacity:1;will-change:transform,opacity}
+.deal-flight.is-moving{transition:transform .39s cubic-bezier(.18,.72,.24,1),opacity .39s ease!important}
+@media(prefers-reduced-motion:reduce){.deal-flight{display:none!important}}
 </style>
 
 </body>
