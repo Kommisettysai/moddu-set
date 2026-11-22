@@ -7134,6 +7134,21 @@ async function processOnlineAction(uid,a){
  if(a.type==="drawClosed"||a.type==="drawOpen"){
   if(p.drawnByUid)return;
   if(hand.length!==13){p.message="Draw blocked: a player must have exactly 13 cards before drawing. Current count: "+hand.length+". The host should restart this round if the hand is out of sync.";p.players[playerIndex].cardCount=hand.length;await roomRef.child("public").set(p);return;}
+  // The previous discard was offered to this player. Remember whether they
+  // picked it or passed, separately for each opponent, for this round only.
+  const offeredCard=p.lastAction?.type==="discard"&&p.lastAction.uid!==uid?p.lastAction.cardFace:null;
+  if(offeredCard?.rank){
+   p.opponentMemory=p.opponentMemory||{};
+   const memory=p.opponentMemory[uid]||{ranks:{},totalPicked:0,totalIgnored:0};
+   memory.ranks=memory.ranks||{};
+   const rankKey=String(offeredCard.rank);
+   const rankStats=memory.ranks[rankKey]||{picked:0,ignored:0};
+   if(a.type==="drawOpen"){rankStats.picked=(Number(rankStats.picked)||0)+1;memory.totalPicked=(Number(memory.totalPicked)||0)+1;}
+   else{rankStats.ignored=(Number(rankStats.ignored)||0)+1;memory.totalIgnored=(Number(memory.totalIgnored)||0)+1;}
+   memory.ranks[rankKey]=rankStats;
+   memory.lastResponse={rank:rankKey,action:a.type==="drawOpen"?"picked":"ignored",at:Date.now()};
+   p.opponentMemory[uid]=memory;
+  }
   if(a.type==="drawOpen"){if(!pile.length)return;hand.push(pile.pop());}
   else{if(!d.length&&pile.length>1){const top=pile.pop();d=shuffle(pile);pile=[top];}if(!d.length)return;hand.push(d.pop());}
   h[uid]=hand;p.players[playerIndex].cardCount=hand.length;p.players[playerIndex].roundDrawCount=(p.players[playerIndex].roundDrawCount||0)+1;p.drawnByUid=uid;p.drawnCardId=hand[hand.length-1].id;p.discardDeadline=null;p.lastAction={type:a.type,uid,name:player.name,cardId:hand[hand.length-1].id,cardLabel:a.type==="drawOpen"?cardText(hand[hand.length-1]):null,cardFace:a.type==="drawOpen"?{rank:hand[hand.length-1].rank,suit:hand[hand.length-1].suit,joker:!!hand[hand.length-1].joker}:null,at:Date.now()};p.message=a.type==="drawOpen"?player.name+" picked "+cardText(hand[hand.length-1])+" from the open discard pile.":player.name+" drew a face-down card from the draw deck.";
@@ -7466,7 +7481,7 @@ async function startOnlineNextRound(){
   activeInSeatOrder.forEach(x=>hands[x.id]=d.splice(0,13));
   const first=d.pop(),nextRound=(p.round||1)+1;
   const starter=chooseNextRoundStarter(seatedPlayers,activeInSeatOrder,p.roundStarterUid||p.turnUid)||activeInSeatOrder[0];
-  const next={status:"playing",round:nextRound,scoreLimit:limit,turnUid:starter.id,roundStarterUid:starter.id,deckCount:d.length,discard:[first],drawnByUid:null,pickDeadline:starter.isBot?null:Date.now()+60000,specialRank:null,players:seatedPlayers.map(x=>({...x,cardCount:(hands[x.id]||[]).length,roundDrawCount:0,roundDropped:false,dropPenalty:0})),message:"Round "+nextRound+". New random seating. Elimination limit: "+limit+" points. "+starter.name+"'s turn. Draw a card."};
+  const next={status:"playing",round:nextRound,scoreLimit:limit,turnUid:starter.id,roundStarterUid:starter.id,deckCount:d.length,discard:[first],drawnByUid:null,pickDeadline:starter.isBot?null:Date.now()+60000,specialRank:null,opponentMemory:{},players:seatedPlayers.map(x=>({...x,cardCount:(hands[x.id]||[]).length,roundDrawCount:0,roundDropped:false,dropPenalty:0})),message:"Round "+nextRound+". New random seating. Elimination limit: "+limit+" points. "+starter.name+"'s turn. Draw a card."};
   await roomRef.child("private").set({deck:d,hands,specialRank:null,specialRanks:{}});
   await roomRef.child("public").set(next);
   const screen=document.getElementById("roundResults");if(screen)screen.classList.add("hidden");
@@ -7509,6 +7524,12 @@ async function runOnlineBotTurn(){
   const ds=await roomRef.child("private/deck").get(),deckNow=ds.val()||[],pile=p.discard||[];
   const privateSnap=await roomRef.child("private/specialRanks").get(),specialRanks=privateSnap.val()||{};
   const player={...bot,unlocked:!!bot.unlocked,specialRank:specialRanks[uid]||null};
+  // The player immediately after this bot gets first chance at its discard.
+  // Use only that opponent's round history when judging discard safety.
+  const activePlayers=(p.players||[]).filter(x=>x.active!==false&&!x.roundDropped);
+  const botSeat=activePlayers.findIndex(x=>x.id===uid);
+  const nextOpponent=botSeat>=0&&activePlayers.length>1?activePlayers[(botSeat+1)%activePlayers.length]:null;
+  const opponentRanks=nextOpponent?(p.opponentMemory||{})[nextOpponent.id]?.ranks||{}:{};
   const open=pile.length?pile[pile.length-1]:null;
   const openPlan=open?findBestArrangement([...hand,open],player):null;
   const closedPlan=deckNow.length?findBestArrangement([...hand,deckNow[deckNow.length-1]],player):null;
@@ -7528,7 +7549,11 @@ async function runOnlineBotTurn(){
    // genuinely required to complete a winning hand. Among ordinary cards,
    // prefer shedding the highest penalty card, not the lowest.
    const discardIsWild=isWildForPlayer(newHand[i],player);
-   const metric=[a.complete?1:0,a.covered,a.pure?1:0,-a.wilds,discardIsWild?0:1,unmatchedCardPoints(newHand[i],player)];
+   const rankStats=opponentRanks[String(newHand[i].rank)]||{};
+   // Picks are stronger evidence of interest than passes are of disinterest.
+   // A single ignored card only gives a small safety signal.
+   const opponentInterest=(Number(rankStats.picked)||0)*2-(Number(rankStats.ignored)||0)*0.5;
+   const metric=[a.complete?1:0,a.covered,a.pure?1:0,-a.wilds,discardIsWild?0:1,-opponentInterest,unmatchedCardPoints(newHand[i],player)];
    if(!bestMetric||metric.some((v,k)=>v!==bestMetric[k]&&v>bestMetric[k]&&metric.slice(0,k).every((x,z)=>x===bestMetric[z]))){bestMetric=metric;bestIndex=i;}
   }
   const finalHand=newHand.filter((_,i)=>i!==bestIndex),plan=findBestArrangement(finalHand,player);
