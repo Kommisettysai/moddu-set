@@ -5138,6 +5138,7 @@ function startGame(){
  discard.push(deck.pop());
  document.getElementById("setup").classList.add("hidden");
  document.getElementById("game").classList.remove("hidden");
+ document.getElementById("hand")?.classList.add("round-dealing");
  autoArrange(false);
  message("Your cards are arranged. Your turn: choose a pile.");
  render();
@@ -5416,8 +5417,8 @@ function animateHandArrangementCinematic(){
   clone.style.left=rect.left+"px";clone.style.top=rect.top+"px";
   clone.style.width=rect.width+"px";clone.style.height=rect.height+"px";clone.style.transform="";clone.style.transformOrigin="";
   clone.style.setProperty("--start-rotation",(index-6)*2.5+"deg");
-  clone.style.setProperty("--lift-x",(index-6)*7+"px");
-  clone.style.setProperty("--lift-y",(-112-Math.max(0,6-Math.abs(index-6))*5)+"px");
+  clone.style.setProperty("--lift-x",(index-6)*13+"px");
+  clone.style.setProperty("--lift-y",(-142-Math.max(0,6-Math.abs(index-6))*8)+"px");
   clone.style.transitionDelay=(index*16)+"ms";
   document.body.appendChild(clone);
   return {id:card.dataset.cardId,index,clone,rect};
@@ -5443,7 +5444,7 @@ function animateHandArrangementCinematic(){
    entry.clone.style.transitionDelay=(entry.index*12)+"ms";
    entry.clone.style.transform="translate("+dx+"px,"+dy+"px) rotate(0deg) scale("+scale+")";
   });
- },1050);
+ },1320);
  window.setTimeout(()=>{
   entries.forEach(entry=>entry.clone.remove());
   handEl.classList.remove("cinematic-arranging");
@@ -5454,7 +5455,7 @@ function animateHandArrangementCinematic(){
    unit.classList.add("cinematic-group-landed");
    window.setTimeout(()=>unit.classList.remove("cinematic-group-landed"),900+index*80);
   });
- },2050);
+ },2450);
 }
 function animateSoloPick(sourceId,cardData,faceDown=false){
  animateCardFlight(document.getElementById(sourceId),document.getElementById("hand"),cardData,faceDown,"pick");
@@ -7996,6 +7997,14 @@ async function leaveRoom(showLobby=true){
 .deal-flight.is-moving{transition:transform .43s cubic-bezier(.2,.68,.25,1),opacity .43s ease!important}
 @media(prefers-reduced-motion:reduce){.deal-flight{display:none!important}}
 
+#hand.round-dealing .card[data-card-id]{visibility:hidden!important;opacity:0!important}
+#hand.round-dealing .hand-unit,#hand.round-dealing .unit-label{visibility:hidden!important;opacity:0!important}
+#hand.cinematic-arranging .card[data-card-id],
+#hand.cinematic-arranging .hand-unit,
+#hand.cinematic-arranging .unit-label{visibility:hidden!important;opacity:0!important}
+#hand.cinematic-arranging .loose-title{opacity:.35!important}
+.cinematic-card-flight{backface-visibility:hidden!important}
+.cinematic-card-flight.cinematic-airborne{transform:translate(var(--lift-x),var(--lift-y)) rotate(calc(var(--start-rotation) + 13deg)) scale(1.16)!important;filter:brightness(1.32) saturate(1.18) drop-shadow(0 0 20px #f5d987) drop-shadow(0 18px 22px #000b)!important}
 #hand.cinematic-arranging .card[data-card-id]{visibility:hidden!important}
 #hand .deal-flat-row{position:relative!important;display:block!important;height:116px!important;min-height:116px!important;width:100%!important;overflow:hidden!important;margin:4px auto 8px!important;contain:layout paint!important}
 #hand .deal-flat-row>.card{position:absolute!important;bottom:3px!important;left:50%!important;transform-origin:50% 100%!important;box-sizing:border-box!important}
