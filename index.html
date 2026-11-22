@@ -6347,26 +6347,56 @@ function playReactionSound(emoji){
   const AudioContextClass=window.AudioContext||window.webkitAudioContext;if(!AudioContextClass)return;
   reactionAudioContext=reactionAudioContext||new AudioContextClass();
   if(reactionAudioContext.state==="suspended")reactionAudioContext.resume().catch(()=>{});
-  const ctx=reactionAudioContext,now=ctx.currentTime;
-  const patterns={
-   "😂":[[740,0,.10],[980,.12,.12],[620,.28,.16]],
-   "🤣":[[880,0,.09],[1120,.10,.09],[760,.21,.10],[1040,.34,.16]],
-   "😭":[[660,0,.18],[520,.19,.2],[390,.42,.24]],
-   "😮":[[420,0,.08],[880,.12,.24]],
-   "👏":[[1050,0,.045],[720,.09,.05],[1050,.20,.045]],
-   "❤️":[[660,0,.13],[880,.16,.2]],
-   "🔥":[[520,0,.08],[780,.10,.08],[1040,.21,.14]],
-   "👍":[[660,0,.08],[880,.12,.14]],
-   "😏":[[520,0,.08],[660,.13,.13]],
-   "🙄":[[720,0,.10],[480,.16,.15]],
-   "🤭":[[800,0,.07],[620,.12,.07],[880,.23,.1]],
-   "😎":[[660,0,.08],[990,.14,.15]]
+  const ctx=reactionAudioContext;
+  const vowelFormants={
+   a:[800,1150,2900],e:[500,1900,2600],i:[300,2200,3000],
+   o:[500,900,2600],u:[350,700,2400]
   };
-  (patterns[emoji]||[[660,0,.12]]).forEach(([freq,delay,duration],i)=>{
-   const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type=emoji==="😭"?"triangle":"sine";osc.frequency.setValueAtTime(freq,now+delay);
-   gain.gain.setValueAtTime(.0001,now+delay);gain.gain.exponentialRampToValueAtTime(.055,now+delay+.012);gain.gain.exponentialRampToValueAtTime(.0001,now+delay+duration);
-   osc.connect(gain);gain.connect(ctx.destination);osc.start(now+delay);osc.stop(now+delay+duration+.02);
-  });
+  function cartoonSyllable({at=0,duration=.22,pitch=240,toPitch=null,vowel="a",breath=.045,volume=.13}={}){
+   const t=ctx.currentTime+at,[f1,f2,f3]=vowelFormants[vowel]||vowelFormants.a;
+   const voice=ctx.createOscillator(),sourceGain=ctx.createGain();
+   voice.type="sawtooth";
+   voice.frequency.setValueAtTime(Math.max(75,pitch),t);
+   voice.frequency.exponentialRampToValueAtTime(Math.max(75,toPitch||pitch),t+duration);
+   sourceGain.gain.setValueAtTime(.0001,t);
+   sourceGain.gain.exponentialRampToValueAtTime(volume,t+.018);
+   sourceGain.gain.setValueAtTime(volume,t+Math.max(.025,duration-.055));
+   sourceGain.gain.exponentialRampToValueAtTime(.0001,t+duration);
+   const mix=ctx.createGain();mix.gain.value=.52;
+   [f1,f2,f3].forEach((freq,index)=>{
+    const formant=ctx.createBiquadFilter();formant.type="bandpass";
+    formant.frequency.setValueAtTime(freq,t);formant.Q.value=index===0?5:8;
+    const level=ctx.createGain();level.gain.value=index===0?.85:index===1?.42:.12;
+    voice.connect(formant);formant.connect(level);level.connect(mix);
+   });
+   mix.connect(sourceGain);sourceGain.connect(ctx.destination);
+   voice.start(t);voice.stop(t+duration+.015);
+   if(breath>0){
+    const length=Math.max(1,Math.floor(ctx.sampleRate*breath));
+    const buffer=ctx.createBuffer(1,length,ctx.sampleRate),data=buffer.getChannelData(0);
+    for(let i=0;i<length;i++)data[i]=(Math.random()*2-1)*(1-i/length);
+    const noise=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),ng=ctx.createGain();
+    noise.buffer=buffer;filter.type="highpass";filter.frequency.value=900;
+    ng.gain.setValueAtTime(.0001,t);ng.gain.linearRampToValueAtTime(volume*.22,t+.008);ng.gain.exponentialRampToValueAtTime(.0001,t+breath);
+    noise.connect(filter);filter.connect(ng);ng.connect(ctx.destination);noise.start(t);noise.stop(t+breath);
+   }
+  }
+  const say=(parts)=>parts.forEach(part=>cartoonSyllable(part));
+  const patterns={
+   "😂":()=>say([{at:0,duration:.18,pitch:430,toPitch:570,vowel:"a"},{at:.21,duration:.17,pitch:500,toPitch:640,vowel:"a"},{at:.43,duration:.25,pitch:390,toPitch:560,vowel:"a"}]),
+   "🤣":()=>say([{at:0,duration:.15,pitch:520,toPitch:690,vowel:"e"},{at:.17,duration:.16,pitch:590,toPitch:740,vowel:"a"},{at:.36,duration:.16,pitch:460,toPitch:650,vowel:"a"},{at:.55,duration:.24,pitch:540,toPitch:760,vowel:"a"}]),
+   "😭":()=>say([{at:0,duration:.52,pitch:480,toPitch:220,vowel:"a",breath:.07,volume:.16},{at:.62,duration:.18,pitch:310,toPitch:240,vowel:"u"},{at:.84,duration:.5,pitch:390,toPitch:180,vowel:"a",breath:.08,volume:.16}]),
+   "😮":()=>say([{at:0,duration:.22,pitch:280,toPitch:420,vowel:"o",volume:.15},{at:.24,duration:.42,pitch:420,toPitch:650,vowel:"a",volume:.16}]),
+   "👏":()=>{[0,.13,.29].forEach((at)=>{const n=ctx.createBufferSource(),len=Math.floor(ctx.sampleRate*.075),buf=ctx.createBuffer(1,len,ctx.sampleRate),d=buf.getChannelData(0);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*(1-i/len);const f=ctx.createBiquadFilter(),g=ctx.createGain();f.type="bandpass";f.frequency.value=1500;f.Q.value=.8;g.gain.setValueAtTime(.0001,ctx.currentTime+at);g.gain.linearRampToValueAtTime(.22,ctx.currentTime+at+.004);g.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+at+.07);n.buffer=buf;n.connect(f);f.connect(g);g.connect(ctx.destination);n.start(ctx.currentTime+at);});},
+   "❤️":()=>say([{at:0,duration:.13,pitch:300,toPitch:440,vowel:"u"},{at:.15,duration:.3,pitch:390,toPitch:320,vowel:"a",breath:.025}]),
+   "🔥":()=>say([{at:0,duration:.18,pitch:390,toPitch:590,vowel:"u"},{at:.19,duration:.23,pitch:500,toPitch:760,vowel:"a"}]),
+   "👍":()=>say([{at:0,duration:.28,pitch:330,toPitch:510,vowel:"e"},{at:.3,duration:.18,pitch:470,toPitch:590,vowel:"a"}]),
+   "😏":()=>say([{at:0,duration:.17,pitch:330,toPitch:390,vowel:"e"},{at:.21,duration:.2,pitch:300,toPitch:350,vowel:"e"}]),
+   "🙄":()=>say([{at:0,duration:.48,pitch:300,toPitch:170,vowel:"u",volume:.15}]),
+   "🤭":()=>say([{at:0,duration:.12,pitch:460,toPitch:530,vowel:"i"},{at:.15,duration:.12,pitch:520,toPitch:610,vowel:"i"},{at:.31,duration:.18,pitch:430,toPitch:520,vowel:"e"}]),
+   "😎":()=>say([{at:0,duration:.22,pitch:330,toPitch:510,vowel:"u"},{at:.25,duration:.25,pitch:460,toPitch:620,vowel:"i"}])
+  };
+  (patterns[emoji]||patterns["😏"])();
  }catch(e){/* Audio is optional; reactions still work without it. */}
 }
 function recentReactionStorageKey(){return "modduSet.recentReactions."+String(authUser?.uid||"guest");}
