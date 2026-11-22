@@ -5351,8 +5351,8 @@ function animateRoundDeal(playerList,online=false){
     let target=null;
     if(online&&player.id===myId)target=handEl;
     else if(online)target=profiles.find(el=>el.dataset.playerId===String(player.id));
-    else if(seatIndex===0)target=handEl;
-    else target=profiles[seatIndex];
+    else if((playerList||[]).indexOf(player)===0)target=handEl;
+    else target=profiles[(playerList||[]).indexOf(player)];
     if(!target||!document.body.contains(target))return;
     const rect=target.getBoundingClientRect();if(!rect.width||!rect.height)return;
     const ghost=buildFlightCard(null,true);ghost.classList.remove("pick-flight");ghost.classList.add("deal-flight");
