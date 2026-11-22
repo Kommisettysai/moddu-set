@@ -6345,19 +6345,20 @@ function toggleReactionSounds(){
  const button=document.getElementById("reactionSoundToggle");if(button)button.textContent=reactionSoundsEnabled?"🔊 Sound on":"🔇 Sound off";
 }
 // Short CC0 character-emote clips. These are real audio files, not Web Audio oscillator tones.
+// Each emoji uses an effect whose recorded action matches its meaning.
 const REACTION_SOUND_URLS={
- "😂":["https://sfxmint.com/dl/character-emote-02.mp3","https://sfxmint.com/dl/character-emote-04.mp3"],
- "🤣":["https://sfxmint.com/dl/character-emote-01.mp3","https://sfxmint.com/dl/character-emote-02.mp3"],
- "😭":["https://sfxmint.com/dl/character-emote-09.mp3"],
+ "😂":["https://sfxmint.com/dl/character-emote-02.mp3","https://sfxmint.com/dl/laugh-05.mp3","https://sfxmint.com/dl/character-emote-04.mp3"],
+ "🤣":["https://sfxmint.com/dl/laugh-05.mp3","https://sfxmint.com/dl/character-emote-02.mp3"],
+ "😭":["https://sfxmint.com/dl/crying-03.mp3"],
  "😮":["https://sfxmint.com/dl/character-emote-03.mp3"],
  "😏":["https://sfxmint.com/dl/character-emote-06.mp3"],
  "🙄":["https://sfxmint.com/dl/character-emote-05.mp3"],
- "🤭":["https://sfxmint.com/dl/character-emote-04.mp3","https://sfxmint.com/dl/character-emote-02.mp3"],
+ "🤭":["https://sfxmint.com/dl/character-emote-04.mp3","https://sfxmint.com/dl/laugh-05.mp3"],
  "😎":["https://sfxmint.com/dl/character-emote-08.mp3"],
- "👏":["https://sfxmint.com/dl/character-emote-10.mp3"],
- "❤️":["https://sfxmint.com/dl/character-emote-08.mp3"],
+ "👏":["https://sfxmint.com/dl/hand-clap-01.mp3"],
  "🔥":["https://sfxmint.com/dl/character-emote-10.mp3"],
  "👍":["https://sfxmint.com/dl/character-emote-10.mp3"]
+ // ❤️ intentionally has no sound: a random vocal effect feels wrong for this reaction.
 };
 const reactionAudioCache=new Map();
 const reactionAudioLastPick=new Map();
@@ -6382,14 +6383,17 @@ function playReactionSound(emoji){
 }
 function recentReactionStorageKey(){return "modduSet.recentReactions."+String(authUser?.uid||"guest");}
 function normalizeRecentReactions(value){const list=Array.isArray(value)?value:[];const clean=list.filter(x=>x&&typeof x.text==="string"&&x.text.trim()).map(x=>({text:x.text.trim().slice(0,100),type:x.type==="emoji"?"emoji":"text"}));return clean.slice(0,8);}
+function composePlayerReactions(customItems=[]){
+ const custom=normalizeRecentReactions(customItems).filter(item=>item.type==="text"&&!DEFAULT_PLAYER_REACTIONS.some(def=>def.text===item.text));
+ return [...custom,...DEFAULT_PLAYER_REACTIONS];
+}
 async function loadPlayerRecentReactions(){
  const key=recentReactionStorageKey();let saved=[];
  try{const local=JSON.parse(localStorage.getItem(key)||"null");if(Array.isArray(local))saved=normalizeRecentReactions(local);}catch(e){}
  if(authUser&&firebaseReady){
   try{const snap=await firebase.database().ref("users/"+authUser.uid+"/recentReactions").get();if(snap.exists()){saved=normalizeRecentReactions(snap.val());try{localStorage.setItem(key,JSON.stringify(saved));}catch(e){}}}catch(e){console.warn("Could not load recent reactions:",e);}
  }
- const combined=[...DEFAULT_PLAYER_REACTIONS,...saved];
- playerRecentReactions=combined.filter((item,index)=>combined.findIndex(x=>x.text===item.text&&x.type===item.type)===index).slice(0,20);
+ playerRecentReactions=composePlayerReactions(saved);
 }
 async function resetPlayerReactionsToDefaults(){
  playerRecentReactions=[...DEFAULT_PLAYER_REACTIONS];
@@ -6404,10 +6408,12 @@ async function resetPlayerReactionsToDefaults(){
  if(button){button.textContent="✓ Default emojis restored";button.disabled=true;}
 }
 function rememberPlayerReaction(text,type){
- const item={text:String(text||"").trim().slice(0,100),type:type==="emoji"?"emoji":"text"};if(!item.text)return;
- playerRecentReactions=[item,...playerRecentReactions.filter(x=>!(x.text===item.text&&x.type===item.type))].slice(0,20);
- const key=recentReactionStorageKey();try{localStorage.setItem(key,JSON.stringify(playerRecentReactions));}catch(e){}
- if(authUser&&firebaseReady)firebase.database().ref("users/"+authUser.uid+"/recentReactions").set(playerRecentReactions).catch(e=>console.warn("Could not save recent reactions:",e));
+ const clean=String(text||"").trim().slice(0,100);if(!clean||type!=="text")return;
+ const existing=playerRecentReactions.filter(x=>x.type==="text");
+ const custom=[{text:clean,type:"text"},...existing.filter(x=>x.text!==clean)].slice(0,8);
+ playerRecentReactions=composePlayerReactions(custom);
+ const key=recentReactionStorageKey();try{localStorage.setItem(key,JSON.stringify(custom));}catch(e){}
+ if(authUser&&firebaseReady)firebase.database().ref("users/"+authUser.uid+"/recentReactions").set(custom).catch(e=>console.warn("Could not save recent reactions:",e));
  renderPlayerRecentReactions();
 }
 function renderPlayerRecentReactions(){
