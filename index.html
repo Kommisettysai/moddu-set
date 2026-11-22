@@ -5195,10 +5195,6 @@ const profilePlayers=onlineMode&&Array.isArray(onlinePublic?.players)?onlinePubl
   message("Display recovery mode: your cards are shown in a simple layout.");
  }
 }
-function playerInitials(name){
- const parts=String(name||"Player").trim().split(/\s+/).filter(Boolean);
- return (parts.length>1?parts[0][0]+parts[parts.length-1][0]:parts[0].slice(0,2)).toUpperCase();
-}
 function renderDiscardHistory(){
  const stack=document.getElementById("discardStack");
  if(!stack)return;
@@ -5404,7 +5400,7 @@ function aiTurn(){
    const metric=[a.complete?1:0,a.covered,a.pure?1:0,-a.wilds,-unmatchedCardPoints(p.hand[i],p)];
    if(!bestMetric||metric.some((v,k)=>v!==bestMetric[k]&&v>bestMetric[k]&&metric.slice(0,k).every((x,z)=>x===bestMetric[z]))){bestMetric=metric;bestIndex=i;}
   }
-  const discardCard=p.hand.splice(bestIndex,1)[0];discard.push(discardCard);
+  const discardCard=p.hand.splice(bestIndex,1)[0];discardCard.discardedByUid=p.id||"bot";discardCard.discardedByName=p.name||"Player";discardCard.discardedByInitials=playerInitials(discardCard.discardedByName);discard.push(discardCard);
  }
  checkUnlock(turn,true);
  const final=findBestArrangement(p.hand,p);
@@ -5739,6 +5735,7 @@ function showHand(){
  if(hand.length!==13){infoToast("A valid SHOW needs exactly 13 cards after the discard.");return;}
  if(showDiscard){
   players[0].hand=hand;
+  showDiscard.discardedByUid=players[0].id||"solo-player";showDiscard.discardedByName=players[0].name||"You";showDiscard.discardedByInitials=playerInitials(showDiscard.discardedByName);
   discard.push(showDiscard);
   drawn=false;selected=-1;
   autoArrange(false);
