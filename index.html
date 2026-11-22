@@ -5337,16 +5337,16 @@ function playCardDealSound(){
 }
 function animateRoundDeal(playerList,online=false){
  const seats=(playerList||[]).filter(p=>p&&p.active!==false&&p.status!=="Eliminated");
- const deckEl=document.getElementById("drawPile");
+ const deckEl=document.getElementById("drawPile"),handEl=document.getElementById("hand");
  if(!deckEl||!seats.length||window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;
  const sourceRect=deckEl.getBoundingClientRect();if(!sourceRect.width||!sourceRect.height)return;
- const handEl=document.getElementById("hand"),profiles=[...document.querySelectorAll("#players .player")];
- const myId=online?roomPlayerId:null;
+ const profiles=[...document.querySelectorAll("#players .player")],myId=online?roomPlayerId:null;
  const localPlayer=online?seats.find(p=>p.id===myId):seats[0];
- const localIsInDeal=!!localPlayer&&!!handEl;
- const localCards=localIsInDeal?[...handEl.querySelectorAll(".card")].slice(0,13):[];
- // Do not show the finished hand before the dealing animation begins.
- if(localCards.length===13)handEl.classList.add("round-dealing");
+ const localHand=localPlayer?(players.find(p=>online?p.id===myId:p===players[0])?.hand||[]):[];
+ const localCardIds=localHand.slice(0,13).map(card=>String(card.id));
+ // Keep this class on the hand container. render() replaces its children during
+ // online updates, so each scheduled deal step must find the fresh card element.
+ if(localCardIds.length===13)handEl.classList.add("round-dealing");
  const cardW=Math.min(43,Math.max(34,sourceRect.width*.42)),cardH=cardW*1.5;
  const total=seats.length*13,interval=125,flightTime=430;
  seats.forEach((player,seatIndex)=>{
@@ -5355,11 +5355,14 @@ function animateRoundDeal(playerList,online=false){
    window.setTimeout(()=>{
     const isLocal=online?player.id===myId:player===seats[0];
     let target=isLocal?handEl:(online?profiles.find(el=>el.dataset.playerId===String(player.id)):profiles[(playerList||[]).indexOf(player)]);
-    const actualCard=isLocal?localCards[cardIndex]:null;
+    let actualCard=null;
+    if(isLocal){
+     const cardId=localCardIds[cardIndex];
+     actualCard=[...handEl.querySelectorAll(".card[data-card-id]")].find(el=>el.dataset.cardId===cardId)||null;
+    }
     if(!target||!document.body.contains(target))return;
     const rect=actualCard?.getBoundingClientRect()||target.getBoundingClientRect();
     if(!rect.width||!rect.height)return;
-    if(actualCard)actualCard.classList.remove("deal-revealed");
     const ghost=buildFlightCard(null,true);ghost.classList.remove("pick-flight");ghost.classList.add("deal-flight");
     ghost.style.left=(sourceRect.left+sourceRect.width/2-cardW/2)+"px";
     ghost.style.top=(sourceRect.top+sourceRect.height/2-cardH/2)+"px";
@@ -5375,14 +5378,18 @@ function animateRoundDeal(playerList,online=false){
     }));
     window.setTimeout(()=>{
      ghost.remove();
-     if(actualCard&&document.body.contains(actualCard))actualCard.classList.add("deal-revealed");
+     if(isLocal){
+      const cardId=localCardIds[cardIndex];
+      const currentCard=[...handEl.querySelectorAll(".card[data-card-id]")].find(el=>el.dataset.cardId===cardId);
+      if(currentCard)currentCard.classList.add("deal-revealed");
+     }
     },flightTime);
    },order*interval);
   }
  });
  window.setTimeout(()=>{
   if(handEl){handEl.classList.remove("round-dealing");handEl.querySelectorAll(".deal-revealed").forEach(card=>card.classList.remove("deal-revealed"));}
- },total*interval+flightTime+80);
+ },total*interval+flightTime+120);
  return total*interval+flightTime;
 }
 
