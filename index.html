@@ -5412,7 +5412,7 @@ function animateHandArrangementCinematic(){
   clone.removeAttribute("onclick");clone.removeAttribute("ondragstart");clone.removeAttribute("draggable");
   clone.classList.add("cinematic-card-flight");
   clone.style.left=rect.left+"px";clone.style.top=rect.top+"px";
-  clone.style.width=rect.width+"px";clone.style.height=rect.height+"px";
+  clone.style.width=rect.width+"px";clone.style.height=rect.height+"px";clone.style.transform="";clone.style.transformOrigin="";
   clone.style.setProperty("--start-rotation",(index-6)*2.5+"deg");
   clone.style.setProperty("--lift-x",(index-6)*7+"px");
   clone.style.setProperty("--lift-y",(-112-Math.max(0,6-Math.abs(index-6))*5)+"px");
