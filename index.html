@@ -211,6 +211,8 @@ footer{color:#9bb9a9;padding:20px 12px 28px;letter-spacing:.7px}
 #game>.panel:nth-of-type(2){padding:10px 12px!important;margin-bottom:9px!important}
 #game>.panel:nth-of-type(2) h3{font-size:16px!important;margin:0 0 6px!important}
 #game>.panel:nth-of-type(2) .piles{margin:6px 0!important;gap:12px!important}
+#game>.panel:nth-of-type(2) .piles .discard-pile-with-timer{flex:1 1 0!important;min-width:0!important}
+#game>.panel:nth-of-type(2) .piles .discard-pile-with-timer .discard-pile{width:100%!important;min-width:0!important;flex:1 1 auto!important}
 #game>.panel:nth-of-type(2) .pile{width:86px!important;height:88px!important;border-radius:11px!important}
 #game>.panel:nth-of-type(2) .pile strong{font-size:27px!important}
 #game>.panel:nth-of-type(2) .pile small{font-size:9px!important}
@@ -657,6 +659,7 @@ body.app-locked{overflow:hidden}
 .reaction-picker-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;font-family:Georgia,serif;font-size:19px;letter-spacing:.3px}
 .reaction-picker-head-actions,.card-watch-head-actions{display:flex;align-items:center;gap:8px}
 .reaction-sound-toggle{border:1px solid #c6a75d88;border-radius:999px;background:#ffffff0d;color:#f8e8bd;padding:6px 9px;font-size:10px}
+.card-watch-stop{border:1px solid #d7bd72;border-radius:999px;background:#71332f;color:#fff0e9;padding:7px 10px;font-size:10px;font-weight:800}
 .card-watch-react{border:1px solid #d7bd72;border-radius:999px;background:#173d32;color:#f8e8bd;padding:7px 11px;font-size:11px;font-weight:800}
 .reaction-picker-close{border:0;background:transparent;color:#f8e8bd;font-size:27px;line-height:1;padding:0 4px}
 .reaction-picker-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:18px}
@@ -6404,8 +6407,8 @@ function cardWatchersMarkup(targetUid){
 function syncCardWatchers(){
  if(!roomRef||!onlineMode)return;
  if(cardWatchersRef&&cardWatchersListener)return;
- cardWatchersRef=roomRef.child("cardWatchRequests");
- cardWatchersListener=snap=>{cardWatchersByTarget=snap.val()||{};render();};
+ cardWatchersRef=roomRef.child("cardWatchRequests/"+roomPlayerId);
+ cardWatchersListener=snap=>{cardWatchersByTarget={[roomPlayerId]:snap.val()||{}};render();};
  cardWatchersRef.on("value",cardWatchersListener,error=>console.warn("Could not load card watcher names:",error));
 }
 function dismissCardWatchViewer(){
@@ -6487,7 +6490,7 @@ function showCardWatchViewer(targetName,hand){
  document.getElementById("cardWatchReopen")?.remove();
  if(!overlay){overlay=document.createElement("div");overlay.id="cardWatchViewer";overlay.className="card-watch-overlay";document.body.appendChild(overlay);}
  const watchedPlayer=currentOnlinePlayer(cardWatchState?.targetUid),jokerNotice=watchedPlayer?.unlocked&&specialRank?'<div class="card-watch-joker-notice">👁 This player has unlocked the special joker: <strong>'+escapeLobbyText(specialRank)+'★</strong></div>':"";
- overlay.innerHTML='<div class="card-watch-dialog" role="dialog" aria-modal="true"><div class="card-watch-head"><div><small>READ-ONLY VIEW · LIVE CARDS</small><h3>'+escapeLobbyText(watchedHandTargetName)+'’s cards</h3></div><div class="card-watch-head-actions"><button type="button" class="card-watch-react" onclick="openPlayerMessage(event)" aria-label="Send a reaction">😊 React</button><button type="button" onclick="dismissCardWatchViewer()" aria-label="Close card viewer">×</button></div></div>'+jokerNotice+'<p>Cards are grouped into valid sets. Unmatched cards are shown separately. This is a read-only view.</p>'+renderCardWatchGroups(watchedHandTargetName,watchedHandCache)+'</div>';
+ overlay.innerHTML='<div class="card-watch-dialog" role="dialog" aria-modal="true"><div class="card-watch-head"><div><small>READ-ONLY VIEW · LIVE CARDS</small><h3>'+escapeLobbyText(watchedHandTargetName)+'’s cards</h3></div><div class="card-watch-head-actions"><button type="button" class="card-watch-react" onclick="openPlayerMessage(event)" aria-label="Send a reaction">😊 React</button><button type="button" class="card-watch-stop" onclick="stopWatchingCards()" aria-label="Stop watching">Stop</button><button type="button" onclick="dismissCardWatchViewer()" aria-label="Close card viewer">×</button></div></div>'+jokerNotice+'<p>Cards are grouped into valid sets. Unmatched cards are shown separately. This is a read-only view.</p>'+renderCardWatchGroups(watchedHandTargetName,watchedHandCache)+'</div>';
 }
 async function reopenCardWatchViewer(){
  const targetUid=cardWatchState?.targetUid;
