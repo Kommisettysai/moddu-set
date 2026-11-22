@@ -211,6 +211,8 @@ footer{color:#9bb9a9;padding:20px 12px 28px;letter-spacing:.7px}
 #game>.panel:nth-of-type(2){padding:10px 12px!important;margin-bottom:9px!important}
 #game>.panel:nth-of-type(2) h3{font-size:16px!important;margin:0 0 6px!important}
 #game>.panel:nth-of-type(2) .piles{margin:6px 0!important;gap:12px!important}
+#game>.panel:nth-of-type(2) .piles .discard-pile-with-timer{flex:1 1 0!important;min-width:0!important}
+#game>.panel:nth-of-type(2) .piles .discard-pile-with-timer .discard-pile{width:100%!important;min-width:0!important;flex:1 1 auto!important}
 #game>.panel:nth-of-type(2) .pile{width:86px!important;height:88px!important;border-radius:11px!important}
 #game>.panel:nth-of-type(2) .pile strong{font-size:27px!important}
 #game>.panel:nth-of-type(2) .pile small{font-size:9px!important}
@@ -434,10 +436,14 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 .top-discard-card{width:48px;height:66px;border:2px solid #f0d38f;border-radius:7px;background:linear-gradient(145deg,#fff,#eee8d9);color:#17231d;display:flex;align-items:center;justify-content:center;font:bold 21px Georgia,serif;box-shadow:0 5px 9px #0007}
 /* Three-card discard history: newest card on top, earlier cards remain visible below */
 .discard-pile{position:relative;flex-direction:column;justify-content:flex-start;gap:2px;padding-top:5px;overflow:visible}
-.discard-stack{position:relative;width:58px;height:94px;flex:0 0 94px;margin:0 auto}
-.discard-history-card{position:absolute;top:calc(var(--stack-index)*16px);left:50%;transform:translateX(-50%);width:48px;height:64px;box-sizing:border-box;border:2px solid #e8d9b9;border-radius:7px;background:linear-gradient(145deg,#fff,#eee8d9);color:#17231d;box-shadow:0 3px 7px #0008;display:flex;flex-direction:column;justify-content:space-between;padding:4px;font:bold 13px Georgia,serif;z-index:calc(4 - var(--stack-index));}
+.piles .discard-pile-with-timer{flex:1 1 auto;min-width:0;gap:7px}
+.piles .discard-pile-with-timer .discard-pile{width:100%!important;min-width:0;flex:1 1 auto!important}
+.discard-pile{padding-left:8px!important;padding-right:8px!important}
+.discard-stack{position:relative;width:min(100%,230px);height:68px;flex:0 0 68px;margin:0 auto}
+.discard-history-card{position:absolute;top:0;left:calc((3 - var(--stack-index))*58px);transform:none;width:48px;height:64px;box-sizing:border-box;border:2px solid #e8d9b9;border-radius:7px;background:linear-gradient(145deg,#fff,#eee8d9);color:#17231d;box-shadow:0 3px 7px #0008;display:flex;flex-direction:column;justify-content:space-between;padding:4px;font:bold 13px Georgia,serif;z-index:calc(4 - var(--stack-index));}
 .discard-history-card.red{color:#d32f2f}
-.discard-owner-tag{position:absolute;top:2px;right:2px;z-index:8;min-width:13px;padding:2px 3px;border:1px solid #d6b45f;border-radius:4px;background:linear-gradient(180deg,#fff0b2,#d8aa4c);color:#35250c!important;font:900 7px/1 system-ui,sans-serif;text-align:center;letter-spacing:.1px;box-shadow:0 1px 3px #0007}
+@media(max-width:450px){.discard-history-card{width:46px;height:62px}.discard-stack{width:min(100%,220px)}.discard-history-card{left:calc((3 - var(--stack-index))*min(18vw,52px))}}
+.discard-owner-tag{position:absolute;left:3px;bottom:3px;top:auto;right:auto;z-index:8;min-width:13px;padding:2px 3px;border:1px solid #d6b45f;border-radius:4px;background:linear-gradient(180deg,#fff0b2,#d8aa4c);color:#35250c!important;font:900 7px/1 system-ui,sans-serif;text-align:center;letter-spacing:.1px;box-shadow:0 1px 3px #0007}
 .discard-history-card .discard-history-suit{text-align:center;font-size:16px}
 .discard-history-card .discard-history-corner{text-align:right;font-size:9px;line-height:1}
 .open-pick-indicator{position:absolute;top:5px;right:5px;z-index:12;padding:4px 6px;border:1px solid #b9f8ff;border-radius:7px;background:linear-gradient(180deg,#b9f8ff,#39c9df);color:#073747;font-size:7px;font-weight:1000;letter-spacing:.35px;white-space:nowrap;box-shadow:0 2px 8px #0009;pointer-events:none}
@@ -653,6 +659,7 @@ body.app-locked{overflow:hidden}
 .reaction-picker-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;font-family:Georgia,serif;font-size:19px;letter-spacing:.3px}
 .reaction-picker-head-actions,.card-watch-head-actions{display:flex;align-items:center;gap:8px}
 .reaction-sound-toggle{border:1px solid #c6a75d88;border-radius:999px;background:#ffffff0d;color:#f8e8bd;padding:6px 9px;font-size:10px}
+.card-watch-stop{border:1px solid #d7bd72;border-radius:999px;background:#71332f;color:#fff0e9;padding:7px 10px;font-size:10px;font-weight:800}
 .card-watch-react{border:1px solid #d7bd72;border-radius:999px;background:#173d32;color:#f8e8bd;padding:7px 11px;font-size:11px;font-weight:800}
 .reaction-picker-close{border:0;background:transparent;color:#f8e8bd;font-size:27px;line-height:1;padding:0 4px}
 .reaction-picker-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:18px}
@@ -2992,6 +2999,11 @@ body:has(#game:not(.hidden)) main{
 <style>
 .card-watch-see{margin:5px 0 2px;padding:6px 16px;border:1px solid #e7c46e;border-radius:18px;background:linear-gradient(135deg,#ffe5a0,#d9a94d);color:#183d31;font-weight:800;letter-spacing:1px}
 .card-watch-watchers{display:block;margin:5px 0 2px;color:#f1d88e;font-size:10px;font-weight:700;line-height:1.4}
+.card-watch-watchers{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+.card-watch-watchers-title{color:#f1d88e;font-size:10px;font-weight:800}
+.card-watch-watcher{display:inline-flex;align-items:center;gap:5px;padding:3px 5px;border:1px solid #d9b66b55;border-radius:8px;background:#09291f88;color:#f7e6bd;font-size:9px}
+.card-watch-remove{padding:3px 6px!important;border:1px solid #e7a49a!important;border-radius:6px!important;background:#71332f!important;color:#fff0e9!important;font-size:8px!important;box-shadow:none!important}
+
 .card-watch-joker-notice{margin:10px 0;padding:9px 11px;border:1px solid #d9bd76;border-radius:9px;background:#274c3c;color:#ffe8a8;font-size:12px}
 .special-wild-card{outline:2px solid #f4d77d!important}
 .card-watch-locked{display:block;margin-top:5px;color:#d9c58e;font-size:10px;letter-spacing:.8px}
@@ -6387,15 +6399,32 @@ function currentOnlinePlayer(uid){return (onlinePublic?.players||[]).find(p=>p.i
 function canWatchCardsThisRound(){const me=currentOnlinePlayer(roomPlayerId);return !!(onlineMode&&(eliminatedSpectator||me?.roundDropped));}
 function cardWatchersMarkup(targetUid){
  const requests=cardWatchersByTarget[targetUid]||{};
- const names=Object.entries(requests).filter(([uid,req])=>req&&req.status==="accepted"&&Number(req.round)===cardWatchRound()).map(([uid])=>currentOnlinePlayer(uid)?.name||"Player");
- return names.length?'<span class="card-watch-watchers" title="'+escapeLobbyText(names.join(", "))+'">👁 Watching: '+names.map(name=>escapeLobbyText(name)).join(", ")+'</span>':"";
+ const watchers=Object.entries(requests).filter(([uid,req])=>req&&req.status==="accepted"&&Number(req.round)===cardWatchRound()).map(([uid])=>({uid,name:currentOnlinePlayer(uid)?.name||"Player"}));
+ if(!watchers.length)return "";
+ const controls=watchers.map(w=>'<span class="card-watch-watcher">'+escapeLobbyText(w.name)+(targetUid===roomPlayerId?'<button type="button" class="card-watch-remove" onclick="revokeCardWatcher(\''+escapeLobbyText(targetUid)+'\',\''+escapeLobbyText(w.uid)+'\')">Remove</button>':"")+'</span>').join("");
+ return '<div class="card-watch-watchers"><span class="card-watch-watchers-title">👁 Watching</span>'+controls+'</div>';
 }
 function syncCardWatchers(){
  if(!roomRef||!onlineMode)return;
  if(cardWatchersRef&&cardWatchersListener)return;
- cardWatchersRef=roomRef.child("cardWatchRequests");
- cardWatchersListener=snap=>{cardWatchersByTarget=snap.val()||{};render();};
+ cardWatchersRef=roomRef.child("cardWatchRequests/"+roomPlayerId);
+ cardWatchersListener=snap=>{cardWatchersByTarget={[roomPlayerId]:snap.val()||{}};render();};
  cardWatchersRef.on("value",cardWatchersListener,error=>console.warn("Could not load card watcher names:",error));
+}
+function dismissCardWatchViewer(){
+ // Closing the viewer hides the window only. The approved permission remains active.
+ closeCardWatchViewer(false);
+}
+async function revokeCardWatcher(targetUid,viewerUid){
+ if(!onlineMode||!roomRef||targetUid!==roomPlayerId||!viewerUid||viewerUid===roomPlayerId)return;
+ const request=cardWatchersByTarget[targetUid]?.[viewerUid];
+ if(!request||request.status!=="accepted"||Number(request.round)!==cardWatchRound())return;
+ const watcherName=currentOnlinePlayer(viewerUid)?.name||"This player";
+ if(!window.confirm("Remove "+watcherName+" from watching your cards?"))return;
+ try{
+  await roomRef.child("cardWatchRequests/"+targetUid+"/"+viewerUid).update({status:"revoked",revokedAt:firebase.database.ServerValue.TIMESTAMP});
+  setLobbyNotice(watcherName+" can no longer see your cards. They must request access again.");
+ }catch(error){setLobbyNotice("Could not remove watcher: "+error.message);}
 }
 async function stopWatchingCards(){
  const targetUid=cardWatchState?.targetUid;
@@ -6461,7 +6490,7 @@ function showCardWatchViewer(targetName,hand){
  document.getElementById("cardWatchReopen")?.remove();
  if(!overlay){overlay=document.createElement("div");overlay.id="cardWatchViewer";overlay.className="card-watch-overlay";document.body.appendChild(overlay);}
  const watchedPlayer=currentOnlinePlayer(cardWatchState?.targetUid),jokerNotice=watchedPlayer?.unlocked&&specialRank?'<div class="card-watch-joker-notice">👁 This player has unlocked the special joker: <strong>'+escapeLobbyText(specialRank)+'★</strong></div>':"";
- overlay.innerHTML='<div class="card-watch-dialog" role="dialog" aria-modal="true"><div class="card-watch-head"><div><small>READ-ONLY VIEW · LIVE CARDS</small><h3>'+escapeLobbyText(watchedHandTargetName)+'’s cards</h3></div><div class="card-watch-head-actions"><button type="button" class="card-watch-react" onclick="openPlayerMessage(event)" aria-label="Send a reaction">😊 React</button><button type="button" onclick="stopWatchingCards()" aria-label="Stop watching">×</button></div></div>'+jokerNotice+'<p>Cards are grouped into valid sets. Unmatched cards are shown separately. This is a read-only view.</p>'+renderCardWatchGroups(watchedHandTargetName,watchedHandCache)+'</div>';
+ overlay.innerHTML='<div class="card-watch-dialog" role="dialog" aria-modal="true"><div class="card-watch-head"><div><small>READ-ONLY VIEW · LIVE CARDS</small><h3>'+escapeLobbyText(watchedHandTargetName)+'’s cards</h3></div><div class="card-watch-head-actions"><button type="button" class="card-watch-react" onclick="openPlayerMessage(event)" aria-label="Send a reaction">😊 React</button><button type="button" class="card-watch-stop" onclick="stopWatchingCards()" aria-label="Stop watching">Stop</button><button type="button" onclick="dismissCardWatchViewer()" aria-label="Close card viewer">×</button></div></div>'+jokerNotice+'<p>Cards are grouped into valid sets. Unmatched cards are shown separately. This is a read-only view.</p>'+renderCardWatchGroups(watchedHandTargetName,watchedHandCache)+'</div>';
 }
 async function reopenCardWatchViewer(){
  const targetUid=cardWatchState?.targetUid;
