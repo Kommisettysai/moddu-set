@@ -7221,7 +7221,7 @@ async function processOnlineAction(uid,a){
    if(p.drawnByUid!==uid||hand.length!==14){p.message="SHOW could not sync: your 14-card hand or pending discard is not ready. Your cards have been kept unchanged.";await roomRef.child("public").set(p);return;}
    const discardIndex=showHand.findIndex(c=>c.id===a.discardCardId);
    if(discardIndex<0){p.message="SHOW could not find that discard card. Your hand has been kept unchanged.";await roomRef.child("public").set(p);return;}
-   showDiscard=showHand.splice(discardIndex,1)[0];showPile.push(showDiscard);
+   showDiscard=showHand.splice(discardIndex,1)[0];showDiscard.discardedByUid=uid;showDiscard.discardedByName=player.name||"Player";showDiscard.discardedByInitials=playerInitials(showDiscard.discardedByName);showPile.push(showDiscard);
   }else if(p.drawnByUid||hand.length!==13){
    p.message="SHOW needs 13 cards, or 14 cards with one selected discard. Your hand has been kept unchanged.";await roomRef.child("public").set(p);return;
   }
