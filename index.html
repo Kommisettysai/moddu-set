@@ -4488,7 +4488,7 @@ body.hide-player-scores #game .player-strip #players>.player .profile-score{
 <div class="cards" id="hand"></div>
 <div class="actions hand-actions">
 <button id="discardBtn" onclick="discardSelected()" disabled>Discard selected</button>
-<button onclick="autoArrange()">Auto arrange</button>
+<button id="autoArrangeBtn" onclick="autoArrange()">Auto arrange</button>
 <button id="showBtn" onclick="showHand()">SHOW</button>
 </div>
 <button id="dropRoundBtn" class="drop-round-btn" onclick="dropCurrentRound()">DROP 20</button>
@@ -5201,7 +5201,9 @@ const profilePlayers=onlineMode&&Array.isArray(onlinePublic?.players)?onlinePubl
    }
   }
   const discardBtn=document.getElementById("discardBtn");
-  if(discardBtn)discardBtn.disabled=!(turn===0&&drawn&&selected>=0);
+  if(discardBtn)discardBtn.disabled=roundDealInProgress||!(turn===0&&drawn&&selected>=0);
+  const showBtn=document.getElementById("showBtn");if(showBtn)showBtn.disabled=roundDealInProgress;
+  const autoArrangeBtn=document.getElementById("autoArrangeBtn");if(autoArrangeBtn)autoArrangeBtn.disabled=roundDealInProgress;
   const dropBtn=document.getElementById("dropRoundBtn");
   if(dropBtn){const me=onlineMode?(onlinePublic?.players||[]).find(p=>p.id===roomPlayerId):players[0];const dropCount=Number(me?.roundDrawCount)||0;dropBtn.textContent="DROP "+(dropCount<=1?20:40);dropBtn.disabled=gameOver||!me||me.active===false||!!me.roundDropped;}
  }catch(error){
@@ -5256,7 +5258,7 @@ function recycleDeck(){
 }
 
 function drawClosed(){
- if(turn!==0||drawn)return;
+ if(roundDealInProgress||turn!==0||drawn)return;
  recycleDeck();
  if(deck.length===0){message("No cards available.");return;}
  const pickedCard=deck.pop();animateSoloPick("drawPile",null,true);players[0].hand.push(pickedCard);lastDrawnCardId=pickedCard.id;lastDrawSource="deck";
@@ -5269,7 +5271,7 @@ function drawClosed(){
 }
 
 function drawOpen(){
- if(turn!==0||drawn)return;
+ if(roundDealInProgress||turn!==0||drawn)return;
  if(discard.length===0)return;
  const pickedCard=discard[discard.length-1];animateSoloPick("discardPile",pickedCard,false);discard.pop();players[0].hand.push(pickedCard);lastDrawnCardId=pickedCard.id;lastDrawSource="open";
  players[0].roundDrawCount=(players[0].roundDrawCount||0)+1;
@@ -5324,7 +5326,7 @@ function animatePick(action,sourcePlayer){
 }
 
 /* Round-start dealing: animate one card at a time from the deck to every active seat. */
-let cardDealAudioContext=null,cardDealNoiseBuffer=null,lastDealAnimationKey="",roundDealInProgress=false;
+let cardDealAudioContext=null,cardDealNoiseBuffer=null,lastDealAnimationKey="",roundDealInProgress=false,roundDealMovieLayout=false;
 function playCardDealSound(){
  try{
   const AudioCtx=window.AudioContext||window.webkitAudioContext;if(!AudioCtx)return;
@@ -5387,9 +5389,9 @@ function animateRoundDeal(playerList,online=false){
 function animateHandArrangementCinematic(){
  const handEl=document.getElementById("hand");
  const reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
- if(!handEl||reduced){roundDealInProgress=false;render();return;}
+ if(!handEl||reduced){roundDealInProgress=false;roundDealMovieLayout=false;render();return;}
  const sourceCards=[...handEl.querySelectorAll(".card[data-card-id]")];
- if(sourceCards.length!==13){roundDealInProgress=false;render();return;}
+ if(sourceCards.length!==13){roundDealInProgress=false;roundDealMovieLayout=false;render();return;}
  const row=handEl.querySelector(".deal-flat-row")||handEl.querySelector(".hand-row");
  const availableWidth=Math.max(260,(row||handEl).clientWidth||handEl.clientWidth);
  const cardWidth=Math.min(58,Math.max(40,(availableWidth-28)/5.7));
@@ -5421,8 +5423,9 @@ function animateHandArrangementCinematic(){
   return {id:card.dataset.cardId,index,clone,rect};
  });
  handEl.classList.add("cinematic-arranging");
- // Build the destination layout behind the hidden hand, while the fan clones stay visible.
- roundDealInProgress=false;
+ // Reveal the analysed destination layout only behind the floating cards.
+ // Keep the deal lock active so controls and bot turns cannot start yet.
+ roundDealMovieLayout=true;
  render();
  const targetCards=[...handEl.querySelectorAll(".card[data-card-id]")];
  const targets=new Map(targetCards.map(card=>[card.dataset.cardId,card.getBoundingClientRect()]));
@@ -5444,6 +5447,9 @@ function animateHandArrangementCinematic(){
  window.setTimeout(()=>{
   entries.forEach(entry=>entry.clone.remove());
   handEl.classList.remove("cinematic-arranging");
+  roundDealInProgress=false;roundDealMovieLayout=false;
+  render();
+  if(!onlineMode&&turn!==0&&!gameOver)window.setTimeout(aiTurn,700);
   handEl.querySelectorAll(".hand-unit.set-unit,.hand-unit.pair-unit").forEach((unit,index)=>{
    unit.classList.add("cinematic-group-landed");
    window.setTimeout(()=>unit.classList.remove("cinematic-group-landed"),900+index*80);
@@ -5454,7 +5460,7 @@ function animateSoloPick(sourceId,cardData,faceDown=false){
  animateCardFlight(document.getElementById(sourceId),document.getElementById("hand"),cardData,faceDown,"pick");
 }
 function discardSelected(){
- if(turn!==0||!drawn||selected<0)return;
+ if(roundDealInProgress||turn!==0||!drawn||selected<0)return;
  const sourceCard=document.querySelectorAll("#hand .card")[selected];
  const discardedCard=players[0].hand[selected];
  animateRegularDiscard(sourceCard,discardedCard);
@@ -5517,7 +5523,7 @@ function revealSpecial(p){
 }
 
 function nextTurn(){
- if(gameOver)return;
+ if(gameOver||roundDealInProgress)return;
  let attempts=0;
  do{turn=(turn+1)%players.length;attempts++;}while(players[turn]?.roundDropped&&attempts<players.length);
  if(players.every(p=>p.roundDropped)){gameOver=true;message("Everyone dropped this round.");render();return;}
@@ -5530,7 +5536,7 @@ function nextTurn(){
 }
 
 function aiTurn(){
- if(gameOver||turn===0)return;
+ if(gameOver||turn===0||roundDealInProgress)return;
  const p=players[turn];if(!p||p.active===false||p.roundDropped){nextTurn();return;}
  recycleDeck();
  if(!deck.length&&discard.length<=1){message("No cards available. Turn skipped.");nextTurn();return;}
@@ -5604,7 +5610,7 @@ function dropOnGroup(event,g){
 }
 function renderHandLayout(){
  const hand=players[0].hand;
- if(roundDealInProgress)return '<div class="hand-layout deal-flat-hand"><div class="loose-area"><div class="loose-title">YOUR HAND · 13 CARDS</div><div class="hand-row deal-flat-row">'+hand.map((card,index)=>cardMarkup(card,index).replace('<div class="card ','<div class="card deal-fan-card ').replace('data-card-id=','style="--fan-index:'+index+';" data-card-id=')).join('')+'</div></div></div>';
+ if(roundDealInProgress&&!roundDealMovieLayout)return '<div class="hand-layout deal-flat-hand"><div class="loose-area"><div class="loose-title">YOUR HAND · 13 CARDS</div><div class="hand-row deal-flat-row">'+hand.map((card,index)=>cardMarkup(card,index).replace('<div class="card ','<div class="card deal-fan-card ').replace('data-card-id=','style="--fan-index:'+index+';" data-card-id=')).join('')+'</div></div></div>';
  const groupedIds=new Set(arrangedGroups.flat());
  const items=[];
  arrangedGroups.forEach((ids,g)=>{
@@ -5873,6 +5879,7 @@ function animateShowCardAction(discardedCard=null){
  }
 }
 function showHand(){
+ if(roundDealInProgress){infoToast("Please wait until all cards are dealt.");return;}
  if(!players.length||turn!==0||gameOver){infoToast("You cannot show right now.");return;}
  let hand=[...players[0].hand],showDiscard=null;
  if(drawn){
@@ -7851,10 +7858,11 @@ async function runOnlineBotTurn(){
 let onlineActionPending=false;
 async function sendOnlineAction(a){if(eliminatedSpectator){message("You are watching this game and cannot play.");return;}if(onlineActionPending){message("Your previous action is still syncing. Please wait.");return;}if(!onlinePublic||onlinePublic.status!=="playing"||(a.type!=="dropRound"&&onlinePublic.turnUid!==roomPlayerId)){message("Please wait for your turn.");return;}onlineActionPending=true;try{if(isRoomHost){await processOnlineAction(roomPlayerId,a);onlineActionPending=false;}else{await onlineActionRef.child(roomPlayerId).set({...a,requestedAt:Date.now()});setTimeout(()=>{onlineActionPending=false;},1800);}}catch(e){onlineActionPending=false;message("Action failed: "+e.message);}}
 const _soloDrawClosed=drawClosed,_soloDrawOpen=drawOpen,_soloDiscardSelected=discardSelected,_soloShowHand=showHand,_soloStartGame=startGame;
-function drawClosed(){if(!onlineMode)return _soloDrawClosed();if(turn!==0||drawn)return;sendOnlineAction({type:"drawClosed"});}
-function drawOpen(){if(!onlineMode)return _soloDrawOpen();if(turn!==0||drawn)return;sendOnlineAction({type:"drawOpen"});}
-function discardSelected(){if(!onlineMode)return _soloDiscardSelected();if(turn!==0||!drawn||selected<0)return;const c=players[0].hand[selected];if(c){animateRegularDiscard(document.querySelectorAll("#hand .card")[selected],c);sendOnlineAction({type:"discard",cardId:c.id});}selected=-1;}
+function drawClosed(){if(roundDealInProgress)return;if(!onlineMode)return _soloDrawClosed();if(turn!==0||drawn)return;sendOnlineAction({type:"drawClosed"});}
+function drawOpen(){if(roundDealInProgress)return;if(!onlineMode)return _soloDrawOpen();if(turn!==0||drawn)return;sendOnlineAction({type:"drawOpen"});}
+function discardSelected(){if(roundDealInProgress)return;if(!onlineMode)return _soloDiscardSelected();if(turn!==0||!drawn||selected<0)return;const c=players[0].hand[selected];if(c){animateRegularDiscard(document.querySelectorAll("#hand .card")[selected],c);sendOnlineAction({type:"discard",cardId:c.id});}selected=-1;}
 function showHand(){
+ if(roundDealInProgress){message("Please wait until all cards are dealt and arranged.");return;}
  if(!onlineMode)return _soloShowHand();
  if(!onlinePublic||onlinePublic.status!=="playing"||turn!==0||gameOver){message("You cannot show right now.");return;}
  const hand=players[0].hand||[];let discardCardId=null;
