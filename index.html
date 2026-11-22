@@ -437,6 +437,7 @@ header .sub{font-size:clamp(8px,2.2vw,11px)!important;line-height:1.35!important
 .discard-stack{position:relative;width:58px;height:94px;flex:0 0 94px;margin:0 auto}
 .discard-history-card{position:absolute;top:calc(var(--stack-index)*16px);left:50%;transform:translateX(-50%);width:48px;height:64px;box-sizing:border-box;border:2px solid #e8d9b9;border-radius:7px;background:linear-gradient(145deg,#fff,#eee8d9);color:#17231d;box-shadow:0 3px 7px #0008;display:flex;flex-direction:column;justify-content:space-between;padding:4px;font:bold 13px Georgia,serif;z-index:calc(4 - var(--stack-index));}
 .discard-history-card.red{color:#d32f2f}
+.discard-owner-tag{position:absolute;top:2px;right:2px;z-index:8;min-width:13px;padding:2px 3px;border:1px solid #d6b45f;border-radius:4px;background:linear-gradient(180deg,#fff0b2,#d8aa4c);color:#35250c!important;font:900 7px/1 system-ui,sans-serif;text-align:center;letter-spacing:.1px;box-shadow:0 1px 3px #0007}
 .discard-history-card .discard-history-suit{text-align:center;font-size:16px}
 .discard-history-card .discard-history-corner{text-align:right;font-size:9px;line-height:1}
 .open-pick-indicator{position:absolute;top:5px;right:5px;z-index:12;padding:4px 6px;border:1px solid #b9f8ff;border-radius:7px;background:linear-gradient(180deg,#b9f8ff,#39c9df);color:#073747;font-size:7px;font-weight:1000;letter-spacing:.35px;white-space:nowrap;box-shadow:0 2px 8px #0009;pointer-events:none}
@@ -5201,8 +5202,9 @@ function renderDiscardHistory(){
  stack.innerHTML=recent.map((card,index)=>{
   const red=card&&["♥","♦"].includes(card.suit);
   const label=cardText(card);
-  return '<div class="discard-history-card '+(red?'red ':'')+(index===0?'latest-discard':'')+'" style="--stack-index:'+index+'" title="'+escapeLobbyText(label)+'">'+
-   '<span>'+escapeLobbyText(card&&card.joker?'★':card&&card.rank||'?')+'</span>'+
+  const ownerName=card?.discardedByName||"",ownerTag=card?.discardedByInitials||(ownerName?playerInitials(ownerName):"");
+  return '<div class="discard-history-card '+(red?'red ':'')+(index===0?'latest-discard':'')+'" style="--stack-index:'+index+'" title="'+escapeLobbyText(label+(ownerName?" · discarded by "+ownerName:""))+'">'+
+   (ownerTag?'<span class="discard-owner-tag">'+escapeLobbyText(ownerTag)+'</span>':"")+'<span>'+escapeLobbyText(card&&card.joker?'★':card&&card.rank||'?')+'</span>'+
    '<span class="discard-history-suit">'+escapeLobbyText(card&&card.joker?'★':card&&card.suit||'')+'</span>'+
    '<span class="discard-history-corner">'+escapeLobbyText(label)+'</span></div>';
  }).join("");
@@ -5309,6 +5311,7 @@ function discardSelected(){
  const discardedCard=players[0].hand[selected];
  animateRegularDiscard(sourceCard,discardedCard);
  let card=players[0].hand.splice(selected,1)[0];
+ const discardOwner=players[0];card.discardedByUid=discardOwner.id||"solo-player";card.discardedByName=discardOwner.name||"You";card.discardedByInitials=playerInitials(card.discardedByName);
  discard.push(card);lastDrawnCardId=null;lastDrawSource=null;
  drawn=false;selected=-1;arrangedGroups=[];
  checkUnlock(0,true);
@@ -5397,7 +5400,7 @@ function aiTurn(){
    const metric=[a.complete?1:0,a.covered,a.pure?1:0,-a.wilds,-unmatchedCardPoints(p.hand[i],p)];
    if(!bestMetric||metric.some((v,k)=>v!==bestMetric[k]&&v>bestMetric[k]&&metric.slice(0,k).every((x,z)=>x===bestMetric[z]))){bestMetric=metric;bestIndex=i;}
   }
-  const discardCard=p.hand.splice(bestIndex,1)[0];discard.push(discardCard);
+  const discardCard=p.hand.splice(bestIndex,1)[0];discardCard.discardedByUid=p.id||"bot";discardCard.discardedByName=p.name||"Player";discardCard.discardedByInitials=playerInitials(discardCard.discardedByName);discard.push(discardCard);
  }
  checkUnlock(turn,true);
  const final=findBestArrangement(p.hand,p);
@@ -5732,6 +5735,7 @@ function showHand(){
  if(hand.length!==13){infoToast("A valid SHOW needs exactly 13 cards after the discard.");return;}
  if(showDiscard){
   players[0].hand=hand;
+  showDiscard.discardedByUid=players[0].id||"solo-player";showDiscard.discardedByName=players[0].name||"You";showDiscard.discardedByInitials=playerInitials(showDiscard.discardedByName);
   discard.push(showDiscard);
   drawn=false;selected=-1;
   autoArrange(false);
@@ -6338,7 +6342,7 @@ function canWatchCardsThisRound(){const me=currentOnlinePlayer(roomPlayerId);ret
 function cardWatchersMarkup(targetUid){
  const requests=cardWatchersByTarget[targetUid]||{};
  const names=Object.entries(requests).filter(([uid,req])=>req&&req.status==="accepted"&&Number(req.round)===cardWatchRound()).map(([uid])=>currentOnlinePlayer(uid)?.name||"Player");
- return names.length?'<span class="card-watch-watchers" title="'+escapeLobbyText(names.join(", "))+'">👁 Watching: '+names.map(escapeLobbyText).join(", ")+'</span>':"";
+ return names.length?'<span class="card-watch-watchers" title="'+escapeLobbyText(names.join(", "))+'">👁 Watching: '+names.map(name=>escapeLobbyText(name)).join(", ")+'</span>':"";
 }
 function syncCardWatchers(){
  if(!roomRef||!onlineMode)return;
@@ -6346,6 +6350,18 @@ function syncCardWatchers(){
  cardWatchersRef=roomRef.child("cardWatchRequests");
  cardWatchersListener=snap=>{cardWatchersByTarget=snap.val()||{};render();};
  cardWatchersRef.on("value",cardWatchersListener,error=>console.warn("Could not load card watcher names:",error));
+}
+async function stopWatchingCards(){
+ const targetUid=cardWatchState?.targetUid;
+ if(!onlineMode||!roomRef||!roomPlayerId||!targetUid){closeCardWatchViewer(true);return;}
+ try{
+  await roomRef.child("cardWatchRequests/"+targetUid+"/"+roomPlayerId).update({status:"revoked",stoppedAt:firebase.database.ServerValue.TIMESTAMP});
+  await roomRef.child("private/cardWatchLocks/"+roomPlayerId).remove();
+  if(cardWatchRequestRef&&cardWatchRequestListener)cardWatchRequestRef.off("value",cardWatchRequestListener);
+  cardWatchRequestRef=null;cardWatchRequestListener=null;cardWatchRequestPath="";
+  cardWatchState=null;closeCardWatchViewer(true);render();
+  setLobbyNotice("You stopped watching. You can request this player again anytime.");
+ }catch(error){setLobbyNotice("Could not stop watching: "+error.message);}
 }
 function closeCardWatchViewer(revokeAccess=false){
  cardWatchViewerDismissed=true;
@@ -6399,7 +6415,7 @@ function showCardWatchViewer(targetName,hand){
  document.getElementById("cardWatchReopen")?.remove();
  if(!overlay){overlay=document.createElement("div");overlay.id="cardWatchViewer";overlay.className="card-watch-overlay";document.body.appendChild(overlay);}
  const watchedPlayer=currentOnlinePlayer(cardWatchState?.targetUid),jokerNotice=watchedPlayer?.unlocked&&specialRank?'<div class="card-watch-joker-notice">👁 This player has unlocked the special joker: <strong>'+escapeLobbyText(specialRank)+'★</strong></div>':"";
- overlay.innerHTML='<div class="card-watch-dialog" role="dialog" aria-modal="true"><div class="card-watch-head"><div><small>READ-ONLY VIEW · LIVE CARDS</small><h3>'+escapeLobbyText(watchedHandTargetName)+'’s cards</h3></div><button type="button" onclick="closeCardWatchViewer()" aria-label="Close">×</button></div>'+jokerNotice+'<p>Cards are grouped into valid sets. Unmatched cards are shown separately. This is a read-only view.</p>'+renderCardWatchGroups(watchedHandTargetName,watchedHandCache)+'</div>';
+ overlay.innerHTML='<div class="card-watch-dialog" role="dialog" aria-modal="true"><div class="card-watch-head"><div><small>READ-ONLY VIEW · LIVE CARDS</small><h3>'+escapeLobbyText(watchedHandTargetName)+'’s cards</h3></div><button type="button" onclick="stopWatchingCards()" aria-label="Stop watching">×</button></div>'+jokerNotice+'<p>Cards are grouped into valid sets. Unmatched cards are shown separately. This is a read-only view.</p>'+renderCardWatchGroups(watchedHandTargetName,watchedHandCache)+'</div>';
 }
 async function reopenCardWatchViewer(){
  const targetUid=cardWatchState?.targetUid;
@@ -6517,9 +6533,10 @@ function listenToOwnCardWatchRequest(targetUid){
     setLobbyNotice("Request approved. Opening this player's cards…");
     syncCardWatchViewer();
    }
-  }else if(cardWatchState?.status==="declined"){
+  }else if(cardWatchState?.status==="declined"||cardWatchState?.status==="revoked"){
+   const wasRevoked=cardWatchState?.status==="revoked";
    closeCardWatchViewer(true);
-   setLobbyNotice("Your card-view request was declined. You can request another player's cards now.");
+   setLobbyNotice(wasRevoked?"You stopped watching. You can request this player again anytime.":"Your card-view request was declined. You can request another player's cards now.");
    if(cardWatchRequestRef&&cardWatchRequestListener)cardWatchRequestRef.off("value",cardWatchRequestListener);
    cardWatchRequestRef=null;cardWatchRequestListener=null;cardWatchRequestPath="";
    roomRef.child("private/cardWatchLocks/"+roomPlayerId).remove().catch(error=>console.warn("Could not clear declined card-view lock:",error));
@@ -7180,7 +7197,7 @@ async function processOnlineAction(uid,a){
   h[uid]=hand;p.players[playerIndex].cardCount=hand.length;p.players[playerIndex].roundDrawCount=(p.players[playerIndex].roundDrawCount||0)+1;p.drawnByUid=uid;p.drawnCardId=hand[hand.length-1].id;p.discardDeadline=null;p.lastAction={type:a.type,uid,name:player.name,cardId:hand[hand.length-1].id,cardLabel:a.type==="drawOpen"?cardText(hand[hand.length-1]):null,cardFace:a.type==="drawOpen"?{rank:hand[hand.length-1].rank,suit:hand[hand.length-1].suit,joker:!!hand[hand.length-1].joker}:null,at:Date.now()};p.message=a.type==="drawOpen"?player.name+" picked "+cardText(hand[hand.length-1])+" from the open discard pile.":player.name+" drew a face-down card from the draw deck.";
  }else if(a.type==="discard"){
   if(p.drawnByUid!==uid||hand.length!==14){p.message="Discard blocked: a drawn hand must contain exactly 14 cards. Current count: "+hand.length+".";p.players[playerIndex].cardCount=hand.length;await roomRef.child("public").set(p);return;}const i=hand.findIndex(c=>c.id===a.cardId);if(i<0)return;
-  const timedOut=!!(p.discardDeadline&&Date.now()>=p.discardDeadline);const discardId=(a.automatic||timedOut)?p.drawnCardId:a.cardId;const discardIndex=hand.findIndex(c=>c.id===discardId);if(discardIndex<0)return;const discarded=hand.splice(discardIndex,1)[0];pile.push(discarded);h[uid]=hand;p.players[playerIndex].cardCount=hand.length;p.lastAction={type:"discard",uid,name:player.name,cardId:discarded.id,cardLabel:cardText(discarded),cardFace:{rank:discarded.rank,suit:discarded.suit,joker:!!discarded.joker},at:Date.now()};p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;p.pickDeadline=null;a.automatic=!!(a.automatic||timedOut);
+  const timedOut=!!(p.discardDeadline&&Date.now()>=p.discardDeadline);const discardId=(a.automatic||timedOut)?p.drawnCardId:a.cardId;const discardIndex=hand.findIndex(c=>c.id===discardId);if(discardIndex<0)return;const discarded=hand.splice(discardIndex,1)[0];discarded.discardedByUid=uid;discarded.discardedByName=player.name||"Player";discarded.discardedByInitials=playerInitials(discarded.discardedByName);pile.push(discarded);h[uid]=hand;p.players[playerIndex].cardCount=hand.length;p.lastAction={type:"discard",uid,name:player.name,cardId:discarded.id,cardLabel:cardText(discarded),cardFace:{rank:discarded.rank,suit:discarded.suit,joker:!!discarded.joker},at:Date.now()};p.drawnByUid=null;p.drawnCardId=null;p.discardDeadline=null;p.pickDeadline=null;a.automatic=!!(a.automatic||timedOut);
   if(hand.length===13&&hasNaturalFour(hand)&&!player.unlocked){
    p.players[playerIndex].eligible=true;
    if(!special){
@@ -7204,7 +7221,7 @@ async function processOnlineAction(uid,a){
    if(p.drawnByUid!==uid||hand.length!==14){p.message="SHOW could not sync: your 14-card hand or pending discard is not ready. Your cards have been kept unchanged.";await roomRef.child("public").set(p);return;}
    const discardIndex=showHand.findIndex(c=>c.id===a.discardCardId);
    if(discardIndex<0){p.message="SHOW could not find that discard card. Your hand has been kept unchanged.";await roomRef.child("public").set(p);return;}
-   showDiscard=showHand.splice(discardIndex,1)[0];showPile.push(showDiscard);
+   showDiscard=showHand.splice(discardIndex,1)[0];showDiscard.discardedByUid=uid;showDiscard.discardedByName=player.name||"Player";showDiscard.discardedByInitials=playerInitials(showDiscard.discardedByName);showPile.push(showDiscard);
   }else if(p.drawnByUid||hand.length!==13){
    p.message="SHOW needs 13 cards, or 14 cards with one selected discard. Your hand has been kept unchanged.";await roomRef.child("public").set(p);return;
   }
@@ -7626,6 +7643,8 @@ async function leaveRoom(showLobby=true){
  activeGameType="modduSet";
  if(onlineChatRef&&onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);onlineChatRef=null;onlineChatListener=null;chatIsOpen=false;chatHasOpened=false;chatUnreadCount=0;document.getElementById("gameChat")?.classList.add("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");mutedChatSenders.clear();eliminatedSpectator=false;document.getElementById("game")?.classList.remove("spectator-mode");if(onlinePublicRef&&onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);if(onlineSpecialRef)onlineSpecialRef.off("value");if(onlineHandRef&&onlineHandListener)onlineHandRef.off("value",onlineHandListener);if(onlineActionRef&&onlineActionListener)onlineActionRef.off("child_added",onlineActionListener);if(roomRef&&onlineLobbyListener)roomRef.child("lobby").off("value",onlineLobbyListener);if(roomRef&&rejoinPublicListener)roomRef.child("public").off("value",rejoinPublicListener);if(roomRef&&onlineRejoinListener)roomRef.child("rejoinRequests").off("child_added",onlineRejoinListener);if(roomRef&&roomListener)roomRef.off("value",roomListener);
  if(onlineRematchVotesRef&&onlineRematchVotesListener)onlineRematchVotesRef.off("value",onlineRematchVotesListener);
+ if(cardWatchersRef&&cardWatchersListener)cardWatchersRef.off("value",cardWatchersListener);
+ cardWatchersRef=null;cardWatchersListener=null;cardWatchersByTarget={};
  if(cardWatchLockRef&&cardWatchLockListener)cardWatchLockRef.off("value",cardWatchLockListener);
  if(cardWatchRequestRef&&cardWatchRequestListener)cardWatchRequestRef.off("value",cardWatchRequestListener);
  if(incomingCardWatchRef&&incomingCardWatchListener)incomingCardWatchRef.off("value",incomingCardWatchListener);
