@@ -5409,10 +5409,9 @@ function animateHandArrangementCinematic(){
    card.style.transformOrigin="50% 100%";card.style.zIndex=String(20+index);
   });
  }
- const handRect=handEl.getBoundingClientRect();
  const entries=sourceCards.map((card,index)=>{
   const rect=card.getBoundingClientRect(),clone=card.cloneNode(true);
-  clone.classList.remove("selected","picked-from-deck","picked-from-open");
+  clone.classList.remove("selected","picked-from-deck","picked-from-open","deal-revealed");
   clone.removeAttribute("onclick");clone.removeAttribute("ondragstart");clone.removeAttribute("draggable");
   clone.classList.add("cinematic-card-flight");
   clone.style.left=rect.left+"px";clone.style.top=rect.top+"px";
@@ -5425,29 +5424,62 @@ function animateHandArrangementCinematic(){
   return {id:card.dataset.cardId,index,clone,rect};
  });
  handEl.classList.add("cinematic-arranging");
- // Reveal the analysed destination layout only behind the floating cards.
- // Keep the deal lock active so controls and bot turns cannot start yet.
  roundDealMovieLayout=true;
  render();
  const targetCards=[...handEl.querySelectorAll(".card[data-card-id]")];
  const targets=new Map(targetCards.map(card=>[card.dataset.cardId,card.getBoundingClientRect()]));
+ const targetGroups=new Map();
+ entries.forEach(entry=>{
+  const target=targetCards.find(card=>card.dataset.cardId===entry.id);
+  if(!target)return;
+  const unit=target.closest(".hand-unit");
+  const key=unit?(unit.classList.contains("set-unit")?"set-"+[...handEl.querySelectorAll(".hand-unit.set-unit")].indexOf(unit):"pair-"+[...handEl.querySelectorAll(".hand-unit.pair-unit")].indexOf(unit)):"single-"+entry.index;
+  if(!targetGroups.has(key))targetGroups.set(key,{key,kind:unit?.classList.contains("set-unit")?"set":unit?.classList.contains("pair-unit")?"pair":"single",entries:[]});
+  targetGroups.get(key).entries.push(entry);
+ });
+ const orderedGroups=[...targetGroups.values()].sort((a,b)=>{
+  const rank=g=>g.kind==="set"?0:g.kind==="pair"?1:2;
+  return rank(a)-rank(b);
+ });
  requestAnimationFrame(()=>requestAnimationFrame(()=>{
   entries.forEach(entry=>entry.clone.classList.add("cinematic-airborne"));
  }));
- // Hold the floating fan briefly, then send each card into its detected group.
  window.setTimeout(()=>entries.forEach(entry=>entry.clone.classList.add("cinematic-orbit")),430);
- window.setTimeout(()=>{
-  entries.forEach(entry=>{
-   entry.clone.classList.remove("cinematic-orbit");
-   const target=targets.get(entry.id);if(!target)return;
-   const dx=target.left+target.width/2-(entry.rect.left+entry.rect.width/2);
-   const dy=target.top+target.height/2-(entry.rect.top+entry.rect.height/2);
-   const scale=Math.min(1,target.width/entry.rect.width);
-   entry.clone.classList.add("cinematic-settle");
-   entry.clone.style.transitionDelay=(entry.index*12)+"ms";
-   entry.clone.style.transform="translate("+dx+"px,"+dy+"px) rotate(0deg) scale("+scale+")";
-  });
- },1320);
+ // Matching cards rendezvous as a packet, then snap into their exact slots.
+ // Unmatched cards follow one by one in a calmer, lower cascade.
+ const firstMoveAt=1120,groupGap=145,packetDuration=390,landingDuration=470;
+ orderedGroups.forEach((group,groupIndex)=>{
+  const groupStart=firstMoveAt+groupIndex*groupGap;
+  window.setTimeout(()=>{
+   const rects=group.entries.map(entry=>targets.get(entry.id)).filter(Boolean);
+   if(!rects.length)return;
+   const centerX=rects.reduce((sum,r)=>sum+r.left+r.width/2,0)/rects.length;
+   const centerY=rects.reduce((sum,r)=>sum+r.top+r.height/2,0)/rects.length;
+   group.entries.forEach((entry,slot)=>{
+    const target=targets.get(entry.id);if(!target)return;
+    const packetOffset=(slot-(group.entries.length-1)/2)*Math.min(15,target.width*.24);
+    const meetX=centerX+packetOffset-entry.rect.left-entry.rect.width/2;
+    const meetY=centerY-entry.rect.top-entry.rect.height/2-(group.kind==="single"?0:12);
+    entry.clone.classList.remove("cinematic-airborne","cinematic-orbit");
+    entry.clone.classList.add(group.kind==="set"?"cinematic-match-pull":group.kind==="pair"?"cinematic-pair-pull":"cinematic-loose-cascade");
+    entry.clone.style.transitionDelay=(slot*24)+"ms";
+    entry.clone.style.transform="translate("+meetX+"px,"+meetY+"px) rotate("+((slot-(group.entries.length-1)/2)*7)+"deg) scale("+(group.kind==="single"?.94:1.04)+")";
+   });
+   window.setTimeout(()=>{
+    group.entries.forEach((entry,slot)=>{
+     const target=targets.get(entry.id);if(!target)return;
+     const dx=target.left+target.width/2-(entry.rect.left+entry.rect.width/2);
+     const dy=target.top+target.height/2-(entry.rect.top+entry.rect.height/2);
+     const scale=Math.min(1,target.width/entry.rect.width);
+     entry.clone.classList.remove("cinematic-match-pull","cinematic-pair-pull","cinematic-loose-cascade");
+     entry.clone.classList.add("cinematic-settle");
+     entry.clone.style.transitionDelay=(slot*22)+"ms";
+     entry.clone.style.transform="translate("+dx+"px,"+dy+"px) rotate(0deg) scale("+scale+")";
+    });
+   },packetDuration);
+  },groupStart);
+ });
+ const totalDuration=firstMoveAt+Math.max(0,orderedGroups.length-1)*groupGap+packetDuration+landingDuration+120;
  window.setTimeout(()=>{
   entries.forEach(entry=>entry.clone.remove());
   handEl.classList.remove("cinematic-arranging");
@@ -5458,7 +5490,7 @@ function animateHandArrangementCinematic(){
    unit.classList.add("cinematic-group-landed");
    window.setTimeout(()=>unit.classList.remove("cinematic-group-landed"),900+index*80);
   });
- },2450);
+ },totalDuration);
 }
 function animateSoloPick(sourceId,cardData,faceDown=false){
  animateCardFlight(document.getElementById(sourceId),document.getElementById("hand"),cardData,faceDown,"pick");
@@ -8028,6 +8060,11 @@ async function leaveRoom(showLobby=true){
  100%{transform:translate(var(--lift-x),var(--lift-y)) rotate(calc(var(--start-rotation) + 13deg)) scale(1.16)}
 }
 .cinematic-card-flight.cinematic-settle{transition:transform .86s cubic-bezier(.16,.84,.2,1),filter .86s ease!important;filter:brightness(1.12) drop-shadow(0 0 10px #e9c56d)!important}
+.cinematic-card-flight.cinematic-match-pull{transition:transform .48s cubic-bezier(.18,.82,.22,1),filter .35s ease!important;filter:brightness(1.42) saturate(1.18) drop-shadow(0 0 17px #ffe8a2) drop-shadow(0 0 28px #d5a448)!important}
+.cinematic-card-flight.cinematic-pair-pull{transition:transform .46s cubic-bezier(.18,.82,.22,1),filter .35s ease!important;filter:brightness(1.2) drop-shadow(0 0 11px #e9cb82)!important}
+.cinematic-card-flight.cinematic-loose-cascade{transition:transform .52s cubic-bezier(.2,.78,.18,1),filter .4s ease!important;filter:brightness(1.08) drop-shadow(0 7px 12px #0009)!important}
+.cinematic-card-flight.cinematic-settle{transition:transform .52s cubic-bezier(.16,1.12,.28,1),filter .5s ease!important;filter:brightness(1.16) drop-shadow(0 0 12px #f3d27c)!important}
+
 
 .hand-unit.cinematic-group-landed{animation:cinematicGroupLand .78s ease-out}
 @keyframes cinematicGroupLand{0%{filter:brightness(1);transform:scale(1)}35%{filter:brightness(1.32) drop-shadow(0 0 13px #f4d27a);transform:scale(1.035)}100%{filter:brightness(1);transform:scale(1)}}
