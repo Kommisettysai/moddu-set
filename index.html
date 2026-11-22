@@ -5599,7 +5599,7 @@ function dropOnGroup(event,g){
 }
 function renderHandLayout(){
  const hand=players[0].hand;
- if(roundDealInProgress)return '<div class="hand-layout deal-flat-hand"><div class="loose-area"><div class="loose-title">YOUR HAND · 13 CARDS</div><div class="hand-row deal-flat-row">'+hand.map((card,index)=>cardMarkup(card,index).replace('class="card','class="card" style="--fan-index:'+index+';')).join('')+'</div></div></div>';
+ if(roundDealInProgress)return '<div class="hand-layout deal-flat-hand"><div class="loose-area"><div class="loose-title">YOUR HAND · 13 CARDS</div><div class="hand-row deal-flat-row">'+hand.map((card,index)=>cardMarkup(card,index).replace('<div class="card ','<div class="card deal-fan-card ').replace('data-card-id=','style="--fan-index:'+index+';" data-card-id=')).join('')+'</div></div></div>';
  const groupedIds=new Set(arrangedGroups.flat());
  const items=[];
  arrangedGroups.forEach((ids,g)=>{
