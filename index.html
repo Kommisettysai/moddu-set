@@ -7806,5 +7806,40 @@ async function leaveRoom(showLobby=true){
 })();
 </script>
 
+
+<style id="discard-history-four-card-fit">
+/* Four visible discard cards: center the complete fan inside the felt, not from its left edge. */
+#modduTablePanel #discardPile .discard-stack,
+#discardPile .discard-stack{
+  position:relative!important;
+  display:block!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  height:74px!important;
+  flex:0 0 74px!important;
+  margin:0 auto!important;
+  overflow:visible!important;
+  transform:none!important;
+}
+#modduTablePanel #discardPile .discard-history-card,
+#discardPile .discard-history-card{
+  left:calc(50% - 75px + (3 - var(--stack-index))*34px)!important;
+  top:3px!important;
+  width:46px!important;
+  height:62px!important;
+  box-sizing:border-box!important;
+  transform:none!important;
+}
+@media(max-width:380px){
+  #modduTablePanel #discardPile .discard-history-card,
+  #discardPile .discard-history-card{
+    left:calc(50% - 67px + (3 - var(--stack-index))*30px)!important;
+    width:44px!important;
+    height:60px!important;
+  }
+}
+</style>
+
 </body>
   </html>
