@@ -664,6 +664,7 @@ body.app-locked{overflow:hidden}
 .card-watch-stop{border:1px solid #d7bd72;border-radius:999px;background:#71332f;color:#fff0e9;padding:7px 10px;font-size:10px;font-weight:800}
 .card-watch-react{border:1px solid #d7bd72;border-radius:999px;background:#173d32;color:#f8e8bd;padding:7px 11px;font-size:11px;font-weight:800}
 .reaction-picker-close{border:0;background:transparent;color:#f8e8bd;font-size:27px;line-height:1;padding:0 4px}
+.reaction-reset-row{display:flex;justify-content:flex-end;margin:-7px 0 12px}.reaction-reset-button{border:1px solid #c6a75d66;border-radius:999px;background:#ffffff08;color:#e7d6aa;padding:5px 9px;font-size:10px;font-weight:700}.reaction-reset-button:disabled{opacity:.7}
 .reaction-picker-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:18px}
 .reaction-emoji-button{min-height:58px;border:1px solid #c6a75d88;border-radius:13px;background:#ffffff0d;font-size:29px;box-shadow:inset 0 1px #ffffff12}
 .reaction-emoji-button:active{transform:scale(.94);background:#e7c87533}
@@ -6410,6 +6411,18 @@ async function loadPlayerRecentReactions(){
  const combined=[...DEFAULT_PLAYER_REACTIONS,...saved];
  playerRecentReactions=combined.filter((item,index)=>combined.findIndex(x=>x.text===item.text&&x.type===item.type)===index).slice(0,20);
 }
+async function resetPlayerReactionsToDefaults(){
+ playerRecentReactions=[...DEFAULT_PLAYER_REACTIONS];
+ const key=recentReactionStorageKey();
+ try{localStorage.setItem(key,"[]");}catch(e){}
+ if(authUser&&firebaseReady){
+  try{await firebase.database().ref("users/"+authUser.uid+"/recentReactions").set([]);}
+  catch(e){console.warn("Could not sync reaction reset:",e);}
+ }
+ renderPlayerRecentReactions();
+ const button=document.getElementById("reactionResetButton");
+ if(button){button.textContent="✓ Default emojis restored";button.disabled=true;}
+}
 function rememberPlayerReaction(text,type){
  const item={text:String(text||"").trim().slice(0,100),type:type==="emoji"?"emoji":"text"};if(!item.text)return;
  playerRecentReactions=[item,...playerRecentReactions.filter(x=>!(x.text===item.text&&x.type===item.type))].slice(0,20);
@@ -6703,7 +6716,7 @@ function openPlayerMessage(event){
  try{const AudioContextClass=window.AudioContext||window.webkitAudioContext;reactionAudioContext=reactionAudioContext||(AudioContextClass?new AudioContextClass():null);if(reactionAudioContext?.state==="suspended")reactionAudioContext.resume().catch(()=>{});}catch(e){}
  closePlayerReactionPopup();
  const overlay=document.createElement("div");overlay.id="playerReactionPopup";overlay.className="reaction-picker-overlay";
- overlay.innerHTML='<div class="reaction-picker" role="dialog" aria-modal="true" aria-labelledby="reactionPickerTitle"><div class="reaction-picker-head"><strong id="reactionPickerTitle">Quick reactions</strong><span class="reaction-picker-head-actions"><button type="button" id="reactionSoundToggle" class="reaction-sound-toggle" onclick="toggleReactionSounds()">'+(reactionSoundsEnabled?'🔊 Sound on':'🔇 Sound off')+'</button><button type="button" class="reaction-picker-close" aria-label="Close" onclick="closePlayerReactionPopup()">×</button></span></div><div class="reaction-picker-grid" id="reactionPickerGrid"></div><label class="reaction-picker-label" for="reactionPickerText">Or write your own message</label><textarea id="reactionPickerText" maxlength="100" rows="2" placeholder="Type a message…"></textarea><div class="reaction-picker-actions"><button type="button" class="reaction-picker-cancel" onclick="closePlayerReactionPopup()">Cancel</button><button type="button" class="reaction-picker-send" onclick="sendPlayerReactionFromPopup(document.getElementById(\'reactionPickerText\').value,\'text\')">Send</button></div></div>';
+ overlay.innerHTML='<div class="reaction-picker" role="dialog" aria-modal="true" aria-labelledby="reactionPickerTitle"><div class="reaction-picker-head"><strong id="reactionPickerTitle">Quick reactions</strong><span class="reaction-picker-head-actions"><button type="button" id="reactionSoundToggle" class="reaction-sound-toggle" onclick="toggleReactionSounds()">'+(reactionSoundsEnabled?'🔊 Sound on':'🔇 Sound off')+'</button><button type="button" class="reaction-picker-close" aria-label="Close" onclick="closePlayerReactionPopup()">×</button></span></div><div class="reaction-picker-grid" id="reactionPickerGrid"></div><div class="reaction-reset-row"><button type="button" id="reactionResetButton" class="reaction-reset-button" onclick="resetPlayerReactionsToDefaults()">↺ Reset to default emojis</button></div><label class="reaction-picker-label" for="reactionPickerText">Or write your own message</label><textarea id="reactionPickerText" maxlength="100" rows="2" placeholder="Type a message…"></textarea><div class="reaction-picker-actions"><button type="button" class="reaction-picker-cancel" onclick="closePlayerReactionPopup()">Cancel</button><button type="button" class="reaction-picker-send" onclick="sendPlayerReactionFromPopup(document.getElementById(\'reactionPickerText\').value,\'text\')">Send</button></div></div>';
  overlay.addEventListener("click",e=>{if(e.target===overlay)closePlayerReactionPopup();});
  document.body.appendChild(overlay);renderPlayerRecentReactions();
  // Keep the popup keyboard-free initially. The keyboard opens only when the player taps the message box.
