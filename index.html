@@ -7512,7 +7512,11 @@ async function runOnlineBotTurn(){
   const open=pile.length?pile[pile.length-1]:null;
   const openPlan=open?findBestArrangement([...hand,open],player):null;
   const closedPlan=deckNow.length?findBestArrangement([...hand,deckNow[deckNow.length-1]],player):null;
-  const takeOpen=!!open&&!!openPlan&&(openPlan.covered>(closedPlan?.covered||0)||(openPlan.covered===(closedPlan?.covered||0)&&openPlan.pure&&!closedPlan?.pure));
+  // Compare the whole arrangement: completion, cards covered, pure four-set,
+  // then fewer wild cards consumed. Do not judge a pickup by coverage alone.
+  const planValue=plan=>[plan?.complete?1:0,plan?.covered||0,plan?.pure?1:0,-(plan?.wilds||0)];
+  const compareValues=(a,b)=>{for(let i=0;i<Math.max(a.length,b.length);i++){const diff=(a[i]||0)-(b[i]||0);if(diff)return diff;}return 0;};
+  const takeOpen=!!open&&!!openPlan&&compareValues(planValue(openPlan),planValue(closedPlan))>0;
   await processOnlineAction(uid,{type:takeOpen?"drawOpen":"drawClosed"});
   const latestHandSnap=await roomRef.child("private/hands/"+uid).get(),newHand=latestHandSnap.val()||[];
   const stateSnap=await roomRef.child("public").get(),state=stateSnap.val();
@@ -7520,7 +7524,11 @@ async function runOnlineBotTurn(){
   let bestIndex=0,bestMetric=null;
   for(let i=0;i<newHand.length;i++){
    const candidate=newHand.filter((_,j)=>j!==i),a=findBestArrangement(candidate,player);
-   const metric=[a.complete?1:0,a.covered,a.pure?1:0,-a.wilds,-unmatchedCardPoints(newHand[i],player)];
+   // Keep jokers and eligible special jokers unless discarding one is
+   // genuinely required to complete a winning hand. Among ordinary cards,
+   // prefer shedding the highest penalty card, not the lowest.
+   const discardIsWild=isWildForPlayer(newHand[i],player);
+   const metric=[a.complete?1:0,a.covered,a.pure?1:0,-a.wilds,discardIsWild?0:1,unmatchedCardPoints(newHand[i],player)];
    if(!bestMetric||metric.some((v,k)=>v!==bestMetric[k]&&v>bestMetric[k]&&metric.slice(0,k).every((x,z)=>x===bestMetric[z]))){bestMetric=metric;bestIndex=i;}
   }
   const finalHand=newHand.filter((_,i)=>i!==bestIndex),plan=findBestArrangement(finalHand,player);
