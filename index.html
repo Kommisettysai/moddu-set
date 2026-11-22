@@ -6394,7 +6394,7 @@ function playReactionSound(emoji){
   };
   (patterns[emoji]||(()=>syllable(start,.2,260,"a","voice",40)))();
   master.gain.setValueAtTime(.72,start+1.05);master.gain.exponentialRampToValueAtTime(.0001,start+1.35);
-  master.disconnect(start+1.4);
+  window.setTimeout(()=>{try{master.disconnect();}catch(e){}},1450);
  }catch(e){/* Reactions still work when audio is unavailable or muted. */}
 }
 function recentReactionStorageKey(){return "modduSet.recentReactions."+String(authUser?.uid||"guest");}
