@@ -6252,7 +6252,7 @@ function enterOnlineGame(state){
  if(activeGameType==="leastCount"||state?.gameType==="leastCount"){enterLeastCountGame(state);return;}
  onlineMode=true;onlinePublic=state;const gameCodeEl=document.getElementById("gameRoomCode");if(gameCodeEl){gameCodeEl.textContent=roomCode||"------";gameCodeEl.closest(".game-room-code").style.display=roomCode?"flex":"none";}eliminatedSpectator=false;document.getElementById("setup").classList.add("hidden");document.getElementById("waitingRoom").classList.add("hidden");document.getElementById("game").classList.remove("hidden");document.getElementById("voicePanel")?.classList.remove("hidden");
  const notice=document.createElement("div");notice.id="spectatorNotice";notice.className="spectator-notice";notice.textContent="👀 You are eliminated. You can watch the game and request read-only access to one active player’s cards.";document.getElementById("game").prepend(notice);
- onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);chatHasOpened=false;chatUnreadCount=0;chatIsOpen=false;document.getElementById("gameChat")?.classList.remove("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");document.getElementById("chatToggle")?.setAttribute("aria-expanded","false");updateChatUnread();onlineChatRef=roomRef.child("chat");if(onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);const chatRefForLoad=onlineChatRef;chatRefForLoad.limitToLast(60).once("value").then(initial=>{if(!onlineMode||onlineChatRef!==chatRefForLoad)return;const oldKeys=new Set(Object.keys(initial.val()||{}));onlineChatListener=snap=>{const isOld=oldKeys.has(snap.key);oldKeys.delete(snap.key);const shownLocally=locallyShownChatMessages.has(snap.key);locallyShownChatMessages.delete(snap.key);receiveGameChat(snap,!isOld&&!shownLocally);};chatRefForLoad.limitToLast(60).on("child_added",onlineChatListener);}).catch(()=>{});
+ onlinePublicRef=roomRef.child("public");onlineHandRef=roomRef.child("private/hands/"+roomPlayerId);onlineActionRef=roomRef.child("actions");onlineSpecialRef=roomRef.child("private/specialRanks/"+roomPlayerId);chatHasOpened=false;chatUnreadCount=0;chatIsOpen=false;document.getElementById("gameChat")?.classList.remove("hidden");document.getElementById("chatDrawer")?.classList.add("hidden");document.getElementById("chatToggle")?.setAttribute("aria-expanded","false");updateChatUnread();onlineChatRef=roomRef.child("chat");if(onlineChatListener)onlineChatRef.off("child_added",onlineChatListener);const chatRefForLoad=onlineChatRef;let chatInitializing=true;const bufferedChatSnapshots=[];const deliverChatSnapshot=(snap,isOld=false)=>{const shownLocally=locallyShownChatMessages.has(snap.key);locallyShownChatMessages.delete(snap.key);receiveGameChat(snap,!isOld&&!shownLocally);};onlineChatListener=snap=>{if(!onlineMode||onlineChatRef!==chatRefForLoad)return;if(chatInitializing){bufferedChatSnapshots.push(snap);return;}deliverChatSnapshot(snap);};chatRefForLoad.limitToLast(60).on("child_added",onlineChatListener);chatRefForLoad.limitToLast(60).once("value").then(initial=>{if(!onlineMode||onlineChatRef!==chatRefForLoad)return;const oldKeys=new Set(Object.keys(initial.val()||{}));chatInitializing=false;bufferedChatSnapshots.forEach(snap=>{const isOld=oldKeys.has(snap.key);oldKeys.delete(snap.key);deliverChatSnapshot(snap,isOld);});bufferedChatSnapshots.length=0;}).catch(error=>{chatInitializing=false;bufferedChatSnapshots.forEach(snap=>deliverChatSnapshot(snap));bufferedChatSnapshots.length=0;console.warn("Could not mark previous chat messages:",error);});
  if(onlinePublicListener)onlinePublicRef.off("value",onlinePublicListener);onlinePublicListener=s=>{if(s.exists()){onlinePublic=s.val();applyOnlinePublic();scheduleHostDiscardTimeout(onlinePublic);if(isRoomHost){if(onlinePublic.status==="restartRequested")openHostRestartPrompt();if(onlinePublic.status==="roundComplete")finalizeOnlineGameIfNeeded().catch(e=>console.error("Game completion check failed:",e));if(onlinePublic.status==="playing"){reconcileDroppedRoundCompletion().catch(e=>console.error("Drop completion recovery failed:",e));runOnlineBotTurn();}}}};onlinePublicRef.on("value",onlinePublicListener);
   const hostRoleRef=roomRef.child("lobby/hostId");
   hostRoleRef.off("value");
@@ -6346,28 +6346,56 @@ function playReactionSound(emoji){
  try{
   const AudioContextClass=window.AudioContext||window.webkitAudioContext;if(!AudioContextClass)return;
   reactionAudioContext=reactionAudioContext||new AudioContextClass();
-  if(reactionAudioContext.state==="suspended")reactionAudioContext.resume().catch(()=>{});
-  const ctx=reactionAudioContext,now=ctx.currentTime;
-  const patterns={
-   "😂":[[740,0,.10],[980,.12,.12],[620,.28,.16]],
-   "🤣":[[880,0,.09],[1120,.10,.09],[760,.21,.10],[1040,.34,.16]],
-   "😭":[[660,0,.18],[520,.19,.2],[390,.42,.24]],
-   "😮":[[420,0,.08],[880,.12,.24]],
-   "👏":[[1050,0,.045],[720,.09,.05],[1050,.20,.045]],
-   "❤️":[[660,0,.13],[880,.16,.2]],
-   "🔥":[[520,0,.08],[780,.10,.08],[1040,.21,.14]],
-   "👍":[[660,0,.08],[880,.12,.14]],
-   "😏":[[520,0,.08],[660,.13,.13]],
-   "🙄":[[720,0,.10],[480,.16,.15]],
-   "🤭":[[800,0,.07],[620,.12,.07],[880,.23,.1]],
-   "😎":[[660,0,.08],[990,.14,.15]]
+  const ctx=reactionAudioContext;
+  if(ctx.state==="suspended")ctx.resume().catch(()=>{});
+  const start=ctx.currentTime+.015;
+  const master=ctx.createGain();master.gain.setValueAtTime(.72,start);master.connect(ctx.destination);
+  const vowelFormants={
+   a:[850,1250,2750],e:[500,1900,2600],i:[300,2200,3000],
+   o:[500,900,2500],u:[350,700,2400]
   };
-  (patterns[emoji]||[[660,0,.12]]).forEach(([freq,delay,duration],i)=>{
-   const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type=emoji==="😭"?"triangle":"sine";osc.frequency.setValueAtTime(freq,now+delay);
-   gain.gain.setValueAtTime(.0001,now+delay);gain.gain.exponentialRampToValueAtTime(.055,now+delay+.012);gain.gain.exponentialRampToValueAtTime(.0001,now+delay+duration);
-   osc.connect(gain);gain.connect(ctx.destination);osc.start(now+delay);osc.stop(now+delay+duration+.02);
-  });
- }catch(e){/* Audio is optional; reactions still work without it. */}
+  function syllable(at,duration,pitch,vowel="a",kind="voice",bend=0){
+   const [f1,f2,f3]=vowelFormants[vowel]||vowelFormants.a;
+   const source=ctx.createOscillator(),tone=ctx.createGain(),filter=ctx.createBiquadFilter();
+   source.type=kind==="nasal"?"triangle":"sawtooth";
+   source.frequency.setValueAtTime(pitch,at);
+   source.frequency.exponentialRampToValueAtTime(Math.max(65,pitch+bend),at+duration);
+   source.detune.setValueAtTime(-5,at);
+   filter.type="bandpass";filter.frequency.setValueAtTime(f1,at);filter.Q.setValueAtTime(1.1,at);
+   const formant2=ctx.createBiquadFilter();formant2.type="peaking";formant2.frequency.setValueAtTime(f2,at);formant2.Q.value=1.2;formant2.gain.value=7;
+   const formant3=ctx.createBiquadFilter();formant3.type="peaking";formant3.frequency.setValueAtTime(f3,at);formant3.Q.value=1.4;formant3.gain.value=4;
+   tone.gain.setValueAtTime(.0001,at);tone.gain.exponentialRampToValueAtTime(.22,at+.018);
+   tone.gain.setValueAtTime(.18,at+Math.max(.025,duration*.55));tone.gain.exponentialRampToValueAtTime(.0001,at+duration);
+   const vibrato=ctx.createOscillator(),vibratoGain=ctx.createGain();vibrato.frequency.value=kind==="nasal"?5:7;vibratoGain.gain.value=pitch*.018;vibrato.connect(vibratoGain);vibratoGain.connect(source.frequency);
+   source.connect(filter);filter.connect(formant2);formant2.connect(formant3);formant3.connect(tone);tone.connect(master);
+   source.start(at);vibrato.start(at);source.stop(at+duration+.025);vibrato.stop(at+duration+.025);
+  }
+  function puff(at,duration,volume=.08){
+   const length=Math.max(1,Math.floor(ctx.sampleRate*duration)),buffer=ctx.createBuffer(1,length,ctx.sampleRate),data=buffer.getChannelData(0);
+   for(let i=0;i<length;i++)data[i]=(Math.random()*2-1)*(1-i/length);
+   const noise=ctx.createBufferSource(),gain=ctx.createGain(),filter=ctx.createBiquadFilter();
+   noise.buffer=buffer;filter.type="highpass";filter.frequency.value=650;
+   gain.gain.setValueAtTime(.0001,at);gain.gain.exponentialRampToValueAtTime(volume,at+.008);gain.gain.exponentialRampToValueAtTime(.0001,at+duration);
+   noise.connect(filter);filter.connect(gain);gain.connect(master);noise.start(at);noise.stop(at+duration);
+  }
+  const patterns={
+   "😂":()=>{[0,.16,.32,.49].forEach((t,i)=>{puff(start+t,.045,.045);syllable(start+t+.015,.13,[245,285,230,310][i],i===2?"e":"a","voice",[95,-30,120,-80][i]);});},
+   "🤣":()=>{[0,.12,.24,.38,.53,.68].forEach((t,i)=>{puff(start+t,.035,.04);syllable(start+t,.105,[310,390,280,420,330,470][i],i%2?"e":"a","voice",i%2?80:-45);});},
+   "😭":()=>{puff(start,.09,.035);syllable(start,.48,390,"a","nasal",-230);syllable(start+.40,.42,255,"o","nasal",-120);syllable(start+.78,.34,185,"u","nasal",-55);},
+   "😮":()=>{syllable(start,.42,190,"o","voice",330);syllable(start+.22,.35,330,"a","voice",210);},
+   "👏":()=>{[0,.13,.27].forEach(t=>{puff(start+t,.075,.16);});},
+   "❤️":()=>{syllable(start,.22,250,"u","voice",45);syllable(start+.20,.38,295,"a","voice",55);},
+   "🔥":()=>{puff(start,.12,.07);syllable(start+.04,.16,210,"u","voice",120);syllable(start+.18,.25,330,"a","voice",170);},
+   "👍":()=>{syllable(start,.16,240,"o","voice",80);syllable(start+.16,.24,320,"u","voice",30);},
+   "😏":()=>{syllable(start,.16,220,"e","nasal",25);syllable(start+.14,.18,265,"e","nasal",45);syllable(start+.30,.25,300,"i","nasal",-20);},
+   "🙄":()=>{syllable(start,.50,260,"u","nasal",-150);syllable(start+.28,.32,180,"o","nasal",-60);},
+   "🤭":()=>{[0,.16,.31].forEach((t,i)=>{puff(start+t,.025,.025);syllable(start+t,.13,[280,340,390][i],"i","nasal",35);});},
+   "😎":()=>{syllable(start,.18,220,"o","voice",25);syllable(start+.20,.42,260,"u","voice",10);},
+  };
+  (patterns[emoji]||(()=>syllable(start,.2,260,"a","voice",40)))();
+  master.gain.setValueAtTime(.72,start+1.05);master.gain.exponentialRampToValueAtTime(.0001,start+1.35);
+  window.setTimeout(()=>{try{master.disconnect();}catch(e){}},1450);
+ }catch(e){/* Reactions still work when audio is unavailable or muted. */}
 }
 function recentReactionStorageKey(){return "modduSet.recentReactions."+String(authUser?.uid||"guest");}
 function normalizeRecentReactions(value){const list=Array.isArray(value)?value:[];const clean=list.filter(x=>x&&typeof x.text==="string"&&x.text.trim()).map(x=>({text:x.text.trim().slice(0,100),type:x.type==="emoji"?"emoji":"text"}));return clean.slice(0,8);}
@@ -6690,12 +6718,13 @@ function updateChatUnread(){
 }
 function showPlayerReaction(item){
  const profile=[...document.querySelectorAll("#players .player")].find(el=>el.getAttribute("data-player-id")===String(item.senderId));
- if(!profile)return null;
- const rect=profile.getBoundingClientRect();
+ const rect=profile?.getBoundingClientRect();
  const burst=document.createElement("div");
  burst.className="player-reaction-burst player-reaction-floating"+(item.type==="emoji"?"":" is-message");
- burst.style.setProperty("left",Math.max(8,Math.min(window.innerWidth-8,rect.left+rect.width/2))+"px","important");
- burst.style.setProperty("top",Math.max(8,rect.top-12)+"px","important");
+ // Keep reactions visible even when the table is covered by the eliminated-player card viewer.
+ burst.style.setProperty("z-index","100001","important");
+ burst.style.setProperty("left",Math.max(8,Math.min(window.innerWidth-8,rect?rect.left+rect.width/2:window.innerWidth/2))+"px","important");
+ burst.style.setProperty("top",Math.max(8,rect?rect.top-12:72)+"px","important");
  burst.style.setProperty("animation","none","important");
  burst.style.setProperty("opacity","1","important");
  burst.style.setProperty("transition","opacity .4s ease","important");
