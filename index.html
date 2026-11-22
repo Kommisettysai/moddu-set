@@ -7507,7 +7507,7 @@ async function performStartFreshRoundWithScores(){
   activeInSeatOrder.forEach(x=>hands[x.id]=d.splice(0,13));
   const first=d.pop(),nextRound=(Number(p.round)||1)+1;
   const starter=chooseNextRoundStarter(seatedPlayers,activeInSeatOrder,p.roundStarterUid||p.turnUid)||activeInSeatOrder[0];
-  const next={status:"playing",round:nextRound,scoreLimit:limit,turnUid:starter.id,roundStarterUid:starter.id,deckCount:d.length,discard:[first],drawnByUid:null,drawnCardId:null,pickDeadline:starter.isBot?null:Date.now()+60000,discardDeadline:null,specialRank:null,players:seatedPlayers.map(x=>({...x,cardCount:(hands[x.id]||[]).length})),message:"Round "+nextRound+" started by the host with new random seating. Previous scores are preserved. "+starter.name+"'s turn."};
+  const next={status:"playing",round:nextRound,scoreLimit:limit,turnUid:starter.id,roundStarterUid:starter.id,deckCount:d.length,discard:[first],drawnByUid:null,drawnCardId:null,pickDeadline:starter.isBot?null:Date.now()+60000,discardDeadline:null,specialRank:null,opponentMemory:{},players:seatedPlayers.map(x=>({...x,cardCount:(hands[x.id]||[]).length})),message:"Round "+nextRound+" started by the host with new random seating. Previous scores are preserved. "+starter.name+"'s turn."};
   await roomRef.child("private").set({deck:d,hands,specialRank:null,specialRanks:{}});
   await roomRef.child("public").set(next);
   onlinePublic=next;drawn=false;selected=-1;applyOnlinePublic();
