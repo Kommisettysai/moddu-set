@@ -2987,6 +2987,9 @@ body:has(#game:not(.hidden)) main{
 </style>
 <style>
 .card-watch-see{margin:5px 0 2px;padding:6px 16px;border:1px solid #e7c46e;border-radius:18px;background:linear-gradient(135deg,#ffe5a0,#d9a94d);color:#183d31;font-weight:800;letter-spacing:1px}
+.card-watch-watchers{display:block;margin:5px 0 2px;color:#f1d88e;font-size:10px;font-weight:700;line-height:1.4}
+.card-watch-joker-notice{margin:10px 0;padding:9px 11px;border:1px solid #d9bd76;border-radius:9px;background:#274c3c;color:#ffe8a8;font-size:12px}
+.special-wild-card{outline:2px solid #f4d77d!important}
 .card-watch-locked{display:block;margin-top:5px;color:#d9c58e;font-size:10px;letter-spacing:.8px}
 .card-watch-overlay{position:fixed;inset:0;z-index:10050;background:#031b16eF;display:flex;align-items:center;justify-content:center;padding:18px}
 .card-watch-dialog{width:min(620px,100%);max-height:85vh;overflow:auto;background:#0d392d;border:1px solid #d9bd76;border-radius:18px;padding:18px;color:#f4e5b4;box-shadow:0 18px 70px #0009}
@@ -5149,7 +5152,8 @@ function render(){
   const oldJokerInfo=document.getElementById("jokerInfo");
   if(oldJokerInfo)oldJokerInfo.textContent="";
   const slot=document.getElementById("jokerSlot");
-  const canSeeSpecial=!!(players[0]&&players[0].unlocked);
+  const watchedPlayerForJoker=cardWatchState?.status==="accepted"?currentOnlinePlayer(cardWatchState.targetUid):null;
+  const canSeeSpecial=!!(players[0]&&players[0].unlocked)||(!!watchedPlayerForJoker?.unlocked);
   if(slot)slot.innerHTML=(canSeeSpecial&&specialRank)?'<span class="card joker-face">'+specialRank+'★</span><small>Special joker</small>':'<span class="card back joker-card">★</span><small>Special joker</small>';
   const turnEl=document.getElementById("turnInfo");
   if(turnEl){
@@ -5165,7 +5169,7 @@ function render(){
   if(players[0]){
 document.getElementById("handCount").textContent=players[0].hand.length;const unmatchedEl=document.getElementById("handUnmatched");if(unmatchedEl)unmatchedEl.textContent="In hand: "+bestUnmatchedScore(players[0].hand||[],players[0])+" pts";
    if(playersEl){
-const profilePlayers=onlineMode&&Array.isArray(onlinePublic?.players)?onlinePublic.players:players;playersEl.innerHTML=profilePlayers.map((p,i)=>{const eliminated=p.active===false||p.status==="Eliminated",isTurnOwner=onlineMode?p.id===onlinePublic?.turnUid:i===turn;return '<div class="player '+(isTurnOwner&&!eliminated?'active turn-owner ':'')+(p.unlocked?'joker-seen ':'')+(p.roundDropped?'dropped-player ':'')+(eliminated?'eliminated-player':'')+'" data-player-id="'+escapeLobbyText(p.id)+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+(Number(p.score)||0)+'</span>'+(eliminated?'<span class="player-eliminated">ELIMINATED</span>':p.roundDropped?'<span class="player-dropped">DROPPED</span>':'')+cardWatchButtonMarkup(p)+'</div>';}).join('');
+const profilePlayers=onlineMode&&Array.isArray(onlinePublic?.players)?onlinePublic.players:players;playersEl.innerHTML=profilePlayers.map((p,i)=>{const eliminated=p.active===false||p.status==="Eliminated",isTurnOwner=onlineMode?p.id===onlinePublic?.turnUid:i===turn;return '<div class="player '+(isTurnOwner&&!eliminated?'active turn-owner ':'')+(p.unlocked?'joker-seen ':'')+(p.roundDropped?'dropped-player ':'')+(eliminated?'eliminated-player':'')+'" data-player-id="'+escapeLobbyText(p.id)+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+(Number(p.score)||0)+'</span>'+(eliminated?'<span class="player-eliminated">ELIMINATED</span>':p.roundDropped?'<span class="player-dropped">DROPPED</span>':'')+cardWatchersMarkup(p.id)+cardWatchButtonMarkup(p)+'</div>';}).join('');
    }
    if(handEl){
     try{handEl.innerHTML=renderHandLayout();}
@@ -5182,7 +5186,7 @@ const profilePlayers=onlineMode&&Array.isArray(onlinePublic?.players)?onlinePubl
  }catch(error){
   console.error("Game render error:",error);
   if(playersEl&&players.length){
-   const profilePlayers=onlineMode&&Array.isArray(onlinePublic?.players)?onlinePublic.players:players;playersEl.innerHTML=profilePlayers.map((p,i)=>{const eliminated=p.active===false||p.status==="Eliminated",isTurnOwner=onlineMode?p.id===onlinePublic?.turnUid:i===turn;return '<div class="player '+(isTurnOwner&&!eliminated?'active turn-owner ':'')+(p.unlocked?'joker-seen ':'')+(eliminated?'eliminated-player':'')+'" data-player-id="'+escapeLobbyText(p.id)+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+(Number(p.score)||0)+'</span>'+(eliminated?'<span class="player-eliminated">ELIMINATED</span>':p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+cardWatchButtonMarkup(p)+'</div>';}).join('');
+   const profilePlayers=onlineMode&&Array.isArray(onlinePublic?.players)?onlinePublic.players:players;playersEl.innerHTML=profilePlayers.map((p,i)=>{const eliminated=p.active===false||p.status==="Eliminated",isTurnOwner=onlineMode?p.id===onlinePublic?.turnUid:i===turn;return '<div class="player '+(isTurnOwner&&!eliminated?'active turn-owner ':'')+(p.unlocked?'joker-seen ':'')+(eliminated?'eliminated-player':'')+'" data-player-id="'+escapeLobbyText(p.id)+'">'+playerIdentityMarkup(p,i,"game")+'<span class="profile-score">Score: '+(Number(p.score)||0)+'</span>'+(eliminated?'<span class="player-eliminated">ELIMINATED</span>':p.unlocked?'<span class="joker-seen-badge">👁 JOKER SEEN</span>':'')+cardWatchersMarkup(p.id)+cardWatchButtonMarkup(p)+'</div>';}).join('');
   }
   if(handEl&&players[0]){
    handEl.innerHTML=players[0].hand.map((c,i)=>cardMarkup(c,i)).join('');
@@ -6003,6 +6007,7 @@ let locallyShownChatMessages=new Set();
 let cardWatchLockRef=null,cardWatchLockListener=null,cardWatchRequestRef=null,cardWatchRequestListener=null,cardWatchRequestPath="",cardWatchViewerDismissed=false;
 let incomingCardWatchRef=null,incomingCardWatchListener=null,watchedHandRef=null,watchedHandListener=null,watchedHandPath="";
 let cardWatchState=null,incomingCardWatchRequests={},watchedHandCache=[],watchedHandTargetName="";
+let cardWatchersRef=null,cardWatchersListener=null,cardWatchersByTarget={};
 let eliminatedSpectator=false;
 let discardClockInterval=null,hostDiscardTimeout=null,scheduledDiscardKey=null;
 let onlinePublicListener=null,onlineHandListener=null,onlineActionListener=null,onlineLobbyListener=null,rejoinPublicListener=null,onlineRejoinListener=null,onlineBusy={},onlineBotBusy=false;
@@ -6330,6 +6335,18 @@ function sendPlayerReactionFromPopup(value,type){const text=String(value||"").tr
 function cardWatchRound(){return Math.max(1,Number(onlinePublic?.round)||1);}
 function currentOnlinePlayer(uid){return (onlinePublic?.players||[]).find(p=>p.id===uid)||null;}
 function canWatchCardsThisRound(){const me=currentOnlinePlayer(roomPlayerId);return !!(onlineMode&&(eliminatedSpectator||me?.roundDropped));}
+function cardWatchersMarkup(targetUid){
+ const requests=cardWatchersByTarget[targetUid]||{};
+ const names=Object.entries(requests).filter(([uid,req])=>req&&req.status==="accepted"&&Number(req.round)===cardWatchRound()).map(([uid])=>currentOnlinePlayer(uid)?.name||"Player");
+ return names.length?'<span class="card-watch-watchers" title="'+escapeLobbyText(names.join(", "))+'">👁 Watching: '+names.map(escapeLobbyText).join(", ")+'</span>':"";
+}
+function syncCardWatchers(){
+ if(!roomRef||!onlineMode)return;
+ if(cardWatchersRef&&cardWatchersListener)return;
+ cardWatchersRef=roomRef.child("cardWatchRequests");
+ cardWatchersListener=snap=>{cardWatchersByTarget=snap.val()||{};render();};
+ cardWatchersRef.on("value",cardWatchersListener,error=>console.warn("Could not load card watcher names:",error));
+}
 function closeCardWatchViewer(revokeAccess=false){
  cardWatchViewerDismissed=true;
  document.getElementById("cardWatchViewer")?.remove();
@@ -6352,15 +6369,20 @@ function ensureCardWatchReopenButton(){
 }
 function renderCardWatchGroups(targetName,hand){
  const target=currentOnlinePlayer(cardWatchState?.targetUid)||{};
- const plan=findBestArrangement(hand||[],target),used=new Set();
+ const watchPlayer={...target,specialRank:target.unlocked?specialRank:null};
+ const plan=findBestArrangement(hand||[],watchPlayer),used=new Set();
  const groups=(plan.groups||[]).slice().sort((a,b)=>Number(b.pure)-Number(a.pure)||a.wilds-b.wilds);
  const sets=groups.map((group,index)=>{
   group.cards.forEach(card=>used.add(card.id));
-  return '<section class="card-watch-set"><div class="card-watch-set-title"><span>SET '+(index+1)+'</span><small>'+group.cards.length+' CARDS · '+(group.pure?'PURE SET':'VALID SET')+'</small></div><div class="card-watch-cards">'+group.cards.map(card=>renderResultCard(card)).join("")+'</div></section>';
+  return '<section class="card-watch-set"><div class="card-watch-set-title"><span>SET '+(index+1)+'</span><small>'+group.cards.length+' CARDS · '+(group.pure?'PURE SET':'VALID SET')+'</small></div><div class="card-watch-cards">'+group.cards.map(card=>renderWatchedResultCard(card,watchPlayer)).join("")+'</div></section>';
  }).join("");
  const loose=(hand||[]).filter(card=>!used.has(card.id));
- const looseMarkup=loose.length?'<section class="card-watch-set card-watch-loose"><div class="card-watch-set-title"><span>UNMATCHED CARDS</span><small>'+loose.length+' CARDS</small></div><div class="card-watch-cards">'+sortCardsLowToHigh(loose).map(card=>renderResultCard(card)).join("")+'</div></section>':'';
+ const looseMarkup=loose.length?'<section class="card-watch-set card-watch-loose"><div class="card-watch-set-title"><span>UNMATCHED CARDS</span><small>'+loose.length+' CARDS</small></div><div class="card-watch-cards">'+sortCardsLowToHigh(loose).map(card=>renderWatchedResultCard(card,watchPlayer)).join("")+'</div></section>':'';
  return '<div class="card-watch-hand-layout">'+(sets||'<div class="card-watch-empty">No complete sets found in this hand.</div>')+looseMarkup+'</div>';
+}
+function renderWatchedResultCard(card,player){
+ if(!card.joker&&isWildForPlayer(card,player))return '<div class="results-card joker special-wild-card">'+escapeLobbyText(card.rank)+'★<small>SPECIAL JOKER</small></div>';
+ return renderResultCard(card);
 }
 function showCardWatchViewer(targetName,hand){
  watchedHandTargetName=targetName||watchedHandTargetName||"Player";
@@ -6376,7 +6398,8 @@ function showCardWatchViewer(targetName,hand){
  }
  document.getElementById("cardWatchReopen")?.remove();
  if(!overlay){overlay=document.createElement("div");overlay.id="cardWatchViewer";overlay.className="card-watch-overlay";document.body.appendChild(overlay);}
- overlay.innerHTML='<div class="card-watch-dialog" role="dialog" aria-modal="true"><div class="card-watch-head"><div><small>READ-ONLY VIEW · LIVE CARDS</small><h3>'+escapeLobbyText(watchedHandTargetName)+'’s cards</h3></div><button type="button" onclick="closeCardWatchViewer()" aria-label="Close">×</button></div><p>Cards are grouped into valid sets. Unmatched cards are shown separately. This is a read-only view.</p>'+renderCardWatchGroups(watchedHandTargetName,watchedHandCache)+'</div>';
+ const watchedPlayer=currentOnlinePlayer(cardWatchState?.targetUid),jokerNotice=watchedPlayer?.unlocked&&specialRank?'<div class="card-watch-joker-notice">👁 This player has unlocked the special joker: <strong>'+escapeLobbyText(specialRank)+'★</strong></div>':"";
+ overlay.innerHTML='<div class="card-watch-dialog" role="dialog" aria-modal="true"><div class="card-watch-head"><div><small>READ-ONLY VIEW · LIVE CARDS</small><h3>'+escapeLobbyText(watchedHandTargetName)+'’s cards</h3></div><button type="button" onclick="closeCardWatchViewer()" aria-label="Close">×</button></div>'+jokerNotice+'<p>Cards are grouped into valid sets. Unmatched cards are shown separately. This is a read-only view.</p>'+renderCardWatchGroups(watchedHandTargetName,watchedHandCache)+'</div>';
 }
 async function reopenCardWatchViewer(){
  const targetUid=cardWatchState?.targetUid;
@@ -6879,6 +6902,7 @@ function applyOnlinePublic(){
   }
  }else{if(cardWatchLockRef&&cardWatchLockListener)cardWatchLockRef.off("value",cardWatchLockListener);cardWatchLockRef=cardWatchLockListener=null;cardWatchState=null;closeCardWatchViewer();}
  syncIncomingCardWatchRequests();
+ syncCardWatchers();
  updateDiscardCountdown();
 }
 async function returnToLobbyForRecovery(){
@@ -6894,6 +6918,8 @@ async function returnToLobbyForRecovery(){
  if(roomRef&&rejoinPublicListener)roomRef.child("public").off("value",rejoinPublicListener);
  if(onlineRematchVotesRef&&onlineRematchVotesListener)onlineRematchVotesRef.off("value",onlineRematchVotesListener);
  if(watchedHandRef&&watchedHandListener)watchedHandRef.off("value",watchedHandListener);
+ if(cardWatchersRef&&cardWatchersListener)cardWatchersRef.off("value",cardWatchersListener);
+ cardWatchersRef=null;cardWatchersListener=null;cardWatchersByTarget={};
  onlineRematchVotesRef=null;onlineRematchVotesListener=null;watchedHandRef=watchedHandListener=null;watchedHandPath="";
  if(hostDiscardTimeout)clearTimeout(hostDiscardTimeout);hostDiscardTimeout=null;scheduledDiscardKey=null;
  onlineMode=false;onlinePublic=null;onlinePublicRef=onlineHandRef=onlineActionRef=onlineSpecialRef=null;
