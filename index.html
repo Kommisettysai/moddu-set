@@ -5360,6 +5360,7 @@ function animateRoundDeal(playerList,online=false){
     const target=isLocal?handEl:(online?profiles.find(el=>el.dataset.playerId===String(player.id)):profiles[(playerList||[]).indexOf(player)]);
     const cardId=isLocal?localCardIds[cardIndex]:null;
     const actualCard=isLocal?[...handEl.querySelectorAll(".card[data-card-id]")].find(el=>el.dataset.cardId===cardId):null;
+    if(actualCard)actualCard.classList.add("deal-revealed");
     if(!target||!document.body.contains(target))return;
     const rect=actualCard?.getBoundingClientRect()||target.getBoundingClientRect();
     if(!rect.width||!rect.height)return;
@@ -7997,7 +7998,13 @@ async function leaveRoom(showLobby=true){
 .deal-flight.is-moving{transition:transform .43s cubic-bezier(.2,.68,.25,1),opacity .43s ease!important}
 @media(prefers-reduced-motion:reduce){.deal-flight{display:none!important}}
 
-#hand.round-dealing .card[data-card-id]{visibility:hidden!important;opacity:0!important}
+#hand.round-dealing .card[data-card-id]:not(.deal-revealed){visibility:hidden!important;opacity:0!important}
+#hand.round-dealing .deal-flat-row{position:relative!important;display:block!important;width:100%!important;height:116px!important;min-height:116px!important;overflow:hidden!important;margin:4px auto 8px!important;contain:layout paint!important}
+#hand.round-dealing .deal-flat-row>.deal-fan-card{position:absolute!important;display:flex!important;left:50%!important;bottom:3px!important;width:40px!important;min-width:40px!important;max-width:40px!important;height:62px!important;margin-left:-20px!important;transform:translateX(calc(var(--fan-index)*16px - 96px)) rotate(calc(var(--fan-index)*2.5deg - 15deg))!important;transform-origin:50% 100%!important;opacity:0!important;visibility:hidden!important;transition:opacity .2s ease,filter .25s ease!important;z-index:calc(20 + var(--fan-index))!important}
+#hand.round-dealing .deal-flat-row>.deal-fan-card.deal-revealed{opacity:1!important;visibility:visible!important;filter:drop-shadow(0 5px 5px #0008)!important}
+@media(max-width:380px){
+ #hand.round-dealing .deal-flat-row>.deal-fan-card{width:34px!important;min-width:34px!important;max-width:34px!important;height:53px!important;margin-left:-17px!important;transform:translateX(calc(var(--fan-index)*14px - 84px)) rotate(calc(var(--fan-index)*2.3deg - 13.8deg))!important}
+}
 #hand.round-dealing .hand-unit,#hand.round-dealing .unit-label{visibility:hidden!important;opacity:0!important}
 #hand.cinematic-arranging .card[data-card-id],
 #hand.cinematic-arranging .hand-unit,
